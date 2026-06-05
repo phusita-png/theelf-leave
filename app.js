@@ -628,8 +628,9 @@ function renderHr(r){
 function refresh(){ api('bootstrap',{}).then(function(r){ if(r.ok){ apply(r); if(S.view==='home'||S.view==='profile') render(); } }).catch(function(){}); }
 function statusBadge(st){
   st = String(st||'');
-  if (st.indexOf('อนุมัติ')>=0 && st.indexOf('ไม่')<0) return '<span class="badge ok">✅ อนุมัติ</span>';
+  if (st.indexOf('รอ')>=0) return '<span class="badge wait">⏳ รออนุมัติ</span>';   // "รอการอนุมัติ" — เช็คก่อน (มีคำว่า "อนุมัติ" ข้างใน)
   if (st.indexOf('ไม่อนุมัติ')>=0) return '<span class="badge no">❌ ไม่อนุมัติ</span>';
+  if (st.indexOf('อนุมัติ')>=0) return '<span class="badge ok">✅ อนุมัติ</span>';
   return '<span class="badge wait">⏳ รออนุมัติ</span>';
 }
 function dkey(d){ return d.getFullYear()+'-'+d.getMonth()+'-'+d.getDate(); }
