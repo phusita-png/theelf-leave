@@ -1,22 +1,17 @@
 // ================================================================
-// config.js — ค่าที่ต้องแก้ก่อนใช้งานจริง (พี่กี้แก้ตรงนี้ที่เดียว)
+// config.js — ค่าตั้งระบบ (production)
 // ================================================================
 window.LEAVE_CONFIG = {
 
-  // 1) URL ของ Apps Script Web App (WebApp.gs)
-  //    Deploy → New deployment → Web app → copy /exec URL มาวาง
-  API_URL: "PASTE_APPS_SCRIPT_EXEC_URL_HERE",
+  // 1) URL ของ Apps Script Web App (WebApp.gs) — /exec
+  API_URL: "https://script.google.com/macros/s/AKfycbwFTk8vIiue-KEMfk7Wb8mVP6fqg8TpeMks4zS_2FRCIML7pNzLrywMnA7M_gNL1YMSlw/exec",
 
-  // 2) LIFF ID (LINE Developers → LIFF → สร้าง app → endpoint = URL GitHub Pages)
-  //    ตัวอย่าง: "2001234567-AbcdEfgh"
-  LIFF_ID: "PASTE_LIFF_ID_HERE",
+  // 2) LIFF ID (LINE Login channel "ระบบลา & OT ดิเอลฟ์")
+  LIFF_ID: "2010306683-lAr4GKMY",
 
-  // 3) DEV MODE — เทสบนเครื่องโดยไม่ผ่าน LINE
-  //    ใส่ LINE userId จริง 1 คน (จาก sheet LineUsers) เพื่อทดสอบ
-  //    ⚠️ ใช้ตอนพัฒนาเท่านั้น — production ตั้งเป็น "" และตั้ง LIFF_CHANNEL_ID ใน Apps Script
+  // 3) DEV MODE — เทสโดยไม่ผ่าน LINE (production = "")
   DEV_USER_ID: "",
 
-  // 4) MOCK MODE — เปิดดู UI ในเบราว์เซอร์ทันที (ข้อมูลตัวอย่าง ไม่ต่อ API/LIFF)
-  //    เปิด index.html ได้เลย · production ต้องตั้งเป็น false
-  MOCK: true
+  // 4) MOCK MODE — พรีวิว UI ด้วยข้อมูลตัวอย่าง (production = false)
+  MOCK: false
 };
