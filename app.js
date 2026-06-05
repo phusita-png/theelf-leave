@@ -236,14 +236,30 @@ function submitLeave(){
     if(h<=0) return toast('เวลาเริ่ม-สิ้นสุดต้องไม่เท่ากัน','err');
     if(h>8) return toast('ลารายชั่วโมงเกิน 8 ชม. — เลือกเต็มวันแทนค่ะ','err');
   }
-  var btn = document.getElementById('btnLeave'); btn.disabled=true; btn.textContent='กำลังส่ง…';
+  // สรุปยืนยันก่อนส่ง
+  var lt=S.leaveTypes[f.type], days=countLeaveDays(f);
+  var per=f.period==='morning'?'ครึ่งเช้า':f.period==='afternoon'?'ครึ่งบ่าย':f.period==='hours'?'ราย ชม.':'เต็มวัน';
+  var qty=f.period==='hours'?(otHours(f.stime,f.etime)||0)+' ชม. (≈'+days+' วัน)':days+' วัน';
+  var dt=fmtThai(f.start)+(f.end&&dkey(f.end)!==dkey(f.start)?' — '+fmtThai(f.end):'')+
+    (f.period==='hours'&&f.stime&&f.etime?' · '+f.stime+'-'+f.etime:'');
+  confirmModal({ title:'ยืนยันการยื่นลา', emoji:'📋', accent:'leave', onConfirm:doSubmitLeave, rows:[
+    {k:'ประเภท', v:lt.emoji+' '+lt.name},
+    {k:'วันที่',  v:dt},
+    {k:'ช่วงเวลา',v:per},
+    {k:'จำนวน',   v:qty},
+    {k:'เหตุผล',  v:f.reason||'—'}
+  ]});
+}
+function doSubmitLeave(){
+  var f = S.leaveForm;
+  var btn = document.getElementById('btnLeave'); if(btn){ btn.disabled=true; btn.textContent='กำลังส่ง…'; }
   api('submit',{type:f.type,startDate:fmtThai(f.start),endDate:fmtThai(f.end||f.start),period:f.period,reason:f.reason||'',startTime:f.stime,endTime:f.etime})
   .then(function(r){
-    if(!r.ok){ btn.disabled=false; btn.textContent='ส่งคำขอลา'; return toast(r.error||'ส่งไม่สำเร็จ','err'); }
+    if(!r.ok){ if(btn){btn.disabled=false;btn.textContent='ส่งคำขอลา';} return toast(r.error||'ส่งไม่สำเร็จ','err'); }
     toast('✅ ส่งใบลาแล้ว · '+r.leaveId,'ok');
     S.leaveForm={type:'vac',start:null,end:null,period:'full',reason:'',stime:'',etime:''};
     refresh(); setTimeout(function(){ S.histTab='leave'; goTo('history'); },1100);
-  }).catch(function(e){ btn.disabled=false; btn.textContent='ส่งคำขอลา'; toast(String(e.message||e),'err'); });
+  }).catch(function(e){ if(btn){btn.disabled=false;btn.textContent='ส่งคำขอลา';} toast(String(e.message||e),'err'); });
 }
 
 // ════════════ VIEW: OT ════════════
@@ -298,14 +314,25 @@ function submitOt(){
   if (!f.date) return toast('กรุณาเลือกวันที่ทำ OT','err');
   if (!f.start || !f.end) return toast('กรุณาใส่เวลาเริ่ม-สิ้นสุด','err');
   if (otHours(f.start,f.end)<=0) return toast('เวลาเริ่ม-สิ้นสุดต้องไม่เท่ากัน','err');
-  var btn = document.getElementById('btnOt'); btn.disabled=true; btn.textContent='กำลังส่ง…';
+  var hrs=otHours(f.start,f.end);
+  confirmModal({ title:'ยืนยันการขอ OT', emoji:'⏰', accent:'ot', onConfirm:doSubmitOt, rows:[
+    {k:'ประเภท', v:S.otTypes[f.type]||'-'},
+    {k:'วันที่',  v:fmtThai(f.date)},
+    {k:'เวลา',    v:f.start+' → '+f.end+(endBeforeStart(f.start,f.end)?' 🌙':'')},
+    {k:'รวม',     v:hrs+' ชม.'},
+    {k:'เหตุผล',  v:f.reason||'—'}
+  ]});
+}
+function doSubmitOt(){
+  var f = S.otForm;
+  var btn = document.getElementById('btnOt'); if(btn){ btn.disabled=true; btn.textContent='กำลังส่ง…'; }
   api('otSubmit',{otDate:fmtThai(f.date),startTime:f.start,endTime:f.end,otType:f.type,reason:f.reason||''})
   .then(function(r){
-    if(!r.ok){ btn.disabled=false; btn.textContent='ส่งคำขอ OT'; return toast(r.error||'ส่งไม่สำเร็จ','err'); }
+    if(!r.ok){ if(btn){btn.disabled=false;btn.textContent='ส่งคำขอ OT';} return toast(r.error||'ส่งไม่สำเร็จ','err'); }
     toast('✅ ส่งคำขอ OT แล้ว · '+r.hours+' ชม.','ok');
     S.otForm={date:null,start:'',end:'',type:'1',reason:''};
     refresh(); setTimeout(function(){ S.histTab='ot'; goTo('history'); },1100);
-  }).catch(function(e){ btn.disabled=false; btn.textContent='ส่งคำขอ OT'; toast(String(e.message||e),'err'); });
+  }).catch(function(e){ if(btn){btn.disabled=false;btn.textContent='ส่งคำขอ OT';} toast(String(e.message||e),'err'); });
 }
 
 // ════════════ CALENDAR (shared) ════════════
@@ -513,6 +540,26 @@ function showViewer(state, url, name){
   v.querySelector('[data-vwclose]').addEventListener('click', closeViewer);
 }
 function closeViewer(){ var v=document.getElementById('viewer'); if(v) v.classList.remove('show'); }
+
+// ── Confirm modal (สรุปยืนยันก่อนส่ง) ──
+function confirmModal(opts){
+  var c=document.getElementById('confirm');
+  if(!c){ c=document.createElement('div'); c.id='confirm'; c.className='cfm'; document.body.appendChild(c); }
+  var ac = opts.accent==='ot' ? 'ot' : '';
+  var rows = opts.rows.map(function(r){
+    return '<div class="cfm-row"><span class="cfm-k">'+esc(r.k)+'</span><span class="cfm-v">'+esc(r.v)+'</span></div>'; }).join('');
+  c.innerHTML='<div class="cfm-box">'+
+    '<div class="cfm-head '+ac+'">'+opts.emoji+' '+esc(opts.title)+'</div>'+
+    '<div class="cfm-body">'+rows+'<div class="cfm-note">ตรวจสอบให้ถูกต้องก่อนส่งนะคะ</div></div>'+
+    '<div class="cfm-act">'+
+      '<button class="cfm-btn ghost" data-cfm-cancel>✕ แก้ไข</button>'+
+      '<button class="cfm-btn go '+ac+'" data-cfm-ok>✅ ยืนยันส่ง</button>'+
+    '</div></div>';
+  c.classList.add('show');
+  c.querySelector('[data-cfm-cancel]').addEventListener('click', closeConfirm);
+  c.querySelector('[data-cfm-ok]').addEventListener('click', function(){ closeConfirm(); opts.onConfirm(); });
+}
+function closeConfirm(){ var c=document.getElementById('confirm'); if(c) c.classList.remove('show'); }
 function baht(n){ return (Number(n)||0).toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2})+' ฿'; }
 function baht0(n){ return (Number(n)||0).toLocaleString('th-TH',{maximumFractionDigits:0})+' ฿'; }
 

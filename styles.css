@@ -296,6 +296,28 @@ textarea:focus,input[type=time]:focus{border-color:var(--red)}
 .vw-dl{display:block;text-align:center;padding:14px;background:var(--bg);color:var(--red);
   font-weight:700;font-size:14px;text-decoration:none;border-top:1px solid var(--line)}
 
+/* ── Confirm modal (ยืนยันก่อนส่ง) ── */
+.cfm{position:fixed;inset:0;background:rgba(20,26,40,.55);z-index:60;display:none;
+  align-items:center;justify-content:center;padding:20px}
+.cfm.show{display:flex;animation:fade .18s ease}
+.cfm-box{background:#fff;border-radius:18px;width:100%;max-width:380px;overflow:hidden;
+  box-shadow:0 16px 44px rgba(0,0,0,.4);animation:pop .2s ease}
+@keyframes pop{from{transform:scale(.92);opacity:.6}to{transform:scale(1);opacity:1}}
+.cfm-head{background:var(--red);color:#fff;padding:16px 18px;font-weight:700;font-size:16px}
+.cfm-head.ot{background:var(--ot)}
+.cfm-body{padding:8px 18px 4px}
+.cfm-row{display:flex;justify-content:space-between;gap:14px;padding:11px 0;border-bottom:1px solid var(--line)}
+.cfm-row .cfm-k{color:var(--muted);font-size:14px;flex:0 0 auto}
+.cfm-row .cfm-v{font-weight:600;font-size:14px;text-align:right}
+.cfm-note{text-align:center;color:var(--muted);font-size:12px;padding:12px 0 8px}
+.cfm-act{display:grid;grid-template-columns:1fr 1.4fr;gap:10px;padding:6px 18px 18px}
+.cfm-btn{border:none;border-radius:13px;padding:14px;font-family:inherit;font-weight:700;
+  font-size:15px;cursor:pointer}
+.cfm-btn:active{transform:scale(.97)}
+.cfm-btn.ghost{background:var(--bg);color:var(--muted)}
+.cfm-btn.go{background:var(--red);color:#fff}
+.cfm-btn.go.ot{background:var(--ot)}
+
 /* ── Skeleton ── */
 .skel{background:linear-gradient(90deg,#eef0f4 25%,#f6f7fa 50%,#eef0f4 75%);background-size:200% 100%;
   animation:sh 1.2s infinite;border-radius:12px}
