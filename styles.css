@@ -120,6 +120,25 @@ img{max-width:100%}
 .hr-lb{font-size:11px;color:var(--muted);margin-top:2px}
 .hr-note{background:var(--ot-tint);color:var(--ot);font-size:12px;border-radius:10px;
   padding:9px 12px;margin-bottom:12px;line-height:1.4}
+.hr-note.ok2{background:var(--green-tint);color:var(--green)}
+
+/* ── HR pending: approve/reject ── */
+.pend{padding:12px 2px;border-bottom:1px solid var(--line)}
+.pend:last-child{border-bottom:none}
+.pend-top{display:flex;align-items:center;gap:12px}
+.pend-act{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;padding-left:50px}
+.pend-btn{border:none;border-radius:10px;padding:9px;font-family:inherit;font-weight:700;
+  font-size:13px;cursor:pointer}
+.pend-btn:active{transform:scale(.97)}
+.pend-btn.ok{background:var(--green);color:#fff}
+.pend-btn.no{background:var(--red-tint);color:var(--red-deep)}
+
+/* ── Reject reason picker ── */
+.rej-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.rej-opt{border:1.5px solid var(--line);background:#fff;border-radius:12px;padding:13px 8px;
+  font-family:inherit;font-weight:600;font-size:13px;cursor:pointer;color:var(--ink)}
+.rej-opt:active{transform:scale(.97)}
+.rej-opt.custom{grid-column:1/-1;border-style:dashed;color:var(--muted)}
 
 /* ── Hub: recent feed ── */
 .feed-item{display:flex;align-items:center;gap:12px;padding:12px 2px;border-bottom:1px solid var(--line)}

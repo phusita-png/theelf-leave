@@ -586,8 +586,50 @@ function loadHr(){
   api('hrDashboard',{}).then(function(r){
     var m=document.getElementById('main'); if(!m) return;
     if(!r.ok){ m.innerHTML = backBar()+emptyBox('🔒', r.error||'ไม่มีสิทธิ์'); bindBack(); return; }
-    m.innerHTML = backBar()+renderHr(r); bindBack();
+    m.innerHTML = backBar()+renderHr(r); bindBack(); wireHrPending();
   }).catch(function(e){ var m=document.getElementById('main'); if(m){ m.innerHTML=backBar()+emptyBox('😿',String(e.message||e)); bindBack(); } });
+}
+function wireHrPending(){
+  document.querySelectorAll('[data-appr]').forEach(function(el){
+    el.addEventListener('click', function(){ doHrApprove(el.dataset.kind, el.dataset.id, el.dataset.name); }); });
+  document.querySelectorAll('[data-rej]').forEach(function(el){
+    el.addEventListener('click', function(){ doHrReject(el.dataset.kind, el.dataset.id, el.dataset.name); }); });
+}
+function doHrApprove(kind, id, name){
+  confirmModal({ title:'ยืนยันอนุมัติ', emoji:'✅', accent: kind==='ot'?'ot':'leave',
+    onConfirm:function(){ hrDecide(kind, id, 'approve', ''); }, rows:[
+      {k:'ประเภท', v: kind==='ot'?'⏰ OT':'📋 ลา'},
+      {k:'ของ',   v:name},
+      {k:'รหัส',   v:id}
+    ]});
+}
+function doHrReject(kind, id, name){
+  var reasons = kind==='ot'
+    ? ['ไม่ได้แจ้งล่วงหน้า','ช่วงเวลาไม่ถูกต้อง','งานไม่จำเป็นต้อง OT','ข้อมูลไม่ถูกต้อง']
+    : ['เอกสารไม่ครบ','วันชนกับงาน','สิทธิ์ลาไม่พอ','ข้อมูลไม่ถูกต้อง'];
+  var c=document.getElementById('confirm');
+  if(!c){ c=document.createElement('div'); c.id='confirm'; c.className='cfm'; document.body.appendChild(c); }
+  var btns = reasons.map(function(rs){ return '<button class="rej-opt" data-r="'+esc(rs)+'">'+esc(rs)+'</button>'; }).join('');
+  c.innerHTML='<div class="cfm-box"><div class="cfm-head" style="background:var(--red-deep)">❌ ไม่อนุมัติ — เลือกเหตุผล</div>'+
+    '<div class="cfm-body"><div style="font-size:13px;color:var(--muted);margin-bottom:10px">'+esc(name)+' · '+esc(id)+'</div>'+
+    '<div class="rej-grid">'+btns+'<button class="rej-opt custom" data-r="__custom__">✍️ ระบุเอง</button></div></div>'+
+    '<div class="cfm-act" style="grid-template-columns:1fr"><button class="cfm-btn ghost" data-cfm-cancel>ยกเลิก</button></div></div>';
+  c.classList.add('show');
+  c.querySelector('[data-cfm-cancel]').addEventListener('click', closeConfirm);
+  c.querySelectorAll('.rej-opt').forEach(function(el){
+    el.addEventListener('click', function(){
+      var rs = el.dataset.r;
+      if(rs==='__custom__'){ rs = window.prompt('ระบุเหตุผลไม่อนุมัติ:'); if(!rs) return; }
+      closeConfirm(); hrDecide(kind, id, 'reject', rs);
+    }); });
+}
+function hrDecide(kind, id, decision, reason){
+  toast('กำลังดำเนินการ…');
+  api('approve', {kind:kind, id:id, decision:decision, reason:reason||''}).then(function(r){
+    if(!r.ok){ if(r.already) loadHr(); return toast(r.error||'ทำรายการไม่สำเร็จ','err'); }
+    toast((decision==='approve'?'✅ อนุมัติ ':'❌ ไม่อนุมัติ ')+id+' แล้ว','ok');
+    loadHr();
+  }).catch(function(e){ toast(String(e.message||e),'err'); });
 }
 function renderHr(r){
   var lv=r.leave, ot=r.ot;
@@ -604,13 +646,17 @@ function renderHr(r){
   var pend = r.pending.length ? r.pending.map(function(x){
     var emo = x.kind==='ot' ? '⏰' : (TYPE_EMOJI[x.type]||'📋');
     var amt = x.kind==='ot' ? (x.hours+' ชม.') : (x.days+' วัน');
-    return '<div class="hist"><div class="hist-ic">'+emo+'</div><div class="hist-main">'+
+    var d = 'data-kind="'+x.kind+'" data-id="'+esc(x.id)+'" data-name="'+esc(x.name)+'"';
+    return '<div class="pend"><div class="pend-top"><div class="hist-ic">'+emo+'</div><div class="hist-main">'+
       '<div class="hist-type">'+esc(x.name)+'</div>'+
-      '<div class="hist-meta">'+esc(x.type)+' · '+esc(x.date)+' · '+amt+'</div></div>'+
-      '<span class="badge wait">'+esc(x.id)+'</span></div>'; }).join('')
+      '<div class="hist-meta">'+esc(x.type)+' · '+esc(x.date)+' · '+amt+' · '+esc(x.id)+'</div></div></div>'+
+      '<div class="pend-act">'+
+        '<button class="pend-btn no" data-rej="1" '+d+'>❌ ไม่อนุมัติ</button>'+
+        '<button class="pend-btn ok" data-appr="1" '+d+'>✅ อนุมัติ</button>'+
+      '</div></div>'; }).join('')
     : '<div class="empty" style="padding:20px"><div class="e-emo">✅</div><div class="e-txt">ไม่มีรายการค้างอนุมัติ</div></div>';
   var pendCard='<div class="card"><div class="card-title"><span class="ic"></span>รออนุมัติ ('+r.pending.length+')</div>'+
-    '<div class="hr-note">👉 กดอนุมัติ/ไม่อนุมัติได้ที่กลุ่ม LINE ของ HR (มีปุ่มเหตุผลให้กดแล้ว)</div>'+pend+'</div>';
+    (r.pending.length?'<div class="hr-note ok2">👇 กดอนุมัติ/ไม่อนุมัติได้เลย · ระบบแจ้งพนักงานทาง LINE อัตโนมัติ</div>':'')+pend+'</div>';
 
   var emps = r.employees.map(function(e){
     var over = String(e.status).indexOf('เกิน')>=0;
@@ -696,6 +742,7 @@ function mockApi(action){
       {name:'หนังสือรับรองเงินเดือน พ.ค. 69',url:'#',category:'หนังสือรับรอง',scope:'ส่วนตัว'},
       {name:'นโยบายวันลา ปี 2569',url:'#',category:'นโยบาย',scope:'ทั้งบริษัท'},
       {name:'ฟอร์มเบิกค่ารักษาพยาบาล',url:'#',category:'แบบฟอร์ม',scope:'ทั้งบริษัท'}]});
+    else if(action==='approve') resolve({ok:true,id:'(mock)',status:'✅'});
     else if(action==='hrDashboard') resolve({ok:true,monthLabel:'มิถุนายน 2569',
       leave:{total:8,approved:5,pending:2,rejected:1},ot:{hours:24.5,count:6,pending:1},
       employees:[{name:'นางสาวชนัญชิดา โชคธนอนันต์',dept:'สำนักงานใหญ่',vac:16,biz:10,sick:29,used:5,status:'✅ ปกติ'},
