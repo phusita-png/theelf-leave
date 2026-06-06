@@ -637,11 +637,7 @@ function renderHr(r){
   var summary='<div class="card"><div class="card-title"><span class="ic"></span>สรุปการลา · '+esc(r.monthLabel)+'</div>'+
     '<div class="hr-grid">'+stat(lv.total,'ยื่นทั้งหมด')+stat(lv.approved,'อนุมัติ')+stat(lv.pending,'รออนุมัติ')+stat(lv.rejected,'ไม่อนุมัติ')+'</div></div>';
   var otcard='<div class="card"><div class="card-title ot"><span class="ic"></span>OT · '+esc(r.monthLabel)+'</div>'+
-    '<div class="chips">'+
-      '<div class="chip"><div class="chip-v">'+ot.hours+' ชม.</div><div class="chip-l">รวมชั่วโมง</div></div>'+
-      '<div class="chip"><div class="chip-v">'+ot.count+'</div><div class="chip-l">รายการ</div></div>'+
-      '<div class="chip"><div class="chip-v">'+ot.pending+'</div><div class="chip-l">รออนุมัติ</div></div>'+
-    '</div></div>';
+    '<div class="hr-grid ot">'+stat(ot.count,'รายการ')+stat(ot.approved,'อนุมัติ')+stat(ot.pending,'รออนุมัติ')+stat(ot.rejected,'ไม่อนุมัติ')+'</div></div>';
 
   var pend = r.pending.length ? r.pending.map(function(x){
     var emo = x.kind==='ot' ? '⏰' : (TYPE_EMOJI[x.type]||'📋');
