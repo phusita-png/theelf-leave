@@ -636,7 +636,7 @@ function renderHr(r){
   var stat=function(num,lb){ return '<div class="hr-stat"><div class="hr-num">'+num+'</div><div class="hr-lb">'+lb+'</div></div>'; };
   var summary='<div class="card"><div class="card-title"><span class="ic"></span>สรุปการลา · '+esc(r.monthLabel)+'</div>'+
     '<div class="hr-grid">'+stat(lv.total,'ยื่นทั้งหมด')+stat(lv.approved,'อนุมัติ')+stat(lv.pending,'รออนุมัติ')+stat(lv.rejected,'ไม่อนุมัติ')+'</div></div>';
-  var otcard='<div class="card"><div class="card-title ot"><span class="ic"></span>OT เดือนนี้</div>'+
+  var otcard='<div class="card"><div class="card-title ot"><span class="ic"></span>OT · '+esc(r.monthLabel)+'</div>'+
     '<div class="chips">'+
       '<div class="chip"><div class="chip-v">'+ot.hours+' ชม.</div><div class="chip-l">รวมชั่วโมง</div></div>'+
       '<div class="chip"><div class="chip-v">'+ot.count+'</div><div class="chip-l">รายการ</div></div>'+
