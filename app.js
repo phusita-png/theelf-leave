@@ -758,7 +758,7 @@ function renderHr(r){
     var amt = x.kind==='ot' ? (x.hours+' ชม.') : (x.days+' วัน');
     var d = 'data-kind="'+x.kind+'" data-id="'+esc(x.id)+'" data-name="'+esc(x.name)+'"';
     return '<div class="pend"><div class="pend-top"><div class="hist-ic">'+emo+'</div><div class="hist-main">'+
-      '<div class="hist-type">'+esc(x.name)+'</div>'+
+      '<div class="hist-type">'+esc(x.name)+(x.resubmit?' <span class="re-badge">🔄 แก้ไขส่งใหม่</span>':'')+'</div>'+
       '<div class="hist-meta">'+esc(x.type)+' · '+esc(x.date)+' · '+amt+' · '+esc(x.id)+'</div></div></div>'+
       '<div class="pend-act">'+
         '<button class="pend-btn no" data-rej="1" '+d+'>❌ ไม่อนุมัติ</button>'+
