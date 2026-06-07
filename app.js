@@ -142,7 +142,7 @@ function viewHome(){
     stat('vac','🌴',bal('vac'),'พักร้อนคงเหลือ')+
     stat('biz','🏠',bal('biz'),'ลากิจคงเหลือ')+
     stat('sick','🤒',bal('sick'),'ลาป่วยคงเหลือ')+
-    stat('ot','⏰',(S.otThisMonth.hours||0),'OT เดือนนี้ (ชม.)')+
+    stat('ot','⏰',(S.otThisMonth.hours||0),'OT รอบนี้ (ชม.)')+
   '</div>'+
 
   '<div class="act-row">'+
@@ -442,7 +442,7 @@ function viewProfile(){
   '<div class="card"><div class="card-title"><span class="ic"></span>ข้อมูลส่วนตัว</div>'+
     pfRow('ชื่อ-นามสกุล',p.name)+pfRow('รหัสพนักงาน',p.empId||'—')+pfRow('แผนก',p.dept||'—')+
     '<div class="pf-row"><span class="k">สิทธิ์การใช้งาน</span><span class="v">'+roleChip+'</span></div>'+
-    '<div class="pf-row"><span class="k">OT เดือนนี้</span><span class="v">'+(S.otThisMonth.hours||0)+' ชม. · '+(S.otThisMonth.count||0)+' รายการ</span></div></div>'+
+    '<div class="pf-row"><span class="k">OT รอบนี้</span><span class="v">'+(S.otThisMonth.hours||0)+' ชม. · '+(S.otThisMonth.count||0)+' รายการ'+(S.otThisMonth.period?' <span style="color:var(--muted);font-size:12px">('+S.otThisMonth.period+')</span>':'')+'</span></div></div>'+
 
   '<div class="card"><div style="display:flex;gap:10px;align-items:center;color:var(--muted);font-size:13px">'+
     '<span style="font-size:20px">🏢</span><div>The Elf · ระบบลา & OT<br>เชื่อมต่อ Google Sheets เดิม · อนุมัติผ่าน LINE ของ HR</div></div></div>';
@@ -718,7 +718,7 @@ function mockBootstrap(){
   S.balances={vac:{name:'พักร้อน',emoji:'🌴',remaining:16},biz:{name:'ลากิจ',emoji:'🏠',remaining:10},sick:{name:'ลาป่วย',emoji:'🤒',remaining:29},
     unpaid:{name:'ไม่รับค่าจ้าง',emoji:'📄',remaining:7},bday:{name:'วันเกิด',emoji:'🎂',remaining:1},special:{name:'คนพิเศษ',emoji:'💝',remaining:1}};
   S.holidays=[{date:'12/06/2569',name:'ตัวอย่างวันหยุด'}];
-  S.leaveTypes=MOCK_LT; S.otTypes=MOCK_OTT; S.otThisMonth={hours:6.5,count:2};
+  S.leaveTypes=MOCK_LT; S.otTypes=MOCK_OTT; S.otThisMonth={hours:6.5,count:2,period:'26/5 – 25/6/2569'};
   S.recent=[
     {kind:'ot',title:'OT · มีงานด่วน',dateText:'03/06/2569',amount:'3.5 ชม.',status:'อนุมัติ'},
     {kind:'leave',title:'ลากิจ',dateText:'02/06/2569',amount:'1 วัน',status:'รอการอนุมัติ'},
