@@ -133,6 +133,10 @@ img{max-width:100%}
 .pend-btn:active{transform:scale(.97)}
 .pend-btn.ok{background:var(--green);color:#fff}
 .pend-btn.no{background:var(--red-tint);color:var(--red-deep)}
+.pend-act2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;padding-left:50px}
+.pend-btn.doc{background:var(--ot-tint);color:var(--ot)}
+.pend-btn.redit{background:#E3F2FD;color:#1565C0}
+.pend-act2 .pend-btn:only-child{grid-column:1/-1}
 
 /* ── Reject reason picker ── */
 .rej-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
@@ -161,11 +165,11 @@ img{max-width:100%}
 .btn:disabled{opacity:.5;cursor:not-allowed}
 
 /* ── Type picker ── */
-.type-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.type-opt{background:#fff;border:1.5px solid var(--line);border-radius:14px;padding:16px 10px;
+.type-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.type-opt{background:#fff;border:1.5px solid var(--line);border-radius:14px;padding:14px 6px;
   text-align:center;cursor:pointer;transition:all .15s}
-.type-opt .t-emo{font-size:26px}
-.type-opt .t-lb{font-weight:600;font-size:14px;margin-top:5px}
+.type-opt .t-emo{font-size:24px}
+.type-opt .t-lb{font-weight:600;font-size:13px;margin-top:5px}
 .type-opt.sel{border-color:var(--red);background:var(--red-tint)}
 .type-opt.sel.ot{border-color:var(--ot);background:var(--ot-tint)}
 .type-more{grid-column:1/-1;border:1.5px dashed var(--line);border-radius:12px;padding:11px;

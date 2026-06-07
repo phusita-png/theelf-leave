@@ -199,7 +199,7 @@ function wireLeave(){
   if (ce) ce.addEventListener('click', function(ev){ ev.preventDefault(); cancelEdit(); });
 }
 function renderTypeGrid(){
-  var lt = S.leaveTypes, keys = ['vac','biz','sick'];   // แสดงแค่ 3 ประเภทหลัก
+  var lt = S.leaveTypes, keys = ['sick','biz','vac'];   // 3 ประเภทหลัก: ลาป่วย / ลากิจ / ลาพักร้อน (1 บรรทัด)
   // โหมดแก้ไข: ถ้าใบเดิมเป็นประเภทอื่น (วันเกิด/คนพิเศษ/ไม่รับค่าจ้าง) ให้โชว์ปุ่มประเภทนั้นด้วย
   if (S.editLeaveId && keys.indexOf(S.leaveForm.type)<0 && lt[S.leaveForm.type]) keys = keys.concat([S.leaveForm.type]);
   var html = keys.map(function(k){
@@ -649,6 +649,36 @@ function wireHrPending(){
     el.addEventListener('click', function(){ doHrApprove(el.dataset.kind, el.dataset.id, el.dataset.name); }); });
   document.querySelectorAll('[data-rej]').forEach(function(el){
     el.addEventListener('click', function(){ doHrReject(el.dataset.kind, el.dataset.id, el.dataset.name); }); });
+  document.querySelectorAll('[data-doc]').forEach(function(el){
+    el.addEventListener('click', function(){ doHrRequestDoc(el.dataset.kind, el.dataset.id, el.dataset.name); }); });
+  document.querySelectorAll('[data-redit]').forEach(function(el){
+    el.addEventListener('click', function(){ doHrReturnEdit(el.dataset.kind, el.dataset.id, el.dataset.name); }); });
+}
+// 📎 HR ขอเอกสารเพิ่ม (พนักงานอัปโหลดทางแชต LINE) — prompt detail แล้วยิง API
+function doHrRequestDoc(kind, id, name){
+  var detail = window.prompt('📎 ขอเอกสารเพิ่มจาก '+name+'\n\nระบุเอกสารที่ต้องการ (เช่น ใบรับรองแพทย์):');
+  if(detail===null) return;
+  detail = String(detail).trim(); if(!detail) return toast('กรุณาระบุเอกสารที่ต้องการ','err');
+  toast('กำลังส่งคำขอ…');
+  api('hrRequestDoc',{kind:kind,id:id,docDetail:detail}).then(function(r){
+    if(!r.ok) return toast(r.error||'ส่งคำขอไม่สำเร็จ','err');
+    toast('📎 ส่งคำขอเอกสารแล้ว · แจ้งพนักงานทาง LINE','ok'); loadHr();
+  }).catch(function(e){ toast(String(e.message||e),'err'); });
+}
+// 📝 HR ส่งกลับให้แก้ไข (พนักงานแก้ในเว็บแอป) — ใบลาเท่านั้น
+function doHrReturnEdit(kind, id, name){
+  confirmModal({ title:'ส่งกลับให้แก้ไข', emoji:'📝', accent:'leave',
+    onConfirm:function(){
+      toast('กำลังส่งกลับ…');
+      api('hrReturnEdit',{kind:kind,id:id}).then(function(r){
+        if(!r.ok) return toast(r.error||'ส่งกลับไม่สำเร็จ','err');
+        toast('📝 ส่งกลับให้แก้ไขแล้ว · แจ้งพนักงานทาง LINE','ok'); loadHr();
+      }).catch(function(e){ toast(String(e.message||e),'err'); });
+    }, rows:[
+      {k:'ของ',  v:name},
+      {k:'รหัส',  v:id},
+      {k:'ผลลัพธ์', v:'พนักงานแก้ไขในเว็บแอปแล้วส่งกลับ'}
+    ]});
 }
 function doHrApprove(kind, id, name){
   confirmModal({ title:'ยืนยันอนุมัติ', emoji:'✅', accent: kind==='ot'?'ot':'leave',
@@ -675,7 +705,15 @@ function doHrReject(kind, id, name){
     el.addEventListener('click', function(){
       var rs = el.dataset.r;
       if(rs==='__custom__'){ rs = window.prompt('ระบุเหตุผลไม่อนุมัติ:'); if(!rs) return; }
-      closeConfirm(); hrDecide(kind, id, 'reject', rs);
+      closeConfirm();
+      // การ์ดยืนยันก่อนไม่อนุมัติ (consistent กับ LINE)
+      confirmModal({ title:'ยืนยันไม่อนุมัติ', emoji:'❌', accent: kind==='ot'?'ot':'leave',
+        onConfirm:function(){ hrDecide(kind, id, 'reject', rs); }, rows:[
+          {k:'ประเภท', v: kind==='ot'?'⏰ OT':'📋 ลา'},
+          {k:'ของ',   v:name},
+          {k:'รหัส',   v:id},
+          {k:'เหตุผล', v:rs}
+        ]});
     }); });
 }
 function hrDecide(kind, id, decision, reason){
@@ -704,6 +742,10 @@ function renderHr(r){
       '<div class="pend-act">'+
         '<button class="pend-btn no" data-rej="1" '+d+'>❌ ไม่อนุมัติ</button>'+
         '<button class="pend-btn ok" data-appr="1" '+d+'>✅ อนุมัติ</button>'+
+      '</div>'+
+      '<div class="pend-act2">'+
+        '<button class="pend-btn doc" data-doc="1" '+d+'>📎 ขอเอกสารเพิ่ม</button>'+
+        (x.kind!=='ot' ? '<button class="pend-btn redit" data-redit="1" '+d+'>📝 ส่งกลับให้แก้ไข</button>' : '')+
       '</div></div>'; }).join('')
     : '<div class="empty" style="padding:20px"><div class="e-emo">✅</div><div class="e-txt">ไม่มีรายการค้างอนุมัติ</div></div>';
   var pendCard='<div class="card"><div class="card-title"><span class="ic"></span>รออนุมัติ ('+r.pending.length+')</div>'+
