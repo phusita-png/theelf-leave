@@ -653,6 +653,27 @@ function wireHrPending(){
     el.addEventListener('click', function(){ doHrRequestDoc(el.dataset.kind, el.dataset.id, el.dataset.name); }); });
   document.querySelectorAll('[data-redit]').forEach(function(el){
     el.addEventListener('click', function(){ doHrReturnEdit(el.dataset.kind, el.dataset.id, el.dataset.name); }); });
+  document.querySelectorAll('[data-viewdoc]').forEach(function(el){
+    el.addEventListener('click', function(){ doHrViewDocs(el.dataset.kind, el.dataset.id); }); });
+}
+// 📨 HR ดูเอกสารที่พนักงานแนบ — list ไฟล์ในโฟลเดอร์ → เปิด viewer ในแอป (ไม่ต้องเข้า Drive/mail)
+function doHrViewDocs(kind, id){
+  toast('กำลังโหลดเอกสาร…');
+  api('hrReviewDocs',{kind:kind,id:id}).then(function(r){
+    if(!r.ok) return toast(r.error||'เปิดเอกสารไม่ได้','err');
+    if(r.files.length===1) return fetchFile('hrDocFile',{fileId:r.files[0].fileId});
+    // หลายไฟล์ — chooser
+    var c=document.getElementById('confirm');
+    if(!c){ c=document.createElement('div'); c.id='confirm'; c.className='cfm'; document.body.appendChild(c); }
+    var btns=r.files.map(function(f){ return '<button class="rej-opt" data-fid="'+esc(f.fileId)+'">📄 '+esc(f.name)+'</button>'; }).join('');
+    c.innerHTML='<div class="cfm-box"><div class="cfm-head">📨 เอกสารแนบ ('+r.files.length+' ไฟล์)</div>'+
+      '<div class="cfm-body"><div class="rej-grid">'+btns+'</div></div>'+
+      '<div class="cfm-act" style="grid-template-columns:1fr"><button class="cfm-btn ghost" data-cfm-cancel>ปิด</button></div></div>';
+    c.classList.add('show');
+    c.querySelector('[data-cfm-cancel]').addEventListener('click', closeConfirm);
+    c.querySelectorAll('[data-fid]').forEach(function(el){
+      el.addEventListener('click', function(){ closeConfirm(); fetchFile('hrDocFile',{fileId:el.dataset.fid}); }); });
+  }).catch(function(e){ toast(String(e.message||e),'err'); });
 }
 // 📎 HR ขอเอกสารเพิ่ม (พนักงานอัปโหลดทางแชต LINE) — prompt detail แล้วยิง API
 function doHrRequestDoc(kind, id, name){
@@ -746,7 +767,9 @@ function renderHr(r){
       '<div class="pend-act2">'+
         '<button class="pend-btn doc" data-doc="1" '+d+'>📎 ขอเอกสารเพิ่ม</button>'+
         (x.kind!=='ot' ? '<button class="pend-btn redit" data-redit="1" '+d+'>📝 ส่งกลับให้แก้ไข</button>' : '')+
-      '</div></div>'; }).join('')
+      '</div>'+
+      (x.docUrl ? '<div class="pend-act2"><button class="pend-btn viewdoc" data-viewdoc="1" '+d+'>📨 ดูเอกสารที่พนักงานแนบ</button></div>' : '')+
+      '</div>'; }).join('')
     : '<div class="empty" style="padding:20px"><div class="e-emo">✅</div><div class="e-txt">ไม่มีรายการค้างอนุมัติ</div></div>';
   var pendCard='<div class="card"><div class="card-title"><span class="ic"></span>รออนุมัติ ('+r.pending.length+')</div>'+
     (r.pending.length?'<div class="hr-note ok2">👇 กดอนุมัติ/ไม่อนุมัติได้เลย · ระบบแจ้งพนักงานทาง LINE อัตโนมัติ</div>':'')+pend+'</div>';
