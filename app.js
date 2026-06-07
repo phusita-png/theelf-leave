@@ -26,7 +26,8 @@ var S = {
   view:'home',
   leaveForm:{type:'vac',start:null,end:null,period:'full',reason:'',stime:'',etime:''},
   otForm:{date:null,start:'',end:'',type:'1',reason:''},
-  calLeave:new Date(), calOt:new Date(), histTab:'leave'
+  calLeave:new Date(), calOt:new Date(), histTab:'leave',
+  editLeaveId:null, pendingEdit:null   // โหมดแก้ไขใบลาที่ HR ส่งกลับ
 };
 
 // ════════════ INIT ════════════
@@ -43,6 +44,12 @@ function initLiff() {
   liff.init({liffId:CFG.LIFF_ID}).then(function(){
     if (!liff.isLoggedIn()) { liff.login(); return; }
     S.auth = {idToken:liff.getIDToken()};
+    // deep-link ?edit=LV-xxx (HR ส่งกลับให้แก้) — รับจาก query หรือ liff.state
+    try {
+      var qs = new URLSearchParams(location.search);
+      S.pendingEdit = qs.get('edit');
+      if (!S.pendingEdit && liff.state) S.pendingEdit = new URLSearchParams(String(liff.state).replace(/^\?/,'')).get('edit');
+    } catch(e){}
     liff.getProfile().then(function(p){ S.avatar = p.pictureUrl; paintAvatar(); }).catch(function(){});
     bootstrap();
   }).catch(function(e){ fail('LIFF init ล้มเหลว: ' + e); });
@@ -77,6 +84,7 @@ function bootstrap() {
     document.getElementById('loader').classList.add('hidden');
     document.getElementById('app').classList.remove('hidden');
     paintAvatar(); render();
+    if (S.pendingEdit) enterEditByLeaveId(S.pendingEdit);   // deep-link → เปิดหน้าแก้เลย
   }).catch(function(e){ fail(String(e.message || e)); });
 }
 function apply(r){
@@ -165,7 +173,12 @@ function wireHome(){
 
 // ════════════ VIEW: LEAVE ════════════
 function viewLeave(){
-  return '<div class="card">'+
+  var editing = !!S.editLeaveId;
+  var banner = editing
+    ? '<div class="edit-banner">✏️ กำลังแก้ไขใบลา <b>'+esc(S.editLeaveId)+'</b> (HR ส่งกลับให้แก้)'+
+      ' <a href="#" id="cancelEdit" class="edit-cancel">ยกเลิก</a></div>'
+    : '';
+  return banner+'<div class="card">'+
     '<div class="card-title"><span class="ic"></span>ประเภทการลา</div>'+
     '<div id="typeGrid"></div>'+
     '<label class="field-lb">📅 เลือกวันที่ลา</label><div id="calLeave"></div>'+
@@ -174,16 +187,21 @@ function viewLeave(){
     '<label class="field-lb">📝 เหตุผล (ไม่บังคับ)</label>'+
     '<textarea id="reason" rows="2" placeholder="ระบุเหตุผลโดยย่อ (ถ้ามี)…"></textarea>'+
     '<div id="lvSummary" style="margin-top:16px"></div>'+
-    '<div style="margin-top:12px"><button id="btnLeave" class="btn btn-primary">ส่งคำขอลา</button></div>'+
+    '<div style="margin-top:12px"><button id="btnLeave" class="btn btn-primary">'+(editing?'ส่งการแก้ไข':'ส่งคำขอลา')+'</button></div>'+
   '</div>';
 }
 function wireLeave(){
   renderTypeGrid(); renderCal('leave'); renderSeg(); renderLvTime(); renderLvSummary();
+  document.getElementById('reason').value = S.leaveForm.reason || '';
   document.getElementById('reason').addEventListener('input', function(e){ S.leaveForm.reason = e.target.value; });
   document.getElementById('btnLeave').addEventListener('click', submitLeave);
+  var ce = document.getElementById('cancelEdit');
+  if (ce) ce.addEventListener('click', function(ev){ ev.preventDefault(); cancelEdit(); });
 }
 function renderTypeGrid(){
   var lt = S.leaveTypes, keys = ['vac','biz','sick'];   // แสดงแค่ 3 ประเภทหลัก
+  // โหมดแก้ไข: ถ้าใบเดิมเป็นประเภทอื่น (วันเกิด/คนพิเศษ/ไม่รับค่าจ้าง) ให้โชว์ปุ่มประเภทนั้นด้วย
+  if (S.editLeaveId && keys.indexOf(S.leaveForm.type)<0 && lt[S.leaveForm.type]) keys = keys.concat([S.leaveForm.type]);
   var html = keys.map(function(k){
     return '<div class="type-opt'+(S.leaveForm.type===k?' sel':'')+'" data-type="'+k+'">'+
       '<div class="t-emo">'+lt[k].emoji+'</div><div class="t-lb">'+lt[k].name+'</div></div>'; }).join('');
@@ -242,7 +260,7 @@ function submitLeave(){
   var qty=f.period==='hours'?(otHours(f.stime,f.etime)||0)+' ชม. (≈'+days+' วัน)':days+' วัน';
   var dt=fmtThai(f.start)+(f.end&&dkey(f.end)!==dkey(f.start)?' — '+fmtThai(f.end):'')+
     (f.period==='hours'&&f.stime&&f.etime?' · '+f.stime+'-'+f.etime:'');
-  confirmModal({ title:'ยืนยันการยื่นลา', emoji:'📋', accent:'leave', onConfirm:doSubmitLeave, rows:[
+  confirmModal({ title:S.editLeaveId?'ยืนยันการแก้ไขใบลา':'ยืนยันการยื่นลา', emoji:'📋', accent:'leave', onConfirm:doSubmitLeave, rows:[
     {k:'ประเภท', v:lt.emoji+' '+lt.name},
     {k:'วันที่',  v:dt},
     {k:'ช่วงเวลา',v:per},
@@ -251,15 +269,48 @@ function submitLeave(){
   ]});
 }
 function doSubmitLeave(){
-  var f = S.leaveForm;
+  var f = S.leaveForm, editing = !!S.editLeaveId;
+  var resetLabel = editing ? 'ส่งการแก้ไข' : 'ส่งคำขอลา';
   var btn = document.getElementById('btnLeave'); if(btn){ btn.disabled=true; btn.textContent='กำลังส่ง…'; }
-  api('submit',{type:f.type,startDate:fmtThai(f.start),endDate:fmtThai(f.end||f.start),period:f.period,reason:f.reason||'',startTime:f.stime,endTime:f.etime})
+  var action = editing ? 'submitLeaveEdit' : 'submit';
+  var params = {type:f.type,startDate:fmtThai(f.start),endDate:fmtThai(f.end||f.start),period:f.period,reason:f.reason||'',startTime:f.stime,endTime:f.etime};
+  if (editing) params.leaveId = S.editLeaveId;
+  api(action, params)
   .then(function(r){
-    if(!r.ok){ if(btn){btn.disabled=false;btn.textContent='ส่งคำขอลา';} return toast(r.error||'ส่งไม่สำเร็จ','err'); }
-    toast('✅ ส่งใบลาแล้ว · '+r.leaveId,'ok');
+    if(!r.ok){ if(btn){btn.disabled=false;btn.textContent=resetLabel;} return toast(r.error||'ส่งไม่สำเร็จ','err'); }
+    toast(editing ? ('✅ แก้ไขส่งใหม่แล้ว · '+r.leaveId) : ('✅ ส่งใบลาแล้ว · '+r.leaveId),'ok');
+    S.editLeaveId=null;
     S.leaveForm={type:'vac',start:null,end:null,period:'full',reason:'',stime:'',etime:''};
     refresh(); setTimeout(function(){ S.histTab='leave'; goTo('history'); },1100);
-  }).catch(function(e){ if(btn){btn.disabled=false;btn.textContent='ส่งคำขอลา';} toast(String(e.message||e),'err'); });
+  }).catch(function(e){ if(btn){btn.disabled=false;btn.textContent=resetLabel;} toast(String(e.message||e),'err'); });
+}
+
+// ─── โหมดแก้ไขใบลาที่ HR ส่งกลับ ───
+function parseThaiStr(s){ var p=String(s||'').split('/'); if(p.length<3) return null; var d=+p[0],m=+p[1],y=+p[2]; if(y>2500)y-=543; var dt=new Date(y,m-1,d); return isNaN(dt.getTime())?null:dt; }
+function inferPeriod(it){ var t=String(it.timeDisplay||''); if(t.indexOf('เช้า')>=0)return'morning'; if(t.indexOf('บ่าย')>=0)return'afternoon'; if(t.indexOf('ชม.')>=0 && (Number(it.days)||0)<1)return'hours'; return'full'; }
+function isReturnEdit(st){ st=String(st||''); return st.indexOf('แก้ไข')>=0 || st.indexOf('ส่งกลับ')>=0; }
+function enterEditByLeaveId(lid){
+  api('history',{}).then(function(r){
+    if(!r.ok||!r.history) return;
+    var it = r.history.filter(function(h){ return h.leaveId===lid; })[0];
+    if(!it) return toast('ไม่พบใบลา '+lid,'err');
+    if(!isReturnEdit(it.status)) return toast('ใบ '+lid+' ไม่อยู่ในสถานะให้แก้ไข','err');
+    startEditLeave(it);
+  }).catch(function(){});
+}
+function startEditLeave(it){
+  S.editLeaveId = it.leaveId;
+  var sd = parseThaiStr(it.startDate);
+  S.leaveForm = { type: it.typeKey||'vac', start: sd, end: parseThaiStr(it.endDate),
+                  period: inferPeriod(it), reason:'', stime:'', etime:'' };
+  if (sd) S.calLeave = new Date(sd.getFullYear(), sd.getMonth(), 1);   // ปฏิทินเด้งไปเดือนวันลาเดิม
+  S.pendingEdit = null;
+  goTo('leave');
+}
+function cancelEdit(){
+  S.editLeaveId=null;
+  S.leaveForm={type:'vac',start:null,end:null,period:'full',reason:'',stime:'',etime:''};
+  goTo('history');
 }
 
 // ════════════ VIEW: OT ════════════
@@ -404,10 +455,14 @@ function loadLeaveHistory(){
     if(!r.history.length) return body.innerHTML = emptyBox('🍃','ยังไม่มีประวัติการลา');
     body.innerHTML = '<div class="card">'+r.history.map(function(h){
       var dt = h.startDate+(h.endDate&&h.endDate!==h.startDate?' — '+h.endDate:'');
+      var editBtn = isReturnEdit(h.status)
+        ? '<button class="hist-edit" data-edit="'+esc(h.leaveId)+'">✏️ แก้ไขแล้วส่งใหม่</button>' : '';
       return '<div class="hist"><div class="hist-ic">'+(TYPE_EMOJI[h.type]||'📋')+'</div>'+
         '<div class="hist-main"><div class="hist-type">'+esc(h.type)+'</div>'+
-        '<div class="hist-meta"><span>📅 '+dt+'</span><span>·</span><span>⏱ '+h.days+' วัน</span></div></div>'+
+        '<div class="hist-meta"><span>📅 '+dt+'</span><span>·</span><span>⏱ '+h.days+' วัน</span></div>'+editBtn+'</div>'+
         statusBadge(h.status)+'</div>'; }).join('')+'</div>';
+    body.querySelectorAll('.hist-edit').forEach(function(b){
+      b.addEventListener('click', function(){ enterEditByLeaveId(b.dataset.edit); }); });
   }).catch(function(e){ var b=document.getElementById('histBody'); if(b) b.innerHTML=emptyBox('😿',String(e.message||e)); });
 }
 function loadOtHistory(){
@@ -670,6 +725,7 @@ function renderHr(r){
 function refresh(){ api('bootstrap',{}).then(function(r){ if(r.ok){ apply(r); if(S.view==='home'||S.view==='profile') render(); } }).catch(function(){}); }
 function statusBadge(st){
   st = String(st||'');
+  if (st.indexOf('แก้ไข')>=0 || st.indexOf('ส่งกลับ')>=0) return '<span class="badge edit">✏️ ต้องแก้ไข</span>';
   if (st.indexOf('รอ')>=0) return '<span class="badge wait">⏳ รออนุมัติ</span>';   // "รอการอนุมัติ" — เช็คก่อน (มีคำว่า "อนุมัติ" ข้างใน)
   if (st.indexOf('ไม่อนุมัติ')>=0) return '<span class="badge no">❌ ไม่อนุมัติ</span>';
   if (st.indexOf('อนุมัติ')>=0) return '<span class="badge ok">✅ อนุมัติ</span>';

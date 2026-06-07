@@ -233,6 +233,15 @@ textarea:focus,input[type=time]:focus{border-color:var(--red)}
 .badge.ok{background:var(--green-tint);color:var(--green)}
 .badge.wait{background:var(--ot-tint);color:var(--ot)}
 .badge.no{background:var(--red-tint);color:var(--red-deep)}
+.badge.edit{background:#E3F2FD;color:#1565C0}
+
+/* ── โหมดแก้ไขใบลา (HR ส่งกลับ) ── */
+.edit-banner{background:#E3F2FD;color:#0D47A1;border:1px solid #90CAF9;border-radius:var(--radius);
+  padding:12px 14px;margin-bottom:12px;font-size:14px;line-height:1.5}
+.edit-cancel{color:#1565C0;font-weight:600;margin-left:6px;text-decoration:underline}
+.hist-edit{margin-top:8px;background:#1565C0;color:#fff;border:none;border-radius:10px;
+  padding:7px 14px;font-size:13px;font-weight:600;cursor:pointer}
+.hist-edit:active{opacity:.85}
 
 /* ── Profile ── */
 .pf-head{background:var(--red);color:#fff;border-radius:var(--radius);padding:20px;margin-bottom:14px;
