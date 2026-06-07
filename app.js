@@ -572,7 +572,7 @@ function fetchFile(action, params){
       closeViewer(); return toast(r.error||'เปิดไฟล์ไม่ได้','err');
     }
     var blob = b64toBlob(r.b64, r.mime||'application/pdf');
-    showViewer('file', URL.createObjectURL(blob), r.name);
+    showViewer('file', URL.createObjectURL(blob), r.name, r.mime);
   }).catch(function(e){ closeViewer(); toast(String(e.message||e),'err'); });
 }
 function b64toBlob(b64, mime){
@@ -580,19 +580,28 @@ function b64toBlob(b64, mime){
   for(var i=0;i<len;i++) arr[i]=bin.charCodeAt(i);
   return new Blob([arr], {type:mime});
 }
-function showViewer(state, url, name){
+function showViewer(state, url, name, mime){
   var v=document.getElementById('viewer');
   if(!v){ v=document.createElement('div'); v.id='viewer'; v.className='viewer'; document.body.appendChild(v); }
   if(state==='loading'){
     v.innerHTML='<div class="vw-box"><div class="vw-load">⏳ กำลังเปิดไฟล์…</div></div>';
     v.classList.add('show'); return;
   }
+  var isImg = /^image\//i.test(mime||'');
+  // รูป → <img> พอดีจอ (แตะเพื่อซูมเต็มขนาด) · PDF/อื่น → iframe
+  var content = isImg
+    ? '<div class="vw-imgwrap"><img class="vw-img" src="'+url+'" alt="เอกสาร"></div>'
+    : '<iframe class="vw-frame" src="'+url+'"></iframe>';
   v.innerHTML='<div class="vw-box"><div class="vw-bar"><span class="vw-name">'+esc(name||'เอกสาร')+'</span>'+
     '<button class="vw-x" data-vwclose>✕</button></div>'+
-    '<iframe class="vw-frame" src="'+url+'"></iframe>'+
-    '<a class="vw-dl" href="'+url+'" download="'+esc(name||'file.pdf')+'">⬇ ดาวน์โหลด / เปิดด้วยแอปอ่าน PDF</a></div>';
+    content+
+    '<a class="vw-dl" href="'+url+'" download="'+esc(name||'file')+'">⬇ ดาวน์โหลด / เปิดด้วยแอปอื่น</a></div>';
   v.classList.add('show');
   v.querySelector('[data-vwclose]').addEventListener('click', closeViewer);
+  if(isImg){
+    var img=v.querySelector('.vw-img');
+    if(img) img.addEventListener('click', function(){ img.classList.toggle('zoom'); });
+  }
 }
 function closeViewer(){ var v=document.getElementById('viewer'); if(v) v.classList.remove('show'); }
 

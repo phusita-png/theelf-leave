@@ -327,6 +327,9 @@ textarea:focus,input[type=time]:focus{border-color:var(--red)}
 .vw-x{background:rgba(255,255,255,.2);border:none;color:#fff;width:30px;height:30px;border-radius:8px;
   font-size:15px;cursor:pointer;flex:0 0 auto;margin-left:10px}
 .vw-frame{flex:1;border:none;width:100%;background:#f0f1f4}
+.vw-imgwrap{flex:1;overflow:auto;background:#f0f1f4;display:flex;align-items:flex-start;justify-content:center;-webkit-overflow-scrolling:touch}
+.vw-img{max-width:100%;height:auto;display:block;cursor:zoom-in}
+.vw-img.zoom{max-width:none;width:auto;height:auto;cursor:zoom-out}
 .vw-load{flex:1;display:flex;align-items:center;justify-content:center;color:var(--muted);
   padding:60px;font-weight:500}
 .vw-dl{display:block;text-align:center;padding:14px;background:var(--bg);color:var(--red);
