@@ -640,9 +640,14 @@ function openUrl(u){
 }
 
 // ── File proxy viewer (เปิดไฟล์ในแอป · ไม่ต้องแชร์ Drive) ──
-function openSlipFile(month, yearBE){ fetchFile('slipFile', {month:month, yearBE:yearBE}); }
+function openSlipFile(month, yearBE){
+  // ปุ่ม "เปิดเต็มจอ" → ขอลิงก์แชร์ชั่วคราว เปิด Safari/Chrome (ซูม/โหลดได้บน iOS)
+  fetchFile('slipFile', {month:month, yearBE:yearBE}, function(){
+    openViaShareLink('slipShareLink', {month:month, yearBE:yearBE});
+  });
+}
 function openDocFile(url){ fetchFile('docFile', {url:url}); }
-function fetchFile(action, params){
+function fetchFile(action, params, externalFn){
   if (CFG.MOCK){ toast('โหมดพรีวิว — ต่อข้อมูลจริงถึงเปิดไฟล์ได้ค่ะ'); return; }
   showViewer('loading');
   api(action, params).then(function(r){
@@ -651,15 +656,24 @@ function fetchFile(action, params){
       closeViewer(); return toast(r.error||'เปิดไฟล์ไม่ได้','err');
     }
     var blob = b64toBlob(r.b64, r.mime||'application/pdf');
-    showViewer('file', URL.createObjectURL(blob), r.name, r.mime);
+    showViewer('file', URL.createObjectURL(blob), r.name, r.mime, externalFn);
   }).catch(function(e){ closeViewer(); toast(String(e.message||e),'err'); });
+}
+// เปิดไฟล์ผ่านลิงก์แชร์ชั่วคราว → เบราว์เซอร์ภายนอก (Safari/Chrome) ซูม/โหลดได้บนมือถือ
+function openViaShareLink(action, params){
+  toast('กำลังเปิดในเบราว์เซอร์…');
+  api(action, params).then(function(r){
+    if(!r.ok || !r.url) return toast(r.error||'เปิดไม่ได้','err');
+    closeViewer();
+    openUrl(r.url);   // liff.openWindow external → ออกไป Safari/Chrome
+  }).catch(function(e){ toast(String(e.message||e),'err'); });
 }
 function b64toBlob(b64, mime){
   var bin=atob(b64), len=bin.length, arr=new Uint8Array(len);
   for(var i=0;i<len;i++) arr[i]=bin.charCodeAt(i);
   return new Blob([arr], {type:mime});
 }
-function showViewer(state, url, name, mime){
+function showViewer(state, url, name, mime, externalFn){
   var v=document.getElementById('viewer');
   if(!v){ v=document.createElement('div'); v.id='viewer'; v.className='viewer'; document.body.appendChild(v); }
   if(state==='loading'){
@@ -681,7 +695,9 @@ function showViewer(state, url, name, mime){
     '</div></div>';
   v.classList.add('show');
   v.querySelector('[data-vwclose]').addEventListener('click', closeViewer);
-  v.querySelector('[data-vwopen]').addEventListener('click', function(){ openFileExternal(url); });
+  v.querySelector('[data-vwopen]').addEventListener('click', function(){
+    if (externalFn) externalFn(); else openFileExternal(url);
+  });
   v.querySelector('[data-vwdl]').addEventListener('click', function(){ downloadBlobUrl(url, name); });
   if(isImg){
     var img=v.querySelector('.vw-img');
@@ -1006,6 +1022,7 @@ function mockApi(action, params){
     else if(action==='otSubmit') resolve({ok:true,otId:'OT-MOCK',hours:otHours(S.otForm.start,S.otForm.end)});
     else if(action==='submitOtEdit') resolve({ok:true,otId:(params&&params.otId)||'OT-MOCK',hours:otHours(S.otForm.start,S.otForm.end)});
     else if(action==='payslip') resolve({ok:true,latest:MOCK_SLIPS[0],slips:MOCK_SLIPS});
+    else if(action==='slipShareLink') resolve({ok:true,url:'#'});
     else if(action==='documents') resolve({ok:true,documents:[
       {name:'หนังสือรับรองเงินเดือน พ.ค. 69',url:'#',category:'หนังสือรับรอง',scope:'ส่วนตัว'},
       {name:'นโยบายวันลา ปี 2569',url:'#',category:'นโยบาย',scope:'ทั้งบริษัท'},
