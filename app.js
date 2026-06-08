@@ -448,12 +448,47 @@ function wireHistory(){
     el.addEventListener('click', function(){ S.histTab=el.dataset.h; render(); }); });
   S.histTab==='ot' ? loadOtHistory() : loadLeaveHistory();
 }
+// สรุปประวัติลาฝั่ง client (fallback ถ้า backend ไม่ส่ง summary มา เช่นโหมด mock)
+// เช็คสถานะด้วยลำดับเดียวกับ statusBadge — "รอ" ก่อน "อนุมัติ" (กัน substring trap)
+function lvSummary(history){
+  var s={total:0,approved:0,pending:0,rejected:0,approvedDays:0,byType:[]}, byT={};
+  (history||[]).forEach(function(h){
+    s.total++;
+    var st=String(h.status||'');
+    if(st.indexOf('แก้ไข')>=0||st.indexOf('ส่งกลับ')>=0||st.indexOf('รอ')>=0){ s.pending++; }
+    else if(st.indexOf('ไม่อนุมัติ')>=0){ s.rejected++; }
+    else if(st.indexOf('อนุมัติ')>=0){ s.approved++; var d=Number(h.days)||0; s.approvedDays+=d;
+      var t=String(h.type||'').trim(); if(t&&d>0) byT[t]=(byT[t]||0)+d; }
+    else { s.pending++; }
+  });
+  s.approvedDays=Math.round(s.approvedDays*100)/100;
+  s.byType=Object.keys(byT).map(function(t){ return {type:t,emoji:TYPE_EMOJI[t]||'📋',days:Math.round(byT[t]*100)/100}; })
+    .sort(function(a,b){ return b.days-a.days; });
+  return s;
+}
+function num(n){ return n%1===0?String(n):n.toFixed(2).replace(/0$/,''); }
+function lvSummaryCard(sm){
+  if(!sm||!sm.total) return '';
+  var types = sm.byType.length
+    ? '<div class="lv-sum-types">'+sm.byType.map(function(b){
+        return '<span>'+b.emoji+' '+esc(b.type.replace(/^ลา/,''))+' <b>'+num(b.days)+'</b></span>'; }).join('')+'</div>'
+    : '';
+  return '<div class="card lv-sum">'+
+    '<div class="lv-sum-row">'+
+      '<div class="lv-sum-cell ok"><b>'+sm.approved+'</b><span>อนุมัติ</span></div>'+
+      '<div class="lv-sum-cell wait"><b>'+sm.pending+'</b><span>รอ</span></div>'+
+      '<div class="lv-sum-cell no"><b>'+sm.rejected+'</b><span>ไม่อนุมัติ</span></div>'+
+    '</div>'+
+    '<div class="lv-sum-days">🗓 รวมวันลาที่อนุมัติ <b>'+num(sm.approvedDays)+'</b> วัน</div>'+
+    types+'</div>';
+}
 function loadLeaveHistory(){
   api('history',{}).then(function(r){
     var body = document.getElementById('histBody'); if(!body) return;
     if(!r.ok) return body.innerHTML = emptyBox('😿', r.error||'โหลดไม่ได้');
     if(!r.history.length) return body.innerHTML = emptyBox('🍃','ยังไม่มีประวัติการลา');
-    body.innerHTML = '<div class="card">'+r.history.map(function(h){
+    var sumCard = lvSummaryCard(r.summary || lvSummary(r.history));
+    body.innerHTML = sumCard + '<div class="card">'+r.history.map(function(h){
       var dt = h.startDate+(h.endDate&&h.endDate!==h.startDate?' — '+h.endDate:'');
       var editBtn = isReturnEdit(h.status)
         ? '<button class="hist-edit" data-edit="'+esc(h.leaveId)+'">✏️ แก้ไขแล้วส่งใหม่</button>' : '';
