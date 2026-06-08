@@ -357,6 +357,7 @@ textarea:focus,input[type=time]:focus{border-color:var(--red)}
 .vw-hint{text-align:center;font-size:12px;color:var(--muted);padding:8px 12px 0;background:#fff}
 .vw-actions{display:grid;grid-template-columns:1.4fr 1fr;gap:8px;padding:10px 12px;
   border-top:1px solid var(--line);background:#fff}
+.vw-actions.one{grid-template-columns:1fr}
 .vw-btn{border:none;border-radius:11px;padding:14px 8px;font-family:inherit;font-weight:700;
   font-size:14px;cursor:pointer}
 .vw-btn.open{background:var(--red);color:#fff}

@@ -685,20 +685,21 @@ function showViewer(state, url, name, mime, externalFn){
   var content = isImg
     ? '<div class="vw-imgwrap"><img class="vw-img" src="'+url+'" alt="เอกสาร"></div>'
     : '<iframe class="vw-frame" src="'+url+'"></iframe>';
-  var hint = isImg ? '' : '<div class="vw-hint">📄 ถ้าซูมไม่ได้ในนี้ แตะ “เปิดเต็มจอ” เพื่อซูม/บันทึก</div>';
+  var hint = isImg ? '' : '<div class="vw-hint">📄 ซูม/บันทึกไม่ได้ในนี้ → แตะปุ่มด้านล่าง เปิดในเบราว์เซอร์</div>';
+  // ปุ่มเดียว: สลิป (มี externalFn) → เปิดเบราว์เซอร์ภายนอก · เอกสารอื่น → ดาวน์โหลด blob
+  var actBtn = externalFn
+    ? '<button class="vw-btn open" data-act="ext">⬇️ ดาวน์โหลด / เปิดเต็มจอ</button>'
+    : '<button class="vw-btn open" data-act="dl">⬇️ ดาวน์โหลด</button>';
   v.innerHTML='<div class="vw-box"><div class="vw-bar"><span class="vw-name">'+esc(name||'เอกสาร')+'</span>'+
     '<button class="vw-x" data-vwclose>✕</button></div>'+
     content+ hint +
-    '<div class="vw-actions">'+
-      '<button class="vw-btn open" data-vwopen>↗️ เปิดเต็มจอ · ซูม/บันทึก</button>'+
-      '<button class="vw-btn dl" data-vwdl>⬇️ ดาวน์โหลด</button>'+
-    '</div></div>';
+    '<div class="vw-actions one">'+ actBtn +'</div></div>';
   v.classList.add('show');
   v.querySelector('[data-vwclose]').addEventListener('click', closeViewer);
-  v.querySelector('[data-vwopen]').addEventListener('click', function(){
-    if (externalFn) externalFn(); else openFileExternal(url);
+  var ab=v.querySelector('[data-act]');
+  if(ab) ab.addEventListener('click', function(){
+    if (ab.dataset.act==='ext' && externalFn) externalFn(); else downloadBlobUrl(url, name);
   });
-  v.querySelector('[data-vwdl]').addEventListener('click', function(){ downloadBlobUrl(url, name); });
   if(isImg){
     var img=v.querySelector('.vw-img');
     if(img) img.addEventListener('click', function(){ img.classList.toggle('zoom'); });
