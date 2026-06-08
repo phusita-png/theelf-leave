@@ -699,6 +699,8 @@ function wireHrPending(){
     el.addEventListener('click', function(){ doHrReturnEdit(el.dataset.kind, el.dataset.id, el.dataset.name); }); });
   document.querySelectorAll('[data-viewdoc]').forEach(function(el){
     el.addEventListener('click', function(){ doHrViewDocs(el.dataset.kind, el.dataset.id); }); });
+  document.querySelectorAll('[data-hist]').forEach(function(el){
+    el.addEventListener('click', function(){ doHrViewHistory(el.dataset.kind, el.dataset.uid, el.dataset.empid, el.dataset.name); }); });
 }
 // 📨 HR ดูเอกสารที่พนักงานแนบ — list ไฟล์ในโฟลเดอร์ → เปิด viewer ในแอป (ไม่ต้องเข้า Drive/mail)
 function doHrViewDocs(kind, id){
@@ -717,6 +719,46 @@ function doHrViewDocs(kind, id){
     c.querySelector('[data-cfm-cancel]').addEventListener('click', closeConfirm);
     c.querySelectorAll('[data-fid]').forEach(function(el){
       el.addEventListener('click', function(){ closeConfirm(); fetchFile('hrDocFile',{fileId:el.dataset.fid}); }); });
+  }).catch(function(e){ toast(String(e.message||e),'err'); });
+}
+// 📊 HR ดูประวัติการลา/OT ของพนักงานคนนั้น — ใช้ประเมินก่อนอนุมัติ (modal ในแอป)
+function balNum(v){ return v==null?'—':(Number.isInteger(v)?v:Number(v).toFixed(1)); }
+function doHrViewHistory(kind, uid, empid, name){
+  toast('กำลังโหลดประวัติ…');
+  api('hrEmpHistory',{kind:kind,targetUserId:uid||'',empId:empid||''}).then(function(r){
+    if(!r.ok) return toast(r.error||'โหลดประวัติไม่ได้','err');
+    var c=document.getElementById('confirm');
+    if(!c){ c=document.createElement('div'); c.id='confirm'; c.className='cfm'; document.body.appendChild(c); }
+    var nm = esc(r.name||name||''), head, bodyInner;
+    if(kind==='ot'){
+      head='📊 ประวัติ OT · '+nm;
+      bodyInner = (r.history&&r.history.length)
+        ? '<div class="card">'+r.history.map(function(o){
+            return '<div class="hist"><div class="hist-ic">⏰</div><div class="hist-main">'+
+              '<div class="hist-type">'+esc(o.otType||'OT')+'</div>'+
+              '<div class="hist-meta">📅 '+esc(o.otDate)+' · 🕐 '+esc(o.startTime)+'–'+esc(o.endTime)+' · '+o.hours+' ชม.</div></div>'+
+              statusBadge(o.status)+'</div>'; }).join('')+'</div>'
+        : emptyBox('🍃','ยังไม่มีประวัติ OT');
+    } else {
+      head='📊 ประวัติการลา · '+nm;
+      var sumCard = lvSummaryCard(r.summary || lvSummary(r.history||[]));
+      var balLine = r.balances
+        ? '<div class="hr-bal">🎫 สิทธิ์คงเหลือ · 🌴 พักร้อน <b>'+balNum(r.balances.vac)+'</b> · 🏠 ลากิจ <b>'+balNum(r.balances.biz)+'</b> · 🤒 ลาป่วย <b>'+balNum(r.balances.sick)+'</b></div>'
+        : '';
+      var list = (r.history&&r.history.length)
+        ? '<div class="card">'+r.history.map(function(h){
+            var dt=h.startDate+(h.endDate&&h.endDate!==h.startDate?' — '+h.endDate:'');
+            return '<div class="hist"><div class="hist-ic">'+(TYPE_EMOJI[h.type]||'📋')+'</div><div class="hist-main">'+
+              '<div class="hist-type">'+esc(h.type)+'</div>'+
+              '<div class="hist-meta">📅 '+dt+' · '+h.days+' วัน</div></div>'+statusBadge(h.status)+'</div>'; }).join('')+'</div>'
+        : emptyBox('🍃','ยังไม่มีประวัติการลา');
+      bodyInner = sumCard + balLine + list;
+    }
+    c.innerHTML='<div class="cfm-box"><div class="cfm-head">'+head+'</div>'+
+      '<div class="cfm-body cfm-scroll">'+bodyInner+'</div>'+
+      '<div class="cfm-act" style="grid-template-columns:1fr"><button class="cfm-btn ghost" data-cfm-cancel>ปิด</button></div></div>';
+    c.classList.add('show');
+    c.querySelector('[data-cfm-cancel]').addEventListener('click', closeConfirm);
   }).catch(function(e){ toast(String(e.message||e),'err'); });
 }
 // 📎 HR ขอเอกสารเพิ่ม (พนักงานอัปโหลดทางแชต LINE) — prompt detail แล้วยิง API
@@ -800,10 +842,11 @@ function renderHr(r){
   var pend = r.pending.length ? r.pending.map(function(x){
     var emo = x.kind==='ot' ? '⏰' : (TYPE_EMOJI[x.type]||'📋');
     var amt = x.kind==='ot' ? (x.hours+' ชม.') : (x.days+' วัน');
-    var d = 'data-kind="'+x.kind+'" data-id="'+esc(x.id)+'" data-name="'+esc(x.name)+'"';
+    var d = 'data-kind="'+x.kind+'" data-id="'+esc(x.id)+'" data-name="'+esc(x.name)+'" data-uid="'+esc(x.userId||'')+'" data-empid="'+esc(x.empId||'')+'"';
     return '<div class="pend"><div class="pend-top"><div class="hist-ic">'+emo+'</div><div class="hist-main">'+
       '<div class="hist-type">'+esc(x.name)+(x.resubmit?' <span class="re-badge">🔄 แก้ไขส่งใหม่</span>':'')+'</div>'+
       '<div class="hist-meta">'+esc(x.type)+' · '+esc(x.date)+' · '+amt+' · '+esc(x.id)+'</div></div></div>'+
+      '<div class="pend-act2"><button class="pend-btn hist" data-hist="1" '+d+'>📊 '+(x.kind==='ot'?'ดูประวัติ OT ย้อนหลัง':'ดูประวัติการลาย้อนหลัง')+'</button></div>'+
       '<div class="pend-act">'+
         '<button class="pend-btn no" data-rej="1" '+d+'>❌ ไม่อนุมัติ</button>'+
         '<button class="pend-btn ok" data-appr="1" '+d+'>✅ อนุมัติ</button>'+
@@ -892,7 +935,7 @@ function mockBootstrap(){
   document.getElementById('app').classList.remove('hidden');
   render();
 }
-function mockApi(action){
+function mockApi(action, params){
   return new Promise(function(resolve){ setTimeout(function(){
     if(action==='history') resolve({ok:true,count:MOCK_LV_HIST.length,history:MOCK_LV_HIST});
     else if(action==='otHistory') resolve({ok:true,count:MOCK_OT_HIST.length,history:MOCK_OT_HIST});
@@ -908,8 +951,12 @@ function mockApi(action){
       leave:{total:8,approved:5,pending:2,rejected:1},ot:{hours:24.5,count:6,pending:1},
       employees:[{name:'นางสาวชนัญชิดา โชคธนอนันต์',dept:'สำนักงานใหญ่',vac:16,biz:10,sick:29,used:5,status:'✅ ปกติ'},
         {name:'นายตัวอย่าง ทดสอบ',dept:'ฝ่ายขาย',vac:6,biz:0,sick:28,used:12,status:'⚠️ เกินสิทธิ์'}],
-      pending:[{kind:'leave',id:'LV-003',name:'นางสาวชนัญชิดา โชคธนอนันต์',type:'ลากิจ',date:'02/06/2569',days:1},
-        {kind:'ot',id:'OT-002',name:'นายตัวอย่าง ทดสอบ',type:'ลูกค้าร้องขอ',date:'28/05/2569',hours:3}]});
+      pending:[{kind:'leave',id:'LV-003',name:'นางสาวชนัญชิดา โชคธนอนันต์',type:'ลากิจ',date:'02/06/2569',days:1,userId:'MOCK',empId:'EMP-001'},
+        {kind:'ot',id:'OT-002',name:'นายตัวอย่าง ทดสอบ',type:'ลูกค้าร้องขอ',date:'28/05/2569',hours:3,userId:'MOCK2',empId:'EMP-002'}]});
+    else if(action==='hrEmpHistory'){
+      if(params&&params.kind==='ot') resolve({ok:true,kind:'ot',name:'นายตัวอย่าง ทดสอบ',history:MOCK_OT_HIST,count:MOCK_OT_HIST.length});
+      else resolve({ok:true,kind:'leave',name:'นางสาวชนัญชิดา โชคธนอนันต์',history:MOCK_LV_HIST,count:MOCK_LV_HIST.length,
+        summary:lvSummary(MOCK_LV_HIST),balances:{vac:16,biz:10,sick:29}}); }
     else resolve({ok:true,profile:S.profile,balances:S.balances,holidays:S.holidays,leaveTypes:S.leaveTypes,
       otTypes:S.otTypes,otThisMonth:S.otThisMonth,recent:S.recent});
   },220); });
