@@ -108,6 +108,30 @@ img{max-width:100%}
 .hub-link:active{transform:scale(.99)}
 .hub-link .chev{color:var(--muted);font-size:20px}
 .hub-link.hr{background:var(--red-tint);border-color:var(--red-soft);color:var(--red-deep)}
+.hub-link.admin{background:var(--slate-tint);border-color:transparent;color:var(--slate)}
+
+/* ── หน้าตั้งค่า (admin) ── */
+.set-emp{padding:13px 2px;border-bottom:1px solid var(--line)}
+.set-emp:last-child{border-bottom:none}
+.set-emp-top{display:flex;gap:12px;align-items:flex-start}
+.set-acts{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-top:9px;padding-left:52px}
+.set-btn{border:1px solid var(--line);background:#fff;border-radius:10px;padding:9px 4px;
+  font-family:inherit;font-weight:600;font-size:13px;cursor:pointer;color:var(--ink)}
+.set-btn:active{transform:scale(.97)}
+.set-cur{font-size:14px;margin-bottom:12px}
+.set-hint,.set-ro{font-size:13px;color:var(--muted);margin-bottom:12px}
+.set-ro b{color:var(--ink)}
+.role-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.role-opt{border:1.5px solid var(--line);background:#fff;border-radius:12px;padding:13px 6px;
+  font-family:inherit;font-weight:700;font-size:14px;cursor:pointer;color:var(--muted)}
+.role-opt.sel{border-color:var(--red);background:var(--red-tint);color:var(--red-deep)}
+.set-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--line)}
+.set-row.col{flex-direction:column;align-items:stretch;gap:6px}
+.set-row label{font-size:14px;color:var(--ink);flex:0 0 auto}
+.set-row.col label{font-size:13px;color:var(--muted)}
+.set-row input{border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;
+  font-family:inherit;font-size:15px;width:110px;text-align:right}
+.set-row.col input{width:100%;text-align:left}
 
 /* ── Back bar ── */
 .backbar{background:none;border:none;color:var(--muted);font-family:inherit;font-size:14px;

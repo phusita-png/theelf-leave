@@ -17,7 +17,8 @@ var VIEW_HEAD = {
   history: ['ประวัติ','คำขอลา & OT ของคุณ'],
   profile: ['โปรไฟล์','ข้อมูล & สิทธิ์การลา'],
   documents:['เอกสาร','ดาวน์โหลดเอกสารของคุณ'],
-  hr:      ['แผง HR','ภาพรวม & รออนุมัติ']
+  hr:      ['แผง HR','ภาพรวม & รออนุมัติ'],
+  settings:['ตั้งค่าระบบ','บทบาท · โควต้า · ข้อมูลพนักงาน']
 };
 
 var S = {
@@ -119,6 +120,7 @@ function render(){
   else if (S.view==='payslip'){ m.innerHTML = '<div class="card"><div class="skel" style="height:120px"></div></div>'; loadPayslip(); }
   else if (S.view==='documents'){ m.innerHTML = '<div class="card"><div class="skel" style="height:60px"></div></div>'; loadDocuments(); }
   else if (S.view==='hr'){ m.innerHTML = '<div class="card"><div class="skel" style="height:120px"></div></div>'; loadHr(); }
+  else if (S.view==='settings'){ m.innerHTML = '<div class="card"><div class="skel" style="height:120px"></div></div>'; loadSettings(); }
   else if (S.view==='history'){ m.innerHTML = viewHistory(); wireHistory(); }
   else if (S.view==='profile') m.innerHTML = viewProfile();
 }
@@ -162,6 +164,7 @@ function viewHome(){
 
   '<button class="hub-link" data-go="documents"><span>📎 เอกสารของฉัน</span><span class="chev">›</span></button>'+
   (p.canApprove ? '<button class="hub-link hr" data-go="hr"><span>📊 แผง HR · ภาพรวม + รออนุมัติ</span><span class="chev">›</span></button>' : '')+
+  (p.canAdmin ? '<button class="hub-link admin" data-go="settings"><span>⚙️ ตั้งค่าระบบ · บทบาท + โควต้า + พนักงาน</span><span class="chev">›</span></button>' : '')+
 
   '<div class="card"><div class="card-title"><span class="ic"></span>กิจกรรมล่าสุด</div>'+feed+'</div>';
 }
@@ -952,6 +955,102 @@ function renderHr(r){
   return summary+otcard+pendCard+empCard;
 }
 
+// ════════════ VIEW: SETTINGS (admin · ADMIN/OWNER) ════════════
+function loadSettings(){
+  api('adminBootstrap',{}).then(function(r){
+    var m=document.getElementById('main'); if(!m) return;
+    if(!r.ok){ m.innerHTML=backBar()+emptyBox('🔒',r.error||'ไม่มีสิทธิ์'); bindBack(); return; }
+    S.adminUsers=r.users; S.adminRoles=r.roles; S.adminCaller=r.callerId; S.adminOwnerCount=r.ownerCount;
+    m.innerHTML=backBar()+renderSettings(r); bindBack(); wireSettings();
+  }).catch(function(e){ var m=document.getElementById('main'); if(m){ m.innerHTML=backBar()+emptyBox('😿',String(e.message||e)); bindBack(); } });
+}
+function renderSettings(r){
+  var rows=r.users.map(function(u){
+    var isSelf=u.lineUserId===r.callerId;
+    return '<div class="set-emp"><div class="set-emp-top"><div class="hist-ic">👤</div><div class="hist-main">'+
+      '<div class="hist-type">'+esc(u.name)+(isSelf?' <span class="re-badge">คุณ</span>':'')+'</div>'+
+      '<div class="hist-meta">'+esc(u.empId||'-')+' · '+esc(u.dept||'-')+' · บทบาท <b>'+esc(u.role)+'</b></div></div></div>'+
+      '<div class="set-acts">'+
+        '<button class="set-btn" data-srole="'+esc(u.lineUserId)+'">👤 บทบาท</button>'+
+        '<button class="set-btn" data-squota="'+esc(u.empId)+'">🏖️ โควต้า</button>'+
+        '<button class="set-btn" data-sinfo="'+esc(u.lineUserId)+'">✏️ ข้อมูล</button>'+
+      '</div></div>';
+  }).join('');
+  return '<div class="card"><div class="card-title"><span class="ic"></span>พนักงาน ('+r.users.length+') · OWNER '+r.ownerCount+' คน</div>'+
+    '<div class="hr-note ok2">⚙️ เฉพาะ ADMIN/OWNER · ทุกการเปลี่ยนถูกบันทึก audit</div>'+rows+'</div>';
+}
+function wireSettings(){
+  document.querySelectorAll('[data-srole]').forEach(function(el){ el.addEventListener('click',function(){ openRoleModal(el.dataset.srole); }); });
+  document.querySelectorAll('[data-squota]').forEach(function(el){ el.addEventListener('click',function(){ openQuotaModal(el.dataset.squota); }); });
+  document.querySelectorAll('[data-sinfo]').forEach(function(el){ el.addEventListener('click',function(){ openInfoModal(el.dataset.sinfo); }); });
+}
+// modal กลาง — head + body + ปุ่มบันทึก
+function _settingsModal_(head, body, onSave){
+  var c=document.getElementById('confirm');
+  if(!c){ c=document.createElement('div'); c.id='confirm'; c.className='cfm'; document.body.appendChild(c); }
+  c.innerHTML='<div class="cfm-box"><div class="cfm-head">'+head+'</div>'+
+    '<div class="cfm-body cfm-scroll">'+body+'</div>'+
+    '<div class="cfm-act"><button class="cfm-btn ghost" data-cfm-cancel>ยกเลิก</button>'+
+    '<button class="cfm-btn go" data-cfm-ok>💾 บันทึก</button></div></div>';
+  c.classList.add('show');
+  c.querySelector('[data-cfm-cancel]').addEventListener('click', closeConfirm);
+  c.querySelector('[data-cfm-ok]').addEventListener('click', function(){ onSave(c); });
+  return c;
+}
+function _findUser_(key,val){ return (S.adminUsers||[]).filter(function(x){return x[key]===val;})[0]; }
+function openRoleModal(uid){
+  var u=_findUser_('lineUserId',uid); if(!u) return;
+  if(uid===S.adminCaller) return toast('🚫 เปลี่ยนบทบาทตัวเองไม่ได้','err');
+  var btns=S.adminRoles.map(function(rr){ return '<button type="button" class="role-opt'+(rr===u.role?' sel':'')+'" data-r="'+rr+'">'+rr+'</button>'; }).join('');
+  var c=_settingsModal_('👤 บทบาท · '+esc(u.name),
+    '<div class="set-cur">ปัจจุบัน: <b>'+esc(u.role)+'</b></div><div class="role-grid">'+btns+'</div>',
+    function(cc){
+      var sel=cc.querySelector('.role-opt.sel'); var nr=sel?sel.dataset.r:u.role;
+      if(nr===u.role){ closeConfirm(); return; }
+      closeConfirm(); toast('กำลังบันทึก…');
+      api('setRole',{targetUserId:uid,role:nr}).then(function(r){
+        if(!r.ok) return toast(r.error||'ไม่สำเร็จ','err');
+        toast('✅ เปลี่ยนเป็น '+nr+' แล้ว','ok'); loadSettings();
+      }).catch(function(e){ toast(String(e.message||e),'err'); });
+    });
+  c.querySelectorAll('.role-opt').forEach(function(el){ el.addEventListener('click',function(){
+    c.querySelectorAll('.role-opt').forEach(function(x){x.classList.remove('sel');}); el.classList.add('sel'); }); });
+}
+function openQuotaModal(empId){
+  var u=_findUser_('empId',empId);
+  if(!u) return toast('ไม่พบพนักงาน','err');
+  if(!u.quota) return toast('ไม่พบแถวโควต้าของ '+u.name+' ในชีตโควต้าลา','err');
+  var q=u.quota;
+  var types=[['sick','🤒 ลาป่วย'],['biz','📋 ลากิจ'],['vac','🌴 ลาพักร้อน'],['bday','🎂 ลาวันเกิด'],['special','🎁 วันเกิดคนพิเศษ'],['unpaid','📝 ลากิจไม่รับค่าจ้าง']];
+  var body='<div class="set-hint">หน่วย: วัน (สิทธิ์ต่อปี)</div>'+types.map(function(t){
+    return '<div class="set-row"><label>'+t[1]+'</label><input type="number" min="0" step="0.5" data-q="'+t[0]+'" value="'+(q[t[0]]!=null?q[t[0]]:0)+'"></div>';
+  }).join('');
+  _settingsModal_('🏖️ โควต้าลา · '+esc(u.name), body, function(cc){
+    var quota={}; cc.querySelectorAll('[data-q]').forEach(function(el){ quota[el.dataset.q]=el.value; });
+    closeConfirm(); toast('กำลังบันทึก…');
+    api('setLeaveQuota',{empId:empId,quota:quota}).then(function(r){
+      if(!r.ok) return toast(r.error||'ไม่สำเร็จ','err');
+      toast('✅ แก้โควต้าแล้ว'+(r.changed?' ('+r.changed+' รายการ)':''),'ok'); loadSettings();
+    }).catch(function(e){ toast(String(e.message||e),'err'); });
+  });
+}
+function openInfoModal(uid){
+  var u=_findUser_('lineUserId',uid); if(!u) return;
+  var fields=[['dept','แผนก'],['email','Email'],['startDate','วันเริ่มงาน (dd/MM/yyyy)'],['branch','สาขา'],['status','สถานะพนักงาน']];
+  var body='<div class="set-ro">ชื่อ: <b>'+esc(u.name)+'</b> · รหัส '+esc(u.empId||'-')+' <span style="color:var(--muted)">(แก้ไม่ได้)</span></div>'+
+    fields.map(function(f){
+      return '<div class="set-row col"><label>'+f[1]+'</label><input type="text" data-f="'+f[0]+'" value="'+esc(u[f[0]]||'')+'"></div>';
+    }).join('');
+  _settingsModal_('✏️ ข้อมูล · '+esc(u.name), body, function(cc){
+    var payload={targetUserId:uid}; cc.querySelectorAll('[data-f]').forEach(function(el){ payload[el.dataset.f]=el.value; });
+    closeConfirm(); toast('กำลังบันทึก…');
+    api('updateEmployee',payload).then(function(r){
+      if(!r.ok) return toast(r.error||'ไม่สำเร็จ','err');
+      toast('✅ แก้ข้อมูลแล้ว'+(r.changed&&r.changed.length?' ('+r.changed.length+' ช่อง)':''),'ok'); loadSettings();
+    }).catch(function(e){ toast(String(e.message||e),'err'); });
+  });
+}
+
 // ════════════ HELPERS ════════════
 function refresh(){ api('bootstrap',{}).then(function(r){ if(r.ok){ apply(r); if(S.view==='home'||S.view==='profile') render(); } }).catch(function(){}); }
 function statusBadge(st){
@@ -1002,7 +1101,7 @@ var MOCK_SLIPS = [
   {label:'เมษายน 2569',net:26500,income:28500,sso:750,tax:350,deduct:2000,ot:0,ytdInc:118000,ytdTax:1500,ytdSso:3000,slipUrl:''}];
 function mockBootstrap(){
   S.auth={userId:'MOCK'};
-  S.profile={name:'นางสาวชนัญชิดา โชคธนอนันต์',empId:'EMP-001',dept:'สำนักงานใหญ่',role:'APPROVER',canApprove:true};
+  S.profile={name:'นางสาวชนัญชิดา โชคธนอนันต์',empId:'EMP-001',dept:'สำนักงานใหญ่',role:'OWNER',canApprove:true,canAdmin:true};
   S.balances={vac:{name:'พักร้อน',emoji:'🌴',remaining:16},biz:{name:'ลากิจ',emoji:'🏠',remaining:10},sick:{name:'ลาป่วย',emoji:'🤒',remaining:29},
     unpaid:{name:'ไม่รับค่าจ้าง',emoji:'📄',remaining:7},bday:{name:'วันเกิด',emoji:'🎂',remaining:1},special:{name:'คนพิเศษ',emoji:'💝',remaining:1}};
   S.holidays=[{date:'12/06/2569',name:'ตัวอย่างวันหยุด'}];
@@ -1024,6 +1123,12 @@ function mockApi(action, params){
     else if(action==='submitOtEdit') resolve({ok:true,otId:(params&&params.otId)||'OT-MOCK',hours:otHours(S.otForm.start,S.otForm.end)});
     else if(action==='payslip') resolve({ok:true,latest:MOCK_SLIPS[0],slips:MOCK_SLIPS});
     else if(action==='slipShareLink') resolve({ok:true,url:'#'});
+    else if(action==='adminBootstrap') resolve({ok:true,callerId:'MOCK',ownerCount:1,
+      roles:['EMPLOYEE','REVIEWER','APPROVER','ADMIN','OWNER'],leaveTypes:MOCK_LT,
+      users:[
+        {lineUserId:'MOCK',name:'นางสาวชนัญชิดา โชคธนอนันต์',empId:'EMP-001',dept:'สำนักงานใหญ่',email:'a@theelf.co',role:'OWNER',startDate:'01/01/2566',branch:'สนญ.',status:'ปกติ',quota:{sick:30,biz:3,vac:6,bday:1,special:1,unpaid:3}},
+        {lineUserId:'MOCK2',name:'นายตัวอย่าง ทดสอบ',empId:'EMP-002',dept:'ฝ่ายขาย',email:'b@theelf.co',role:'EMPLOYEE',startDate:'15/03/2567',branch:'สาขา 2',status:'ปกติ',quota:{sick:30,biz:3,vac:6,bday:1,special:1,unpaid:3}}]});
+    else if(action==='setRole'||action==='setLeaveQuota'||action==='updateEmployee') resolve({ok:true,changed:1});
     else if(action==='documents') resolve({ok:true,documents:[
       {name:'หนังสือรับรองเงินเดือน พ.ค. 69',url:'#',category:'หนังสือรับรอง',scope:'ส่วนตัว'},
       {name:'นโยบายวันลา ปี 2569',url:'#',category:'นโยบาย',scope:'ทั้งบริษัท'},
