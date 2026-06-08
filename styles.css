@@ -132,6 +132,13 @@ img{max-width:100%}
 .set-row input{border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;
   font-family:inherit;font-size:15px;width:110px;text-align:right}
 .set-row.col input{width:100%;text-align:left}
+.set-row select{border:1.5px solid var(--line);border-radius:10px;padding:10px 8px;
+  font-family:inherit;font-size:15px;width:110px;background:#fff}
+.set-row.col select{width:100%}
+.set-sec{font-size:13px;font-weight:700;color:var(--red-deep);margin:16px 0 6px;
+  padding-top:10px;border-top:1px solid var(--line)}
+.set-2col{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.set-2col .set-row{border-bottom:none;padding:6px 0}
 
 /* ── Back bar ── */
 .backbar{background:none;border:none;color:var(--muted);font-family:inherit;font-size:14px;

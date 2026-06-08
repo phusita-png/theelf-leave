@@ -960,7 +960,7 @@ function loadSettings(){
   api('adminBootstrap',{}).then(function(r){
     var m=document.getElementById('main'); if(!m) return;
     if(!r.ok){ m.innerHTML=backBar()+emptyBox('🔒',r.error||'ไม่มีสิทธิ์'); bindBack(); return; }
-    S.adminUsers=r.users; S.adminRoles=r.roles; S.adminCaller=r.callerId; S.adminOwnerCount=r.ownerCount;
+    S.adminUsers=r.users; S.adminRoles=r.roles; S.adminCaller=r.callerId; S.adminOwnerCount=r.ownerCount; S.adminSchedules=r.schedules||[];
     m.innerHTML=backBar()+renderSettings(r); bindBack(); wireSettings();
   }).catch(function(e){ var m=document.getElementById('main'); if(m){ m.innerHTML=backBar()+emptyBox('😿',String(e.message||e)); bindBack(); } });
 }
@@ -977,12 +977,60 @@ function renderSettings(r){
       '</div></div>';
   }).join('');
   return '<div class="card"><div class="card-title"><span class="ic"></span>พนักงาน ('+r.users.length+') · OWNER '+r.ownerCount+' คน</div>'+
-    '<div class="hr-note ok2">⚙️ เฉพาะ ADMIN/OWNER · ทุกการเปลี่ยนถูกบันทึก audit</div>'+rows+'</div>';
+    '<div class="hr-note ok2">⚙️ เฉพาะ ADMIN/OWNER · ทุกการเปลี่ยนถูกบันทึก audit</div>'+
+    '<button class="btn btn-primary" data-addemp style="width:100%;margin-bottom:10px">➕ เพิ่มพนักงานใหม่</button>'+
+    rows+'</div>';
 }
 function wireSettings(){
+  var add=document.querySelector('[data-addemp]'); if(add) add.addEventListener('click', openAddEmployeeModal);
   document.querySelectorAll('[data-srole]').forEach(function(el){ el.addEventListener('click',function(){ openRoleModal(el.dataset.srole); }); });
   document.querySelectorAll('[data-squota]').forEach(function(el){ el.addEventListener('click',function(){ openQuotaModal(el.dataset.squota); }); });
   document.querySelectorAll('[data-sinfo]').forEach(function(el){ el.addEventListener('click',function(){ openInfoModal(el.dataset.sinfo); }); });
+}
+// ➕ ฟอร์มเพิ่มพนักงานใหม่ (เขียน 3 ที่: ลา+payroll+OT · พนักงาน register ผูก LINE เอง)
+function openAddEmployeeModal(){
+  var scheds=S.adminSchedules||[];
+  var schedOpts=scheds.length
+    ? scheds.map(function(s){ return '<option value="'+esc(s.code)+'">'+esc(s.code)+(s.desc?' · '+esc(s.desc):'')+'</option>'; }).join('')
+    : '<option value="">— ไม่พบกะ (ตั้งค่าชีตเวลาการทำงานก่อน) —</option>';
+  var rc=function(label,inner){ return '<div class="set-row col"><label>'+label+'</label>'+inner+'</div>'; };
+  var inp=function(f,ph){ return '<input type="text" data-f="'+f+'"'+(ph?' placeholder="'+ph+'"':'')+'>'; };
+  var num=function(f,v){ return '<input type="number" min="0" step="0.5" data-f="'+f+'" value="'+(v!=null?v:'')+'">'; };
+  var body=
+    '<div class="set-sec">ข้อมูลจำเป็น *</div>'+
+    '<div class="set-2col">'+rc('ชื่อ *',inp('name'))+rc('นามสกุล *',inp('lastName'))+'</div>'+
+    '<div class="set-2col">'+rc('รหัสพนักงาน *',inp('empId'))+rc('แผนก *',inp('dept'))+'</div>'+
+    '<div class="set-2col">'+rc('เงินเดือน *',num('salary'))+rc('รหัสกะ *','<select data-f="sched">'+schedOpts+'</select>')+'</div>'+
+    '<div class="set-sec">สิทธิ์ลา (วัน/ปี · พักร้อนกรอกตามอายุงาน)</div>'+
+    '<div class="set-2col">'+
+      '<div class="set-row"><label>🤒 ป่วย</label>'+num('q_sick',30)+'</div>'+
+      '<div class="set-row"><label>📋 กิจ</label>'+num('q_biz',3)+'</div>'+
+      '<div class="set-row"><label>🌴 พักร้อน</label>'+num('q_vac',0)+'</div>'+
+      '<div class="set-row"><label>🎂 วันเกิด</label>'+num('q_bday',1)+'</div>'+
+      '<div class="set-row"><label>🎁 คนพิเศษ</label>'+num('q_special',1)+'</div>'+
+      '<div class="set-row"><label>📝 ไม่รับค่าจ้าง</label>'+num('q_unpaid',3)+'</div>'+
+    '</div>'+
+    '<div class="set-sec">payroll/OT (เติมทีหลังได้)</div>'+
+    rc('ตำแหน่ง',inp('position'))+rc('Email',inp('email'))+
+    '<div class="set-2col">'+rc('ธนาคาร',inp('bank'))+rc('เลขบัญชี',inp('bankAcc'))+'</div>'+
+    rc('เลขบัตรประชาชน (13 หลัก)',inp('taxId'))+rc('วันเริ่มงาน (dd/MM/yyyy)',inp('startDate'))+
+    '<div class="set-2col">'+
+      rc('หัก ปกส.','<select data-f="ssoFlag"><option>ใช่</option><option>ไม่ใช่</option></select>')+
+      rc('หักภาษี','<select data-f="taxFlag"><option>ใช่</option><option>ไม่ใช่</option></select>')+'</div>';
+  _settingsModal_('➕ เพิ่มพนักงานใหม่', body, function(cc){
+    var pl={quota:{}};
+    cc.querySelectorAll('[data-f]').forEach(function(el){
+      var f=el.dataset.f;
+      if(f.indexOf('q_')===0) pl.quota[f.substring(2)]=el.value; else pl[f]=el.value;
+    });
+    closeConfirm(); toast('กำลังเพิ่มพนักงาน…');
+    api('addEmployee',pl).then(function(r){
+      if(!r.ok) return toast(r.error||'เพิ่มไม่สำเร็จ','err');
+      var msg='✅ เพิ่ม '+r.fullName+' แล้ว ('+(r.written?r.written.length:0)+' ที่)';
+      if(r.warnings&&r.warnings.length) msg+=' ⚠️ '+r.warnings.join('; ');
+      toast(msg,'ok'); loadSettings();
+    }).catch(function(e){ toast(String(e.message||e),'err'); });
+  });
 }
 // modal กลาง — head + body + ปุ่มบันทึก
 function _settingsModal_(head, body, onSave){
@@ -1123,7 +1171,9 @@ function mockApi(action, params){
     else if(action==='submitOtEdit') resolve({ok:true,otId:(params&&params.otId)||'OT-MOCK',hours:otHours(S.otForm.start,S.otForm.end)});
     else if(action==='payslip') resolve({ok:true,latest:MOCK_SLIPS[0],slips:MOCK_SLIPS});
     else if(action==='slipShareLink') resolve({ok:true,url:'#'});
+    else if(action==='addEmployee') resolve({ok:true,fullName:(params&&params.name||'')+' '+(params&&params.lastName||''),written:['โควต้าลา','วันลาคงเหลือ','payroll (ลำดับ 99)','OT อัตราค่าจ้าง'],warnings:[]});
     else if(action==='adminBootstrap') resolve({ok:true,callerId:'MOCK',ownerCount:1,
+      schedules:[{code:'S01',desc:'จ-ศ 09:00-18:00'},{code:'S02',desc:'จ-ส 08:00-17:00'},{code:'RM01',desc:'Remote'}],
       roles:['EMPLOYEE','REVIEWER','APPROVER','ADMIN','OWNER'],leaveTypes:MOCK_LT,
       users:[
         {lineUserId:'MOCK',name:'นางสาวชนัญชิดา โชคธนอนันต์',empId:'EMP-001',dept:'สำนักงานใหญ่',email:'a@theelf.co',role:'OWNER',startDate:'01/01/2566',branch:'สนญ.',status:'ปกติ',quota:{sick:30,biz:3,vac:6,bday:1,special:1,unpaid:3}},
