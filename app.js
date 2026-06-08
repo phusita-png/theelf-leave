@@ -27,7 +27,7 @@ var S = {
   leaveForm:{type:'vac',start:null,end:null,period:'full',reason:'',stime:'',etime:''},
   otForm:{date:null,start:'',end:'',type:'1',reason:''},
   calLeave:new Date(), calOt:new Date(), histTab:'leave',
-  editLeaveId:null, pendingEdit:null   // โหมดแก้ไขใบลาที่ HR ส่งกลับ
+  editLeaveId:null, editOtId:null, pendingEdit:null   // โหมดแก้ไขใบลา/OT ที่ HR ส่งกลับ
 };
 
 // ════════════ INIT ════════════
@@ -84,7 +84,7 @@ function bootstrap() {
     document.getElementById('loader').classList.add('hidden');
     document.getElementById('app').classList.remove('hidden');
     paintAvatar(); render();
-    if (S.pendingEdit) enterEditByLeaveId(S.pendingEdit);   // deep-link → เปิดหน้าแก้เลย
+    if (S.pendingEdit) enterEditById(S.pendingEdit);   // deep-link → เปิดหน้าแก้เลย (ลา/OT)
   }).catch(function(e){ fail(String(e.message || e)); });
 }
 function apply(r){
@@ -315,7 +315,12 @@ function cancelEdit(){
 
 // ════════════ VIEW: OT ════════════
 function viewOt(){
-  return '<div class="card">'+
+  var editing = !!S.editOtId;
+  var banner = editing
+    ? '<div class="edit-banner">✏️ กำลังแก้ไข OT <b>'+esc(S.editOtId)+'</b> (HR ส่งกลับให้แก้)'+
+      ' <a href="#" id="cancelEditOt" class="edit-cancel">ยกเลิก</a></div>'
+    : '';
+  return banner+'<div class="card">'+
     '<div class="card-title ot"><span class="ic"></span>ประเภท OT</div>'+
     '<div id="otTypeGrid"></div>'+
     '<label class="field-lb">📅 วันที่ทำ OT <span style="font-weight:400">(ย้อนหลังได้ ≤30 วัน)</span></label>'+
@@ -325,7 +330,7 @@ function viewOt(){
     '<label class="field-lb">📝 เหตุผล / รายละเอียด</label>'+
     '<textarea id="otReason" rows="2" placeholder="ระบุรายละเอียดงาน (ถ้ามี)…"></textarea>'+
     '<div id="otSummary" style="margin-top:16px"></div>'+
-    '<div style="margin-top:12px"><button id="btnOt" class="btn btn-ot">ส่งคำขอ OT</button></div>'+
+    '<div style="margin-top:12px"><button id="btnOt" class="btn btn-ot">'+(editing?'บันทึกการแก้ไข OT':'ส่งคำขอ OT')+'</button></div>'+
   '</div>';
 }
 function wireOt(){
@@ -334,8 +339,11 @@ function wireOt(){
   document.getElementById('otEnd').value = S.otForm.end;
   document.getElementById('otStart').addEventListener('input', function(e){ S.otForm.start=e.target.value; renderOtSummary(); });
   document.getElementById('otEnd').addEventListener('input', function(e){ S.otForm.end=e.target.value; renderOtSummary(); });
+  document.getElementById('otReason').value = S.otForm.reason || '';
   document.getElementById('otReason').addEventListener('input', function(e){ S.otForm.reason=e.target.value; });
   document.getElementById('btnOt').addEventListener('click', submitOt);
+  var ce = document.getElementById('cancelEditOt');
+  if (ce) ce.addEventListener('click', function(ev){ ev.preventDefault(); cancelEditOt(); });
 }
 function renderOtTypeGrid(){
   var t = S.otTypes; var keys = Object.keys(t);
@@ -361,12 +369,12 @@ function renderOtSummary(){
     (otHours(f.start,f.end)>0 && endBeforeStart(f.start,f.end) ? '<div style="text-align:center;color:var(--ot);font-size:12px;margin-top:8px">🌙 ข้ามเที่ยงคืน</div>':'');
 }
 function submitOt(){
-  var f = S.otForm;
+  var f = S.otForm, editing = !!S.editOtId;
   if (!f.date) return toast('กรุณาเลือกวันที่ทำ OT','err');
   if (!f.start || !f.end) return toast('กรุณาใส่เวลาเริ่ม-สิ้นสุด','err');
   if (otHours(f.start,f.end)<=0) return toast('เวลาเริ่ม-สิ้นสุดต้องไม่เท่ากัน','err');
   var hrs=otHours(f.start,f.end);
-  confirmModal({ title:'ยืนยันการขอ OT', emoji:'⏰', accent:'ot', onConfirm:doSubmitOt, rows:[
+  confirmModal({ title:editing?'ยืนยันการแก้ไข OT':'ยืนยันการขอ OT', emoji:'⏰', accent:'ot', onConfirm:doSubmitOt, rows:[
     {k:'ประเภท', v:S.otTypes[f.type]||'-'},
     {k:'วันที่',  v:fmtThai(f.date)},
     {k:'เวลา',    v:f.start+' → '+f.end+(endBeforeStart(f.start,f.end)?' 🌙':'')},
@@ -375,15 +383,47 @@ function submitOt(){
   ]});
 }
 function doSubmitOt(){
-  var f = S.otForm;
+  var f = S.otForm, editing = !!S.editOtId;
+  var defLabel = editing ? 'บันทึกการแก้ไข OT' : 'ส่งคำขอ OT';
   var btn = document.getElementById('btnOt'); if(btn){ btn.disabled=true; btn.textContent='กำลังส่ง…'; }
-  api('otSubmit',{otDate:fmtThai(f.date),startTime:f.start,endTime:f.end,otType:f.type,reason:f.reason||''})
-  .then(function(r){
-    if(!r.ok){ if(btn){btn.disabled=false;btn.textContent='ส่งคำขอ OT';} return toast(r.error||'ส่งไม่สำเร็จ','err'); }
-    toast('✅ ส่งคำขอ OT แล้ว · '+r.hours+' ชม.','ok');
+  var action = editing ? 'submitOtEdit' : 'otSubmit';
+  var params = {otDate:fmtThai(f.date),startTime:f.start,endTime:f.end,otType:f.type,reason:f.reason||''};
+  if (editing) params.otId = S.editOtId;
+  api(action, params).then(function(r){
+    if(!r.ok){ if(btn){btn.disabled=false;btn.textContent=defLabel;} return toast(r.error||'ส่งไม่สำเร็จ','err'); }
+    toast((editing?'✅ บันทึกการแก้ไข OT แล้ว · ':'✅ ส่งคำขอ OT แล้ว · ')+r.hours+' ชม.','ok');
+    S.editOtId=null;
     S.otForm={date:null,start:'',end:'',type:'1',reason:''};
     refresh(); setTimeout(function(){ S.histTab='ot'; goTo('history'); },1100);
-  }).catch(function(e){ if(btn){btn.disabled=false;btn.textContent='ส่งคำขอ OT';} toast(String(e.message||e),'err'); });
+  }).catch(function(e){ if(btn){btn.disabled=false;btn.textContent=defLabel;} toast(String(e.message||e),'err'); });
+}
+// แก้ไข OT ที่ HR ส่งกลับ — prefill ฟอร์ม OT จากใบเดิม
+function startEditOt(it){
+  S.editOtId = it.otId;
+  var d = parseThaiStr(it.otDate);
+  S.otForm = { date:d, start: it.startTime||'', end: it.endTime||'', type: it.otTypeKey||'1', reason: it.reason||'' };
+  if (d) S.calOt = new Date(d.getFullYear(), d.getMonth(), 1);
+  S.pendingEdit = null;
+  goTo('ot');
+}
+function cancelEditOt(){
+  S.editOtId=null;
+  S.otForm={date:null,start:'',end:'',type:'1',reason:''};
+  goTo('history');
+}
+// เปิดหน้าแก้ไขตามรหัส — แยก OT-xxx / LV-xxx
+function enterEditById(id){
+  if (String(id).indexOf('OT-')===0){
+    api('otHistory',{}).then(function(r){
+      if(!r.ok||!r.history) return;
+      var it = r.history.filter(function(h){ return h.otId===id; })[0];
+      if(!it) return toast('ไม่พบ OT '+id,'err');
+      if(!isReturnEdit(it.status)) return toast('OT '+id+' ไม่อยู่ในสถานะให้แก้ไข','err');
+      startEditOt(it);
+    }).catch(function(){});
+  } else {
+    enterEditByLeaveId(id);
+  }
 }
 
 // ════════════ CALENDAR (shared) ════════════
@@ -506,11 +546,15 @@ function loadOtHistory(){
     if(!r.ok) return body.innerHTML = emptyBox('😿', r.error||'โหลดไม่ได้');
     if(!r.history.length) return body.innerHTML = emptyBox('🍃','ยังไม่มีประวัติ OT');
     body.innerHTML = '<div class="card">'+r.history.map(function(o){
+      var editBtn = isReturnEdit(o.status)
+        ? '<button class="hist-edit" data-edit="'+esc(o.otId)+'">✏️ แก้ไขแล้วส่งใหม่</button>' : '';
       return '<div class="hist"><div class="hist-ic">⏰</div>'+
         '<div class="hist-main"><div class="hist-type">'+esc(o.otType||'OT')+'</div>'+
         '<div class="hist-meta"><span>📅 '+esc(o.otDate)+'</span><span>·</span>'+
-        '<span>🕐 '+esc(o.startTime)+'–'+esc(o.endTime)+'</span><span>·</span><span>'+o.hours+' ชม.</span></div></div>'+
+        '<span>🕐 '+esc(o.startTime)+'–'+esc(o.endTime)+'</span><span>·</span><span>'+o.hours+' ชม.</span></div>'+editBtn+'</div>'+
         statusBadge(o.status)+'</div>'; }).join('')+'</div>';
+    body.querySelectorAll('.hist-edit').forEach(function(b){
+      b.addEventListener('click', function(){ enterEditById(b.dataset.edit); }); });
   }).catch(function(e){ var b=document.getElementById('histBody'); if(b) b.innerHTML=emptyBox('😿',String(e.message||e)); });
 }
 
@@ -774,7 +818,7 @@ function doHrRequestDoc(kind, id, name){
 }
 // 📝 HR ส่งกลับให้แก้ไข (พนักงานแก้ในเว็บแอป) — ใบลาเท่านั้น
 function doHrReturnEdit(kind, id, name){
-  confirmModal({ title:'ส่งกลับให้แก้ไข', emoji:'📝', accent:'leave',
+  confirmModal({ title:'ส่งกลับให้แก้ไข', emoji:'📝', accent: kind==='ot'?'ot':'leave',
     onConfirm:function(){
       toast('กำลังส่งกลับ…');
       api('hrReturnEdit',{kind:kind,id:id}).then(function(r){
@@ -852,8 +896,8 @@ function renderHr(r){
         '<button class="pend-btn ok" data-appr="1" '+d+'>✅ อนุมัติ</button>'+
       '</div>'+
       '<div class="pend-act2">'+
-        '<button class="pend-btn doc" data-doc="1" '+d+'>📎 ขอเอกสารเพิ่ม</button>'+
-        (x.kind!=='ot' ? '<button class="pend-btn redit" data-redit="1" '+d+'>📝 ส่งกลับให้แก้ไข</button>' : '')+
+        (x.kind!=='ot' ? '<button class="pend-btn doc" data-doc="1" '+d+'>📎 ขอเอกสารเพิ่ม</button>' : '')+
+        '<button class="pend-btn redit" data-redit="1" '+d+'>📝 ส่งกลับให้แก้ไข</button>'+
       '</div>'+
       (x.docUrl ? '<div class="pend-act2"><button class="pend-btn viewdoc" data-viewdoc="1" '+d+'>📨 ดูเอกสารที่พนักงานแนบ</button></div>' : '')+
       '</div>'; }).join('')
@@ -915,8 +959,9 @@ var MOCK_LV_HIST = [
   {leaveId:'LV-002',type:'ลาพักร้อน',startDate:'19/05/2569',endDate:'28/05/2569',days:4,status:'อนุมัติ'},
   {leaveId:'LV-003',type:'ลากิจ',startDate:'02/06/2569',endDate:'02/06/2569',days:1,status:'รอการอนุมัติ'}];
 var MOCK_OT_HIST = [
-  {otId:'OT-001',otDate:'03/06/2569',startTime:'18:00',endTime:'21:30',hours:3.5,otType:'มีงานด่วน',status:'อนุมัติ'},
-  {otId:'OT-002',otDate:'28/05/2569',startTime:'22:00',endTime:'01:00',hours:3,otType:'ลูกค้าร้องขอ',status:'รอการอนุมัติ'}];
+  {otId:'OT-001',otDate:'03/06/2569',startTime:'18:00',endTime:'21:30',hours:3.5,otType:'มีงานด่วน',otTypeKey:'1',status:'อนุมัติ'},
+  {otId:'OT-002',otDate:'28/05/2569',startTime:'22:00',endTime:'01:00',hours:3,otType:'ลูกค้าร้องขอ',otTypeKey:'3',status:'รอการอนุมัติ'},
+  {otId:'OT-003',otDate:'25/05/2569',startTime:'19:00',endTime:'22:00',hours:3,otType:'อื่นๆ',otTypeKey:'4',status:'✏️ ส่งกลับให้แก้ไข'}];
 var MOCK_SLIPS = [
   {label:'พฤษภาคม 2569',net:27850,income:30000,sso:750,tax:400,deduct:2150,ot:1200,ytdInc:148000,ytdTax:1900,ytdSso:3750,slipUrl:''},
   {label:'เมษายน 2569',net:26500,income:28500,sso:750,tax:350,deduct:2000,ot:0,ytdInc:118000,ytdTax:1500,ytdSso:3000,slipUrl:''}];
@@ -941,6 +986,7 @@ function mockApi(action, params){
     else if(action==='otHistory') resolve({ok:true,count:MOCK_OT_HIST.length,history:MOCK_OT_HIST});
     else if(action==='submit') resolve({ok:true,leaveId:'LV-MOCK'});
     else if(action==='otSubmit') resolve({ok:true,otId:'OT-MOCK',hours:otHours(S.otForm.start,S.otForm.end)});
+    else if(action==='submitOtEdit') resolve({ok:true,otId:(params&&params.otId)||'OT-MOCK',hours:otHours(S.otForm.start,S.otForm.end)});
     else if(action==='payslip') resolve({ok:true,latest:MOCK_SLIPS[0],slips:MOCK_SLIPS});
     else if(action==='documents') resolve({ok:true,documents:[
       {name:'หนังสือรับรองเงินเดือน พ.ค. 69',url:'#',category:'หนังสือรับรอง',scope:'ส่วนตัว'},
