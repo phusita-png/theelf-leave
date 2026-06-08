@@ -667,20 +667,38 @@ function showViewer(state, url, name, mime){
     v.classList.add('show'); return;
   }
   var isImg = /^image\//i.test(mime||'');
-  // รูป → <img> พอดีจอ (แตะเพื่อซูมเต็มขนาด) · PDF/อื่น → iframe
+  // รูป → <img> พอดีจอ (แตะเพื่อซูมเต็มขนาด) · PDF/อื่น → iframe (preview)
   var content = isImg
     ? '<div class="vw-imgwrap"><img class="vw-img" src="'+url+'" alt="เอกสาร"></div>'
     : '<iframe class="vw-frame" src="'+url+'"></iframe>';
+  var hint = isImg ? '' : '<div class="vw-hint">📄 ถ้าซูมไม่ได้ในนี้ แตะ “เปิดเต็มจอ” เพื่อซูม/บันทึก</div>';
   v.innerHTML='<div class="vw-box"><div class="vw-bar"><span class="vw-name">'+esc(name||'เอกสาร')+'</span>'+
     '<button class="vw-x" data-vwclose>✕</button></div>'+
-    content+
-    '<a class="vw-dl" href="'+url+'" download="'+esc(name||'file')+'">⬇ ดาวน์โหลด / เปิดด้วยแอปอื่น</a></div>';
+    content+ hint +
+    '<div class="vw-actions">'+
+      '<button class="vw-btn open" data-vwopen>↗️ เปิดเต็มจอ · ซูม/บันทึก</button>'+
+      '<button class="vw-btn dl" data-vwdl>⬇️ ดาวน์โหลด</button>'+
+    '</div></div>';
   v.classList.add('show');
   v.querySelector('[data-vwclose]').addEventListener('click', closeViewer);
+  v.querySelector('[data-vwopen]').addEventListener('click', function(){ openFileExternal(url); });
+  v.querySelector('[data-vwdl]').addEventListener('click', function(){ downloadBlobUrl(url, name); });
   if(isImg){
     var img=v.querySelector('.vw-img');
     if(img) img.addEventListener('click', function(){ img.classList.toggle('zoom'); });
   }
+}
+// เปิดไฟล์ด้วยตัวอ่านของระบบ (ซูม/บันทึกได้ — เหมาะ iOS/LINE webview ที่ iframe ซูมไม่ได้)
+function openFileExternal(url){
+  try { var w = window.open(url, '_blank'); if (w) return; } catch(e){}
+  downloadBlobUrl(url, 'document');   // fallback ถ้าเปิดแท็บใหม่ไม่ได้
+}
+// ดาวน์โหลดจริง (programmatic click — เชื่อถือได้กว่า <a download> เฉยๆ บนมือถือ)
+function downloadBlobUrl(url, name){
+  var a=document.createElement('a');
+  a.href=url; a.download=name||'document.pdf'; a.target='_blank';
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){ a.remove(); }, 150);
 }
 function closeViewer(){ var v=document.getElementById('viewer'); if(v) v.classList.remove('show'); }
 
