@@ -1114,7 +1114,7 @@ function _addEmpFormBody_(pfName, pfLast){
     : '<option value="">— ไม่พบกะ (ตั้งค่าชีตเวลาการทำงานก่อน) —</option>';
   var rc=function(label,inner){ return '<div class="set-row col"><label>'+label+'</label>'+inner+'</div>'; };
   var inp=function(f,ph,val){ return '<input type="text" data-f="'+f+'"'+(ph?' placeholder="'+ph+'"':'')+(val?' value="'+esc(val)+'"':'')+'>'; };
-  var num=function(f,v){ return '<input type="number" min="0" step="0.5" data-f="'+f+'" value="'+(v!=null?v:'')+'">'; };
+  var num=function(f,v){ return '<input type="number" inputmode="decimal" min="0" step="0.5" data-f="'+f+'" value="'+(v!=null?v:'')+'">'; };
   return ''+
     '<div class="set-sec">ข้อมูลจำเป็น *</div>'+
     '<div class="set-2col">'+rc('ชื่อ *',inp('name','',pfName))+rc('นามสกุล *',inp('lastName','',pfLast))+'</div>'+
@@ -1125,10 +1125,8 @@ function _addEmpFormBody_(pfName, pfLast){
       '<div class="set-row"><label>🤒 ป่วย</label>'+num('q_sick',30)+'</div>'+
       '<div class="set-row"><label>📋 กิจ</label>'+num('q_biz',3)+'</div>'+
       '<div class="set-row"><label>🌴 พักร้อน</label>'+num('q_vac',0)+'</div>'+
-      '<div class="set-row"><label>🎂 วันเกิด</label>'+num('q_bday',1)+'</div>'+
-      '<div class="set-row"><label>🎁 คนพิเศษ</label>'+num('q_special',1)+'</div>'+
-      '<div class="set-row"><label>📝 ไม่รับค่าจ้าง</label>'+num('q_unpaid',3)+'</div>'+
     '</div>'+
+    '<div class="set-hint">ℹ️ ลาวันเกิด / คนพิเศษ / ไม่รับค่าจ้าง — ระบบใส่ค่ามาตรฐานให้ · ปรับทีหลังได้ที่หน้า ⚙️ ตั้งค่า</div>'+
     '<div class="set-sec">payroll/OT (เติมทีหลังได้)</div>'+
     rc('ตำแหน่ง',inp('position'))+rc('Email',inp('email'))+
     '<div class="set-2col">'+rc('ธนาคาร',inp('bank'))+rc('เลขบัญชี',inp('bankAcc'))+'</div>'+

@@ -129,16 +129,20 @@ img{max-width:100%}
 .set-row.col{flex-direction:column;align-items:stretch;gap:6px}
 .set-row label{font-size:14px;color:var(--ink);flex:0 0 auto}
 .set-row.col label{font-size:13px;color:var(--muted)}
-.set-row input{border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;
-  font-family:inherit;font-size:15px;width:110px;text-align:right}
+.set-row input{border:1.5px solid var(--line);border-radius:10px;padding:11px 12px;
+  font-family:inherit;font-size:16px;width:110px;text-align:right}
 .set-row.col input{width:100%;text-align:left}
-.set-row select{border:1.5px solid var(--line);border-radius:10px;padding:10px 8px;
-  font-family:inherit;font-size:15px;width:110px;background:#fff}
+.set-row select{border:1.5px solid var(--line);border-radius:10px;padding:11px 8px;
+  font-family:inherit;font-size:16px;width:110px;background:#fff}
 .set-row.col select{width:100%}
 .set-sec{font-size:13px;font-weight:700;color:var(--red-deep);margin:16px 0 6px;
   padding-top:10px;border-top:1px solid var(--line)}
 .set-2col{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .set-2col .set-row{border-bottom:none;padding:6px 0}
+/* ช่องตัวเลขสิทธิ์ลาในฟอร์ม — กว้างขึ้น + กลาง อ่าน/กดง่าย */
+.set-2col .set-row input{width:76px;text-align:center;padding-left:6px;padding-right:6px}
+.set-hint{font-size:12px;color:var(--muted);line-height:1.6;margin:8px 2px 4px;
+  background:var(--bg);border-radius:8px;padding:8px 10px}
 
 /* ── Back bar ── */
 .backbar{background:none;border:none;color:var(--muted);font-family:inherit;font-size:14px;
