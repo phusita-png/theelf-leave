@@ -51,7 +51,7 @@ function initLiff() {
       S.pendingEdit = qs.get('edit');
       if (!S.pendingEdit && liff.state) S.pendingEdit = new URLSearchParams(String(liff.state).replace(/^\?/,'')).get('edit');
     } catch(e){}
-    liff.getProfile().then(function(p){ S.avatar = p.pictureUrl; paintAvatar(); }).catch(function(){});
+    liff.getProfile().then(function(p){ S.avatar = p.pictureUrl; S.displayName = p.displayName || ''; paintAvatar(); }).catch(function(){});
     bootstrap();
   }).catch(function(e){ fail('LIFF init ล้มเหลว: ' + e); });
 }
@@ -80,7 +80,10 @@ function api(action, params) {
 // ════════════ BOOTSTRAP ════════════
 function bootstrap() {
   api('bootstrap', {}).then(function(r){
-    if (!r.ok) return fail(r.error || 'โหลดข้อมูลไม่สำเร็จ', r.needRegister ? '📝' : '😿');
+    if (!r.ok) {
+      if (r.needRegister) return showRegister();
+      return fail(r.error || 'โหลดข้อมูลไม่สำเร็จ', '😿');
+    }
     apply(r);
     document.getElementById('loader').classList.add('hidden');
     document.getElementById('app').classList.remove('hidden');
@@ -96,6 +99,55 @@ function apply(r){
 function fail(msg, emo){
   document.getElementById('loader').innerHTML =
     '<div class="empty"><div class="e-emo">'+(emo||'😿')+'</div><div class="e-txt">'+esc(msg)+'</div></div>';
+}
+
+// ════════════ REGISTER (พนักงานใหม่ · ส่งคำขอ → HR อนุมัติ) ════════════
+function showRegister(){
+  var ld = document.getElementById('loader');
+  ld.classList.remove('hidden');
+  document.getElementById('app').classList.add('hidden');
+  ld.innerHTML =
+    '<div class="reg-wrap">'+
+      '<div class="reg-emo">📝</div>'+
+      '<div class="reg-title">ลงทะเบียนเข้าระบบ</div>'+
+      '<div class="reg-sub">กรอกชื่อ-นามสกุลให้ตรงกับที่ HR บันทึกไว้<br>ระบบจะส่งให้ HR ตรวจสอบและอนุมัติก่อนเข้าใช้งานค่ะ</div>'+
+      '<input id="regName" class="reg-input" type="text" placeholder="เช่น สมชาย ใจดี" autocomplete="off">'+
+      '<button id="regBtn" class="btn btn-primary" style="width:100%;margin-top:4px">ส่งคำขอลงทะเบียน</button>'+
+      '<div id="regMsg" class="reg-msg"></div>'+
+    '</div>';
+  var input = document.getElementById('regName');
+  if (S.regName) input.value = S.regName;
+  document.getElementById('regBtn').addEventListener('click', submitRegistration);
+  input.addEventListener('keydown', function(e){ if(e.key==='Enter') submitRegistration(); });
+  input.focus();
+}
+function submitRegistration(){
+  var input = document.getElementById('regName');
+  var msg = document.getElementById('regMsg');
+  var btn = document.getElementById('regBtn');
+  var name = (input.value||'').trim().replace(/\s+/g,' ');
+  if (name.split(' ').length < 2){ msg.className='reg-msg err'; msg.textContent='กรุณากรอกทั้งชื่อและนามสกุลค่ะ'; return; }
+  S.regName = name;
+  btn.disabled = true; btn.textContent = 'กำลังส่ง…'; msg.textContent='';
+  api('submitRegistration', { name:name, displayName:S.displayName||'' }).then(function(r){
+    btn.disabled = false; btn.textContent = 'ส่งคำขอลงทะเบียน';
+    if (r.ok || r.pending || r.already) return showRegPending(r);
+    msg.className='reg-msg err'; msg.textContent = r.error || 'ส่งไม่สำเร็จ ลองใหม่อีกครั้งค่ะ';
+  }).catch(function(e){
+    btn.disabled = false; btn.textContent = 'ส่งคำขอลงทะเบียน';
+    msg.className='reg-msg err'; msg.textContent = 'เชื่อมต่อไม่ได้: '+(e.message||e);
+  });
+}
+function showRegPending(r){
+  var already = !!r.already;
+  document.getElementById('loader').innerHTML =
+    '<div class="reg-wrap">'+
+      '<div class="reg-emo">'+(already?'✅':'⏳')+'</div>'+
+      '<div class="reg-title">'+(already?'คุณลงทะเบียนแล้ว':'ส่งคำขอเรียบร้อย')+'</div>'+
+      '<div class="reg-sub">'+(already
+        ? 'บัญชีนี้อยู่ในระบบแล้ว ปิดแล้วเปิดแอปใหม่เพื่อเริ่มใช้งานได้เลยค่ะ'
+        : 'กรุณารอ HR ตรวจสอบและอนุมัติ<br>เมื่ออนุมัติแล้วระบบจะแจ้งกลับทาง LINE ทันทีค่ะ 🔔')+'</div>'+
+    '</div>';
 }
 
 // ════════════ ROUTER ════════════
@@ -767,8 +819,64 @@ function loadHr(){
   api('hrDashboard',{}).then(function(r){
     var m=document.getElementById('main'); if(!m) return;
     if(!r.ok){ m.innerHTML = backBar()+emptyBox('🔒', r.error||'ไม่มีสิทธิ์'); bindBack(); return; }
-    m.innerHTML = backBar()+renderHr(r); bindBack(); wireHrPending();
+    m.innerHTML = backBar()+'<div id="pendRegSlot"></div>'+renderHr(r); bindBack(); wireHrPending();
+    loadPendingRegs();
   }).catch(function(e){ var m=document.getElementById('main'); if(m){ m.innerHTML=backBar()+emptyBox('😿',String(e.message||e)); bindBack(); } });
+}
+// 📝 รายการรออนุมัติลงทะเบียน — โหลดแยก แล้วแทรกบนสุดของแผง HR
+function loadPendingRegs(){
+  api('pendingRegistrations',{}).then(function(r){
+    var slot=document.getElementById('pendRegSlot');
+    if(!slot || !r.ok){ return; }
+    if(!r.count){ slot.innerHTML=''; return; }
+    slot.innerHTML = renderPendingRegs(r.pending);
+    wirePendingRegs();
+  }).catch(function(){});
+}
+function renderPendingRegs(list){
+  var rows = list.map(function(x){
+    var match = x.matched
+      ? '<span class="badge ok">✅ ตรงโควต้าลา · '+esc(x.empId)+(x.dept?' · '+esc(x.dept):'')+'</span>'
+      : '<span class="badge no">⚠️ ไม่ตรงโควต้าลา — ตรวจสอบก่อน</span>';
+    var d = 'data-uid="'+esc(x.userId)+'" data-name="'+esc(x.typedName)+'"';
+    return '<div class="pend"><div class="pend-top"><div class="hist-ic">📝</div><div class="hist-main">'+
+      '<div class="hist-type">'+esc(x.typedName)+'</div>'+
+      '<div class="hist-meta">'+(x.lineDisplay?'LINE: '+esc(x.lineDisplay)+' · ':'')+esc(x.submittedAt)+'</div>'+
+      '<div style="margin-top:5px">'+match+'</div></div></div>'+
+      '<div class="pend-act">'+
+        '<button class="pend-btn no" data-regno="1" '+d+'>❌ ปฏิเสธ</button>'+
+        '<button class="pend-btn ok" data-regok="1" '+d+'>✅ อนุมัติ</button>'+
+      '</div></div>'; }).join('');
+  return '<div class="card"><div class="card-title"><span class="ic"></span>📝 รออนุมัติลงทะเบียน ('+list.length+')</div>'+
+    '<div class="hr-note ok2">👇 ตรวจชื่อให้ตรงพนักงานจริงก่อนอนุมัติ · ระบบแจ้งพนักงานทาง LINE อัตโนมัติ</div>'+rows+'</div>';
+}
+function wirePendingRegs(){
+  document.querySelectorAll('[data-regok]').forEach(function(el){
+    el.addEventListener('click', function(){ decideReg(el.dataset.uid, el.dataset.name, 'approve'); }); });
+  document.querySelectorAll('[data-regno]').forEach(function(el){
+    el.addEventListener('click', function(){ decideReg(el.dataset.uid, el.dataset.name, 'reject'); }); });
+}
+function decideReg(uid, name, decision){
+  var send = function(reason){
+    toast('กำลังดำเนินการ…');
+    api('decideRegistration',{targetUserId:uid, decision:decision, reason:reason||''}).then(function(r){
+      if(!r.ok){ if(r.already) loadHr(); return toast(r.error||'ทำรายการไม่สำเร็จ','err'); }
+      toast((decision==='approve'?'✅ อนุมัติ ':'❌ ปฏิเสธ ')+name+' แล้ว','ok'); loadHr();
+    }).catch(function(e){ toast(String(e.message||e),'err'); });
+  };
+  if(decision==='approve'){
+    confirmModal({ title:'ยืนยันอนุมัติลงทะเบียน', emoji:'✅', accent:'leave',
+      onConfirm:function(){ send(''); }, rows:[
+        {k:'พนักงาน', v:name},
+        {k:'ผลลัพธ์', v:'ผูก LINE + เข้าใช้ระบบได้ทันที'}
+      ]});
+  } else {
+    confirmModal({ title:'ยืนยันปฏิเสธคำขอ', emoji:'❌', accent:'leave',
+      onConfirm:function(){ send(''); }, rows:[
+        {k:'พนักงาน', v:name},
+        {k:'ผลลัพธ์', v:'แจ้งพนักงานให้ติดต่อ HR'}
+      ]});
+  }
 }
 function wireHrPending(){
   document.querySelectorAll('[data-appr]').forEach(function(el){

@@ -426,3 +426,14 @@ textarea:focus,input[type=time]:focus{border-color:var(--red)}
 .skel{background:linear-gradient(90deg,#eef0f4 25%,#f6f7fa 50%,#eef0f4 75%);background-size:200% 100%;
   animation:sh 1.2s infinite;border-radius:12px}
 @keyframes sh{to{background-position:-200% 0}}
+
+/* ── Register (พนักงานใหม่) ── */
+.reg-wrap{max-width:360px;margin:0 auto;padding:40px 24px;text-align:center}
+.reg-emo{font-size:52px;line-height:1;margin-bottom:14px}
+.reg-title{font-size:20px;font-weight:700;color:var(--ink);margin-bottom:8px}
+.reg-sub{font-size:13.5px;color:var(--muted);line-height:1.7;margin-bottom:22px}
+.reg-input{width:100%;box-sizing:border-box;padding:13px 15px;font-size:16px;font-family:inherit;
+  border:1.5px solid var(--line);border-radius:14px;background:var(--card);color:var(--ink);margin-bottom:12px}
+.reg-input:focus{outline:none;border-color:var(--red);background:#fff}
+.reg-msg{font-size:13px;margin-top:12px;min-height:18px}
+.reg-msg.err{color:var(--red-deep)}
