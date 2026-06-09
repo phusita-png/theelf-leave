@@ -834,19 +834,25 @@ function loadPendingRegs(){
   }).catch(function(){});
 }
 function renderPendingRegs(list){
+  var canAdmin = S.profile && S.profile.canAdmin;
   var rows = list.map(function(x){
     var match = x.matched
       ? '<span class="badge ok">✅ ตรงโควต้าลา · '+esc(x.empId)+(x.dept?' · '+esc(x.dept):'')+'</span>'
-      : '<span class="badge no">⚠️ ไม่ตรงโควต้าลา — ตรวจสอบก่อน</span>';
+      : '<span class="badge no">⚠️ ยังไม่มีข้อมูลในระบบ</span>';
     var d = 'data-uid="'+esc(x.userId)+'" data-name="'+esc(x.typedName)+'"';
+    // ปุ่ม: ถ้าตรงโควต้าลา → อนุมัติ/ปฏิเสธ · ถ้าไม่ตรง + เป็น admin → เพิ่มเป็นพนักงานใหม่ (เพิ่ม+อนุมัติขั้นเดียว)
+    var acts = x.matched
+      ? '<div class="pend-act"><button class="pend-btn no" data-regno="1" '+d+'>❌ ปฏิเสธ</button>'+
+        '<button class="pend-btn ok" data-regok="1" '+d+'>✅ อนุมัติ</button></div>'
+      : (canAdmin
+          ? '<div class="pend-act2"><button class="pend-btn redit" data-regadd="1" '+d+'>➕ เพิ่มเป็นพนักงานใหม่ + อนุมัติ</button></div>'+
+            '<div class="pend-act"><button class="pend-btn no" data-regno="1" '+d+'>❌ ปฏิเสธ</button></div>'
+          : '<div class="hr-note">ℹ️ ชื่อนี้ยังไม่มีในระบบ — ให้ ADMIN เพิ่มข้อมูลพนักงานก่อน</div>'+
+            '<div class="pend-act"><button class="pend-btn no" data-regno="1" '+d+'>❌ ปฏิเสธ</button></div>');
     return '<div class="pend"><div class="pend-top"><div class="hist-ic">📝</div><div class="hist-main">'+
       '<div class="hist-type">'+esc(x.typedName)+'</div>'+
       '<div class="hist-meta">'+(x.lineDisplay?'LINE: '+esc(x.lineDisplay)+' · ':'')+esc(x.submittedAt)+'</div>'+
-      '<div style="margin-top:5px">'+match+'</div></div></div>'+
-      '<div class="pend-act">'+
-        '<button class="pend-btn no" data-regno="1" '+d+'>❌ ปฏิเสธ</button>'+
-        '<button class="pend-btn ok" data-regok="1" '+d+'>✅ อนุมัติ</button>'+
-      '</div></div>'; }).join('');
+      '<div style="margin-top:5px">'+match+'</div></div></div>'+acts+'</div>'; }).join('');
   return '<div class="card"><div class="card-title"><span class="ic"></span>📝 รออนุมัติลงทะเบียน ('+list.length+')</div>'+
     '<div class="hr-note ok2">👇 ตรวจชื่อให้ตรงพนักงานจริงก่อนอนุมัติ · ระบบแจ้งพนักงานทาง LINE อัตโนมัติ</div>'+rows+'</div>';
 }
@@ -855,6 +861,8 @@ function wirePendingRegs(){
     el.addEventListener('click', function(){ decideReg(el.dataset.uid, el.dataset.name, 'approve'); }); });
   document.querySelectorAll('[data-regno]').forEach(function(el){
     el.addEventListener('click', function(){ decideReg(el.dataset.uid, el.dataset.name, 'reject'); }); });
+  document.querySelectorAll('[data-regadd]').forEach(function(el){
+    el.addEventListener('click', function(){ openAddEmpFromPending(el.dataset.uid, el.dataset.name); }); });
 }
 function decideReg(uid, name, decision){
   var send = function(reason){
@@ -1095,18 +1103,18 @@ function wireSettings(){
   document.querySelectorAll('[data-squota]').forEach(function(el){ el.addEventListener('click',function(){ openQuotaModal(el.dataset.squota); }); });
   document.querySelectorAll('[data-sinfo]').forEach(function(el){ el.addEventListener('click',function(){ openInfoModal(el.dataset.sinfo); }); });
 }
-// ➕ ฟอร์มเพิ่มพนักงานใหม่ (เขียน 3 ที่: ลา+payroll+OT · พนักงาน register ผูก LINE เอง)
-function openAddEmployeeModal(){
+// ➕ body ฟอร์มเพิ่มพนักงาน (reuse ได้ทั้งหน้าตั้งค่า + การ์ดคำขอลงทะเบียน) · prefill ชื่อ/นามสกุลได้
+function _addEmpFormBody_(pfName, pfLast){
   var scheds=S.adminSchedules||[];
   var schedOpts=scheds.length
     ? scheds.map(function(s){ return '<option value="'+esc(s.code)+'">'+esc(s.code)+(s.desc?' · '+esc(s.desc):'')+'</option>'; }).join('')
     : '<option value="">— ไม่พบกะ (ตั้งค่าชีตเวลาการทำงานก่อน) —</option>';
   var rc=function(label,inner){ return '<div class="set-row col"><label>'+label+'</label>'+inner+'</div>'; };
-  var inp=function(f,ph){ return '<input type="text" data-f="'+f+'"'+(ph?' placeholder="'+ph+'"':'')+'>'; };
+  var inp=function(f,ph,val){ return '<input type="text" data-f="'+f+'"'+(ph?' placeholder="'+ph+'"':'')+(val?' value="'+esc(val)+'"':'')+'>'; };
   var num=function(f,v){ return '<input type="number" min="0" step="0.5" data-f="'+f+'" value="'+(v!=null?v:'')+'">'; };
-  var body=
+  return ''+
     '<div class="set-sec">ข้อมูลจำเป็น *</div>'+
-    '<div class="set-2col">'+rc('ชื่อ *',inp('name'))+rc('นามสกุล *',inp('lastName'))+'</div>'+
+    '<div class="set-2col">'+rc('ชื่อ *',inp('name','',pfName))+rc('นามสกุล *',inp('lastName','',pfLast))+'</div>'+
     '<div class="set-2col">'+rc('รหัสพนักงาน *',inp('empId'))+rc('แผนก *',inp('dept'))+'</div>'+
     '<div class="set-2col">'+rc('เงินเดือน *',num('salary'))+rc('รหัสกะ *','<select data-f="sched">'+schedOpts+'</select>')+'</div>'+
     '<div class="set-sec">สิทธิ์ลา (วัน/ปี · พักร้อนกรอกตามอายุงาน)</div>'+
@@ -1125,12 +1133,19 @@ function openAddEmployeeModal(){
     '<div class="set-2col">'+
       rc('หัก ปกส.','<select data-f="ssoFlag"><option>ใช่</option><option>ไม่ใช่</option></select>')+
       rc('หักภาษี','<select data-f="taxFlag"><option>ใช่</option><option>ไม่ใช่</option></select>')+'</div>';
-  _settingsModal_('➕ เพิ่มพนักงานใหม่', body, function(cc){
-    var pl={quota:{}};
-    cc.querySelectorAll('[data-f]').forEach(function(el){
-      var f=el.dataset.f;
-      if(f.indexOf('q_')===0) pl.quota[f.substring(2)]=el.value; else pl[f]=el.value;
-    });
+}
+function _collectAddEmp_(cc){
+  var pl={quota:{}};
+  cc.querySelectorAll('[data-f]').forEach(function(el){
+    var f=el.dataset.f;
+    if(f.indexOf('q_')===0) pl.quota[f.substring(2)]=el.value; else pl[f]=el.value;
+  });
+  return pl;
+}
+// ➕ ฟอร์มเพิ่มพนักงานใหม่ (หน้าตั้งค่า)
+function openAddEmployeeModal(){
+  _settingsModal_('➕ เพิ่มพนักงานใหม่', _addEmpFormBody_('',''), function(cc){
+    var pl=_collectAddEmp_(cc);
     closeConfirm(); toast('กำลังเพิ่มพนักงาน…');
     api('addEmployee',pl).then(function(r){
       if(!r.ok) return toast(r.error||'เพิ่มไม่สำเร็จ','err');
@@ -1139,6 +1154,34 @@ function openAddEmployeeModal(){
       toast(msg,'ok'); loadSettings();
     }).catch(function(e){ toast(String(e.message||e),'err'); });
   });
+}
+// ➕+✅ เพิ่มพนักงาน + อนุมัติผูก LINE ในขั้นเดียว (จากการ์ดคำขอที่ยังไม่มีข้อมูลในระบบ)
+function openAddEmpFromPending(uid, typedName){
+  var go=function(){
+    var parts=String(typedName||'').trim().split(/\s+/);
+    var pfName=parts.shift()||''; var pfLast=parts.join(' ');
+    var body='<div class="hr-note ok2">พนักงานคนนี้ลงทะเบียนมาก่อนมีข้อมูล — กรอกให้ครบ ระบบจะ <b>เพิ่มข้อมูล + อนุมัติผูก LINE</b> ในขั้นเดียวค่ะ</div>'+
+             _addEmpFormBody_(pfName,pfLast);
+    _settingsModal_('➕ เพิ่มพนักงาน + อนุมัติ', body, function(cc){
+      var pl=_collectAddEmp_(cc); pl.targetUserId=uid;
+      closeConfirm(); toast('กำลังเพิ่ม + อนุมัติ…');
+      api('addEmployeeApprove',pl).then(function(r){
+        if(!r.ok) return toast(r.error||'ไม่สำเร็จ','err');
+        var msg=(r.linked?'✅ เพิ่ม '+r.fullName+' + ผูก LINE แล้ว':'✅ เพิ่ม '+r.fullName+' แล้ว');
+        if(r.warnings&&r.warnings.length) msg+=' ⚠️ '+r.warnings.join('; ');
+        toast(msg, r.linked?'ok':'err'); loadHr();
+      }).catch(function(e){ toast(String(e.message||e),'err'); });
+    });
+  };
+  // ต้องมีรายการกะ (โหลดจาก adminBootstrap) — ฟอร์มใช้ dropdown รหัสกะ
+  if(S.adminSchedules) return go();
+  toast('กำลังโหลดฟอร์ม…');
+  api('adminBootstrap',{}).then(function(r){
+    if(!r.ok) return toast(r.error||'ต้องเป็น ADMIN/OWNER เพื่อเพิ่มพนักงาน','err');
+    S.adminSchedules=r.schedules||[]; S.adminUsers=r.users; S.adminRoles=r.roles;
+    S.adminCaller=r.callerId; S.adminOwnerCount=r.ownerCount;
+    go();
+  }).catch(function(e){ toast(String(e.message||e),'err'); });
 }
 // modal กลาง — head + body + ปุ่มบันทึก
 function _settingsModal_(head, body, onSave){
@@ -1298,6 +1341,11 @@ function mockApi(action, params){
         {name:'นายตัวอย่าง ทดสอบ',dept:'ฝ่ายขาย',vac:6,biz:0,sick:28,used:12,status:'⚠️ เกินสิทธิ์'}],
       pending:[{kind:'leave',id:'LV-003',name:'นางสาวชนัญชิดา โชคธนอนันต์',type:'ลากิจ',date:'02/06/2569',days:1,userId:'MOCK',empId:'EMP-001'},
         {kind:'ot',id:'OT-002',name:'นายตัวอย่าง ทดสอบ',type:'ลูกค้าร้องขอ',date:'28/05/2569',hours:3,userId:'MOCK2',empId:'EMP-002'}]});
+    else if(action==='pendingRegistrations') resolve({ok:true,count:2,pending:[
+      {userId:'MOCKP1',typedName:'นภา สดใส',lineDisplay:'Napa S.',submittedAt:'09/06/2569 08:10',matched:true,empId:'EMP-010',dept:'ฝ่ายขาย'},
+      {userId:'MOCKP2',typedName:'ก้อง พากเพียร',lineDisplay:'Kong',submittedAt:'09/06/2569 08:25',matched:false,empId:'',dept:''}]});
+    else if(action==='decideRegistration') resolve({ok:true,name:'(mock)',status:params.decision==='approve'?'approved':'rejected'});
+    else if(action==='addEmployeeApprove') resolve({ok:true,fullName:(params&&params.name||'')+' '+(params&&params.lastName||''),written:['โควต้าลา','วันลาคงเหลือ','payroll','OT'],linked:true,warnings:[]});
     else if(action==='hrEmpHistory'){
       if(params&&params.kind==='ot') resolve({ok:true,kind:'ot',name:'นายตัวอย่าง ทดสอบ',history:MOCK_OT_HIST,count:MOCK_OT_HIST.length});
       else resolve({ok:true,kind:'leave',name:'นางสาวชนัญชิดา โชคธนอนันต์',history:MOCK_LV_HIST,count:MOCK_LV_HIST.length,
