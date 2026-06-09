@@ -28,7 +28,7 @@ var S = {
   leaveForm:{type:'vac',start:null,end:null,period:'full',reason:'',stime:'',etime:''},
   otForm:{date:null,start:'',end:'',type:'1',reason:''},
   calLeave:new Date(), calOt:new Date(), histTab:'leave',
-  editLeaveId:null, editOtId:null, pendingEdit:null   // โหมดแก้ไขใบลา/OT ที่ HR ส่งกลับ
+  editLeaveId:null, editOtId:null, pendingEdit:null, pendingView:null   // โหมดแก้ไข + deep-link view
 };
 
 // ════════════ INIT ════════════
@@ -48,8 +48,9 @@ function initLiff() {
     // deep-link ?edit=LV-xxx (HR ส่งกลับให้แก้) — รับจาก query หรือ liff.state
     try {
       var qs = new URLSearchParams(location.search);
-      S.pendingEdit = qs.get('edit');
-      if (!S.pendingEdit && liff.state) S.pendingEdit = new URLSearchParams(String(liff.state).replace(/^\?/,'')).get('edit');
+      var st = liff.state ? new URLSearchParams(String(liff.state).replace(/^\?/,'')) : null;
+      S.pendingEdit = qs.get('edit') || (st && st.get('edit'));
+      S.pendingView = qs.get('view') || (st && st.get('view'));   // deep-link ?view=hr (จากการ์ดแจ้งคำขอ)
     } catch(e){}
     liff.getProfile().then(function(p){ S.avatar = p.pictureUrl; S.displayName = p.displayName || ''; paintAvatar(); }).catch(function(){});
     bootstrap();
@@ -89,6 +90,8 @@ function bootstrap() {
     document.getElementById('app').classList.remove('hidden');
     paintAvatar(); render();
     if (S.pendingEdit) enterEditById(S.pendingEdit);   // deep-link → เปิดหน้าแก้เลย (ลา/OT)
+    else if (S.pendingView === 'hr' && S.profile && S.profile.canApprove) goTo('hr');   // deep-link → เด้งแผง HR เลย
+    else if (S.pendingView === 'settings' && S.profile && S.profile.canAdmin) goTo('settings');
   }).catch(function(e){ fail(String(e.message || e)); });
 }
 function apply(r){
