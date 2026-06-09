@@ -107,8 +107,9 @@ img{max-width:100%}
   cursor:pointer;box-shadow:var(--shadow)}
 .hub-link:active{transform:scale(.99)}
 .hub-link .chev{color:var(--muted);font-size:20px}
-.hub-link.hr{background:var(--red-tint);border-color:var(--red-soft);color:var(--red-deep)}
-.hub-link.admin{background:var(--slate-tint);border-color:transparent;color:var(--slate)}
+/* 3 แถบพื้นขาวเหมือนกัน · คงขอบซ้ายสีบอกว่าเป็นเมนูผู้ดูแล (HR แดง · ตั้งค่า เทา) */
+.hub-link.hr{border-left:4px solid var(--red)}
+.hub-link.admin{border-left:4px solid var(--slate)}
 
 /* ── หน้าตั้งค่า (admin) ── */
 .set-emp{padding:13px 2px;border-bottom:1px solid var(--line)}
