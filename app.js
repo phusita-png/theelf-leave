@@ -1221,9 +1221,9 @@ function openQuotaModal(empId){
   if(!u) return toast('ไม่พบพนักงาน','err');
   if(!u.quota) return toast('ไม่พบแถวโควต้าของ '+u.name+' ในชีตโควต้าลา','err');
   var q=u.quota;
-  var types=[['sick','🤒 ลาป่วย'],['biz','📋 ลากิจ'],['vac','🌴 ลาพักร้อน'],['bday','🎂 ลาวันเกิด'],['special','🎁 วันเกิดคนพิเศษ'],['unpaid','📝 ลากิจไม่รับค่าจ้าง']];
-  var body='<div class="set-hint">หน่วย: วัน (สิทธิ์ต่อปี)</div>'+types.map(function(t){
-    return '<div class="set-row"><label>'+t[1]+'</label><input type="number" min="0" step="0.5" data-q="'+t[0]+'" value="'+(q[t[0]]!=null?q[t[0]]:0)+'"></div>';
+  var types=[['sick','🤒 ลาป่วย'],['biz','📋 ลากิจ'],['vac','🌴 ลาพักร้อน']];
+  var body='<div class="set-hint">หน่วย: วัน (สิทธิ์ต่อปี) · ลาวันเกิด/คนพิเศษ/ไม่รับค่าจ้าง ใช้ค่ามาตรฐาน (แก้ในชีตโควต้าลาถ้าต้องการ)</div>'+types.map(function(t){
+    return '<div class="set-row"><label>'+t[1]+'</label><input type="number" inputmode="decimal" min="0" step="0.5" data-q="'+t[0]+'" value="'+(q[t[0]]!=null?q[t[0]]:0)+'"></div>';
   }).join('');
   _settingsModal_('🏖️ โควต้าลา · '+esc(u.name), body, function(cc){
     var quota={}; cc.querySelectorAll('[data-q]').forEach(function(el){ quota[el.dataset.q]=el.value; });
