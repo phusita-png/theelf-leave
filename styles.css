@@ -458,3 +458,59 @@ textarea:focus,input[type=time]:focus{border-color:var(--red)}
 .reg-input:focus{outline:none;border-color:var(--red);background:#fff}
 .reg-msg{font-size:13px;margin-top:12px;min-height:18px}
 .reg-msg.err{color:var(--red-deep)}
+
+/* ════════════════════════════════════════════════════════════
+   DESKTOP / PC LAYOUT (≥1024px) — sidebar + เนื้อหากว้าง (v.70)
+   มือถือไม่กระทบเลย (ทุกอย่างอยู่ใน media query นี้)
+   ════════════════════════════════════════════════════════════ */
+.nav-admin{display:none}   /* ปุ่ม admin: ซ่อนทุกที่เป็น default (มือถือใช้ hub link) */
+
+@media (min-width:1024px){
+  /* โครง grid: header เต็มกว้าง · ซ้าย sidebar · ขวา content */
+  .app{
+    max-width:1240px; padding-bottom:0;
+    display:grid;
+    grid-template-columns:240px 1fr;
+    grid-template-rows:auto 1fr;
+    grid-template-areas:"hd hd" "nav main";
+    box-shadow:0 0 0 1px var(--line);
+    background:var(--card);
+    min-height:100vh;
+  }
+  .hd{grid-area:hd; padding:16px 26px}
+  .hd-title{font-size:18px}
+  .hd-sub{font-size:13px}
+
+  /* bottom nav → sidebar ซ้าย (แนวตั้ง) */
+  .nav{
+    grid-area:nav;
+    position:sticky; top:74px; align-self:start;
+    height:calc(100vh - 74px);
+    left:auto; bottom:auto; transform:none;
+    width:auto; max-width:none;
+    flex-direction:column; gap:4px;
+    border-top:none; border-right:1px solid var(--line);
+    box-shadow:none; padding:16px 12px;
+    background:var(--card);
+  }
+  .nav-btn{
+    flex:0 0 auto; flex-direction:row; justify-content:flex-start;
+    gap:13px; width:100%; padding:12px 15px; border-radius:12px;
+    font-size:14px; color:var(--slate); transition:background .12s}
+  .nav-btn svg{width:21px;height:21px}
+  .nav-btn span{font-size:14px}
+  .nav-btn:hover{background:var(--bg)}
+  .nav-btn.active{background:var(--red-tint);color:var(--red-deep)}
+  .nav-btn.active svg{transform:none}
+  .nav-admin.allow{display:flex}   /* desktop + มีสิทธิ์ → แสดงเมนู admin */
+  /* เส้นคั่นก่อนกลุ่ม admin */
+  .nav-admin.allow[data-view="hr"]{margin-top:10px;border-top:1px solid var(--line);padding-top:16px}
+
+  /* content กว้าง */
+  .main{grid-area:main; padding:26px 32px; max-width:none}
+  .stat-grid{grid-template-columns:repeat(4,1fr)}
+
+  /* toast ลอยมุมล่างขวา (ไม่มี bottom nav แล้ว) */
+  .toast{bottom:24px;left:auto;right:24px;transform:translateY(20px)}
+  .toast.show{transform:translateY(0)}
+}

@@ -88,7 +88,7 @@ function bootstrap() {
     apply(r);
     document.getElementById('loader').classList.add('hidden');
     document.getElementById('app').classList.remove('hidden');
-    paintAvatar(); render();
+    paintAvatar(); setupNavRoles(); render();
     if (S.pendingEdit) enterEditById(S.pendingEdit);   // deep-link → เปิดหน้าแก้เลย (ลา/OT)
     else if (S.pendingView === 'hr' && S.profile && S.profile.canApprove) goTo('hr');   // deep-link → เด้งแผง HR เลย
     else if (S.pendingView === 'settings' && S.profile && S.profile.canAdmin) goTo('settings');
@@ -163,6 +163,14 @@ function goTo(view){
   S.view = view;
   document.querySelectorAll('.nav-btn').forEach(function(b){ b.classList.toggle('active', b.dataset.view===view); });
   render(); window.scrollTo(0,0);
+}
+// เปิดเมนู admin ใน sidebar (desktop) ตามสิทธิ์ — มือถือ CSS ซ่อนเสมอ (ใช้ hub link เดิม)
+function setupNavRoles(){
+  var p = S.profile || {};
+  var hr = document.querySelector('.nav-btn[data-view="hr"]');
+  var st = document.querySelector('.nav-btn[data-view="settings"]');
+  if (hr) hr.classList.toggle('allow', !!p.canApprove);
+  if (st) st.classList.toggle('allow', !!p.canAdmin);
 }
 function render(){
   var h = VIEW_HEAD[S.view] || ['',''];
@@ -1372,7 +1380,7 @@ function mockBootstrap(){
     {kind:'ot',title:'OT · ลูกค้าร้องขอ',dateText:'28/05/2569',amount:'3 ชม.',status:'รอการอนุมัติ'}];
   document.getElementById('loader').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
-  render();
+  setupNavRoles(); render();
 }
 function mockApi(action, params){
   return new Promise(function(resolve){ setTimeout(function(){
