@@ -555,7 +555,7 @@ textarea:focus,input[type=time]:focus{border-color:var(--red)}
   .hr-emp>div{padding:11px 12px;border-left:1px solid var(--line)}
   .hr-emp>div:first-child{border-left:none}
   .hr-emp:nth-child(odd):not(.head){background:#fafbfc}   /* zebra (head=child1 → emp คี่=สลับ) */
-  .hr-emp.head{background:var(--bg);font-size:11.5px;font-weight:700;color:var(--muted)}
+  .hr-emp.head{background:var(--slate-tint);font-size:12px;font-weight:700;color:var(--slate);position:sticky;top:0;z-index:2}
   .hr-emp .he-name{flex:none;font-size:13.5px}
   .hr-emp .he-q,.hr-emp .he-st{text-align:center}
   .hr-emp.over{background:var(--red-tint)}

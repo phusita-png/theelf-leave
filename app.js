@@ -1156,16 +1156,16 @@ function renderHr(r){
     '<div class="hr-pend-list">'+pend+'</div></div>';
 
   // พนักงาน — แถวแบบ table (desktop กางเป็นคอลัมน์ · มือถือยุบเป็นการ์ด)
-  var empHead='<div class="hr-emp head"><div class="he-name">ชื่อ</div><div class="he-dept">แผนก</div>'+
-    '<div class="he-q">🌴 พักร้อน</div><div class="he-q">🏠 ลากิจ</div><div class="he-q">🤒 ลาป่วย</div><div class="he-st">สถานะ</div></div>';
+  var empHead='<div class="hr-emp head"><div class="he-name">ชื่อ-นามสกุล</div><div class="he-dept">ตำแหน่ง</div>'+
+    '<div class="he-q">🤒 ลาป่วย</div><div class="he-q">🏠 ลากิจ</div><div class="he-q">🌴 พักร้อน</div><div class="he-st">สถานะ</div></div>';
   var emps = r.employees.map(function(e){
     var over = String(e.status).indexOf('เกิน')>=0;
     return '<div class="hr-emp'+(over?' over':'')+'">'+
       '<div class="he-name">👤 '+esc(e.name)+'</div>'+
       '<div class="he-dept">'+esc(e.dept||'')+'</div>'+
-      '<div class="he-q"><b>🌴 '+num3(e.vac)+'</b></div>'+
-      '<div class="he-q"><b>🏠 '+num3(e.biz)+'</b></div>'+
-      '<div class="he-q"><b>🤒 '+num3(e.sick)+'</b></div>'+
+      '<div class="he-q" data-l="ลาป่วย"><b>🤒 '+num3(e.sick)+'</b></div>'+
+      '<div class="he-q" data-l="ลากิจ"><b>🏠 '+num3(e.biz)+'</b></div>'+
+      '<div class="he-q" data-l="พักร้อน"><b>🌴 '+num3(e.vac)+'</b></div>'+
       '<div class="he-st">'+(over?'<span class="badge no">เกินสิทธิ์</span>':'<span class="badge ok">ปกติ</span>')+'</div>'+
       '</div>'; }).join('');
   var empCard='<div class="card"><div class="card-title"><span class="ic"></span>พนักงาน ('+r.employees.length+') · สิทธิ์คงเหลือ</div>'+
