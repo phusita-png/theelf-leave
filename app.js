@@ -22,7 +22,7 @@ var VIEW_HEAD = {
 };
 
 var S = {
-  auth:null, profile:null, balances:null, holidays:[], leaveTypes:null, otTypes:null,
+  auth:null, profile:null, balances:null, holidays:[], schedule:null, leaveTypes:null, otTypes:null,
   otThisMonth:{hours:0,count:0}, recent:[], avatar:null,
   view:'home',
   leaveForm:{type:'vac',start:null,end:null,period:'full',reason:'',stime:'',etime:''},
@@ -95,7 +95,7 @@ function bootstrap() {
   }).catch(function(e){ fail(String(e.message || e)); });
 }
 function apply(r){
-  S.profile=r.profile; S.balances=r.balances; S.holidays=r.holidays||[];
+  S.profile=r.profile; S.balances=r.balances; S.holidays=r.holidays||[]; S.schedule=r.schedule||null;
   S.leaveTypes=r.leaveTypes; S.otTypes=r.otTypes||{}; S.otThisMonth=r.otThisMonth||{hours:0,count:0};
   S.recent=r.recent||[];
 }
@@ -496,6 +496,9 @@ function renderCal(mode){
   var minD = null;
   if (isOt) { minD = new Date(today); minD.setDate(minD.getDate()-30); }
 
+  // วันหยุดประจำกะของผู้ใช้ (จากชีต) — ไม่มีกะ → fallback เสาร์-อาทิตย์
+  var offSet = (S.schedule && S.schedule.off && S.schedule.off.length) ? S.schedule.off : [0,6];
+
   var h = '<div class="cal-head"><button class="cal-nav" id="cP">‹</button>'+
     '<div class="cal-month">'+TH_MONTHS[mo]+' '+(y+543)+'</div>'+
     '<button class="cal-nav" id="cN">›</button></div><div class="cal-grid">';
@@ -504,9 +507,10 @@ function renderCal(mode){
   for (var d=1;d<=days;d++){
     var dt = new Date(y,mo,d), k = dkey(dt), dow = dt.getDay();
     var dim = isOt && (dt>today || (minD && dt<minD));
+    var hn = holidayName(dt);
     var cls = 'cal-day';
-    if (dow===0||dow===6) cls+=' we';
-    if (isHoliday(dt)) cls+=' holiday';
+    if (offSet.indexOf(dow)>=0) cls+=' we';     // วันหยุดประจำกะ (รายคน)
+    if (hn) cls+=' holiday';                      // วันหยุดบริษัท (ทับสีกะ)
     if (k===todayK) cls+=' today';
     if (dim) cls+=' dim';
     if (isOt){ if(form.date && k===dkey(form.date)) cls+=' sel ot'; }
@@ -515,9 +519,11 @@ function renderCal(mode){
       if (form.end && k===dkey(form.end)) cls+=' sel';
       if (form.start && form.end && dt>form.start && dt<form.end) cls+=' inrange';
     }
-    h += '<div class="'+cls+'"'+(dim?'':' data-d="'+d+'"')+'>'+d+'</div>';
+    var tip = hn ? ' title="'+esc(hn)+'"' : '';
+    h += '<div class="'+cls+'"'+tip+(dim?'':' data-d="'+d+'"')+'>'+d+'</div>';
   }
   h += '</div>';
+  h += buildCalLegend(y,mo);
   var c = document.getElementById(isOt?'calOt':'calLeave'); c.innerHTML = h;
   document.getElementById('cP').addEventListener('click', function(){ var nv=new Date(y,mo-1,1); if(isOt)S.calOt=nv; else S.calLeave=nv; renderCal(mode); });
   document.getElementById('cN').addEventListener('click', function(){ var nv=new Date(y,mo+1,1); if(isOt)S.calOt=nv; else S.calLeave=nv; renderCal(mode); });
@@ -1263,7 +1269,49 @@ function statusBadge(st){
 }
 function dkey(d){ return d.getFullYear()+'-'+d.getMonth()+'-'+d.getDate(); }
 function fmtThai(d){ return ('0'+d.getDate()).slice(-2)+'/'+('0'+(d.getMonth()+1)).slice(-2)+'/'+(d.getFullYear()+543); }
-function isHoliday(d){ var k=fmtThai(d); return S.holidays.some(function(h){ return h.date===k; }); }
+// วันหยุดบริษัท: รองรับทั้ง ค.ศ. (backend formatDate) และ พ.ศ. (ปี>2500 → -543)
+function _holParse_(dateStr){ var p=String(dateStr).split('/'); if(p.length!==3) return null;
+  var yy=+p[2]; if(yy>2500) yy-=543; return {y:yy, mo:(+p[1])-1, d:+p[0]}; }
+function _ymdKey_(y,mo,d){ return y+'-'+mo+'-'+d; }
+function holidayName(dt){
+  var t=_ymdKey_(dt.getFullYear(),dt.getMonth(),dt.getDate());
+  for(var i=0;i<S.holidays.length;i++){
+    var hp=_holParse_(S.holidays[i].date);
+    if(hp && _ymdKey_(hp.y,hp.mo,hp.d)===t) return S.holidays[i].name||'วันหยุดบริษัท';
+  }
+  return '';
+}
+function isHoliday(dt){ return !!holidayName(dt); }
+function holidaysInMonth(y,mo){
+  var out=[];
+  S.holidays.forEach(function(h){
+    var hp=_holParse_(h.date);
+    if(hp && hp.y===y && hp.mo===mo) out.push({day:hp.d, name:h.name||'วันหยุดบริษัท'});
+  });
+  return out.sort(function(a,b){ return a.day-b.day; });
+}
+// กล่องใต้ปฏิทิน: กะของฉัน + เวลา + วันหยุดบริษัทเดือนนี้ + legend สี
+function buildCalLegend(y,mo){
+  var s=S.schedule, box='';
+  if(s){
+    var tm=(s.start&&s.end)?(' · '+esc(s.start)+'–'+esc(s.end)):'';
+    box+='<div class="cal-sched"><span class="cs-ic">🗓️</span>'+
+      '<div><div class="cs-main">กะของคุณ: '+esc(s.label||s.code)+tm+'</div>'+
+      (s.offLabel?'<div class="cs-sub">หยุด: '+esc(s.offLabel)+'</div>':'')+'</div></div>';
+  } else {
+    box+='<div class="cal-sched"><span class="cs-ic">🗓️</span><div class="cs-main">หยุดเสาร์–อาทิตย์ (ยังไม่กำหนดกะ)</div></div>';
+  }
+  var hol=holidaysInMonth(y,mo);
+  if(hol.length){
+    box+='<div class="cal-hols"><div class="ch-title">🎉 วันหยุดบริษัทเดือนนี้</div>'+
+      hol.map(function(x){ return '<div class="ch-row"><b>'+x.day+'</b> '+esc(x.name)+'</div>'; }).join('')+'</div>';
+  }
+  box+='<div class="cal-legend">'+
+    '<span class="lg"><i class="sw holiday"></i>วันหยุดบริษัท</span>'+
+    '<span class="lg"><i class="sw off"></i>วันหยุดของคุณ</span>'+
+    '<span class="lg"><i class="sw today"></i>วันนี้</span></div>';
+  return box;
+}
 function countLeaveDays(f){
   if (f.period==='morning'||f.period==='afternoon') return 0.5;
   if (f.period==='hours'){ var h=otHours(f.stime,f.etime); return h>0?Math.round(h/8*100)/100:0; }
@@ -1304,7 +1352,8 @@ function mockBootstrap(){
   S.profile={name:'นางสาวชนัญชิดา โชคธนอนันต์',empId:'EMP-001',dept:'สำนักงานใหญ่',role:'OWNER',canApprove:true,canAdmin:true};
   S.balances={vac:{name:'พักร้อน',emoji:'🌴',remaining:16},biz:{name:'ลากิจ',emoji:'🏠',remaining:10},sick:{name:'ลาป่วย',emoji:'🤒',remaining:29},
     unpaid:{name:'ไม่รับค่าจ้าง',emoji:'📄',remaining:7},bday:{name:'วันเกิด',emoji:'🎂',remaining:1},special:{name:'คนพิเศษ',emoji:'💝',remaining:1}};
-  S.holidays=[{date:'12/06/2569',name:'ตัวอย่างวันหยุด'}];
+  S.holidays=[{date:'03/06/2569',name:'วันเฉลิมฯ พระราชินี'},{date:'29/07/2569',name:'วันอาสาฬหบูชา'}];
+  S.schedule={code:'S01',label:'จันทร์-ศุกร์',workDays:[1,2,3,4,5],off:[0,6],offLabel:'เสาร์-อาทิตย์',start:'9:30',end:'18:30'};
   S.leaveTypes=MOCK_LT; S.otTypes=MOCK_OTT; S.otThisMonth={hours:6.5,count:2,period:'26/5 – 25/6/2569'};
   S.recent=[
     {kind:'ot',title:'OT · มีงานด่วน',dateText:'03/06/2569',amount:'3.5 ชม.',status:'อนุมัติ'},
@@ -1351,7 +1400,7 @@ function mockApi(action, params){
       if(params&&params.kind==='ot') resolve({ok:true,kind:'ot',name:'นายตัวอย่าง ทดสอบ',history:MOCK_OT_HIST,count:MOCK_OT_HIST.length});
       else resolve({ok:true,kind:'leave',name:'นางสาวชนัญชิดา โชคธนอนันต์',history:MOCK_LV_HIST,count:MOCK_LV_HIST.length,
         summary:lvSummary(MOCK_LV_HIST),balances:{vac:16,biz:10,sick:29}}); }
-    else resolve({ok:true,profile:S.profile,balances:S.balances,holidays:S.holidays,leaveTypes:S.leaveTypes,
+    else resolve({ok:true,profile:S.profile,balances:S.balances,holidays:S.holidays,schedule:S.schedule,leaveTypes:S.leaveTypes,
       otTypes:S.otTypes,otThisMonth:S.otThisMonth,recent:S.recent});
   },220); });
 }
