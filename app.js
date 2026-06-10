@@ -1239,10 +1239,12 @@ function renderLeaveCalGrid(){
   for(var i=0;i<first;i++){ h+='<div class="lc-cell other"><div class="lc-dn">'+(prevDim-first+1+i)+'</div></div>'; }
   for(var d=1;d<=dim;d++){
     var key=lcDayKey(y,mo+1,d), day=on(key), dow=new Date(y,mo,d).getDay();
-    var cls=((dow===0||dow===6)?' we':'')+(key===todayK?' today':'')+(key===S.leaveCalSel?' sel':'');
+    var hn=holidayName(new Date(y,mo,d));   // วันหยุดบริษัท (ใช้ helper เดิม + S.holidays)
+    var cls=((dow===0||dow===6)?' we':'')+(key===todayK?' today':'')+(key===S.leaveCalSel?' sel':'')+(hn?' lc-hol':'');
+    var holChip=hn?'<div class="lc-holname" title="'+esc(hn)+'">🎉 '+esc(hn)+'</div>':'';
     var evs=day.slice(0,3).map(function(it){ return '<div class="lc-ev lev-'+it.typeKey+(it.pending?' pend':'')+'" title="'+esc(it.name)+' · '+esc(it.typeName)+'">'+esc(it.name)+'</div>'; }).join('');
     var more=day.length>3?'<div class="lc-more">+'+(day.length-3)+' อื่นๆ</div>':'';
-    h+='<div class="lc-cell'+cls+'" data-k="'+key+'"><div class="lc-dn">'+d+'</div><div class="lc-evs">'+evs+more+'</div></div>';
+    h+='<div class="lc-cell'+cls+'" data-k="'+key+'"><div class="lc-dn">'+d+'</div>'+holChip+'<div class="lc-evs">'+evs+more+'</div></div>';
   }
   var trail=(7-((first+dim)%7))%7;
   for(var t=1;t<=trail;t++){ h+='<div class="lc-cell other"><div class="lc-dn">'+t+'</div></div>'; }
