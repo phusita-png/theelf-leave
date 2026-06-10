@@ -159,6 +159,16 @@ img{max-width:100%}
   padding:9px 12px;margin-bottom:12px;line-height:1.4}
 .hr-note.ok2{background:var(--green-tint);color:var(--green)}
 
+/* ── HR employee list: มือถือ=การ์ด · desktop=ตาราง (v.70) ── */
+.hr-emp.head{display:none}
+.hr-emp{display:flex;flex-wrap:wrap;align-items:center;gap:5px 12px;padding:11px 2px;border-bottom:1px solid var(--line)}
+.hr-emp:last-child{border-bottom:none}
+.hr-emp .he-name{flex:1 1 100%;font-weight:600;font-size:14px}
+.hr-emp .he-dept{font-size:12.5px;color:var(--muted)}
+.hr-emp .he-q{font-size:13px;color:var(--ink)}
+.hr-emp .he-q b{font-weight:600}
+.hr-emp .he-st{margin-left:auto}
+
 /* ── HR pending: approve/reject ── */
 .pend{padding:12px 2px;border-bottom:1px solid var(--line)}
 .pend:last-child{border-bottom:none}
@@ -509,6 +519,20 @@ textarea:focus,input[type=time]:focus{border-color:var(--red)}
   /* content กว้าง */
   .main{grid-area:main; padding:26px 32px; max-width:none}
   .stat-grid{grid-template-columns:repeat(4,1fr)}
+
+  /* ── แผง HR เต็มจอ (B3) ── */
+  .hr-top{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .hr-top>.card{margin-bottom:16px}
+  .hr-pend-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px}
+  .hr-pend-list .pend{border-bottom:none;border:1px solid var(--line);border-radius:12px;padding:13px}
+  /* พนักงาน → ตาราง */
+  .hr-emp{display:grid;grid-template-columns:2.2fr 1.6fr .9fr .9fr .9fr 1fr;gap:10px;align-items:center;padding:10px 12px}
+  .hr-emp.head{display:grid;background:var(--bg);border-radius:9px;border-bottom:none;
+    font-size:11.5px;font-weight:700;color:var(--muted);margin-bottom:2px}
+  .hr-emp .he-name{flex:none;font-size:13.5px}
+  .hr-emp .he-q{text-align:center}
+  .hr-emp .he-st{margin-left:0;text-align:center}
+  .hr-emp.over{background:var(--red-tint)}
 
   /* toast ลอยมุมล่างขวา (ไม่มี bottom nav แล้ว) */
   .toast{bottom:24px;left:auto;right:24px;transform:translateY(20px)}

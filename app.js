@@ -1075,18 +1075,26 @@ function renderHr(r){
       '</div>'; }).join('')
     : '<div class="empty" style="padding:20px"><div class="e-emo">✅</div><div class="e-txt">ไม่มีรายการค้างอนุมัติ</div></div>';
   var pendCard='<div class="card"><div class="card-title"><span class="ic"></span>รออนุมัติ ('+r.pending.length+')</div>'+
-    (r.pending.length?'<div class="hr-note ok2">👇 กดอนุมัติ/ไม่อนุมัติได้เลย · ระบบแจ้งพนักงานทาง LINE อัตโนมัติ</div>':'')+pend+'</div>';
+    (r.pending.length?'<div class="hr-note ok2">👇 กดอนุมัติ/ไม่อนุมัติได้เลย · ระบบแจ้งพนักงานทาง LINE อัตโนมัติ</div>':'')+
+    '<div class="hr-pend-list">'+pend+'</div></div>';
 
+  // พนักงาน — แถวแบบ table (desktop กางเป็นคอลัมน์ · มือถือยุบเป็นการ์ด)
+  var empHead='<div class="hr-emp head"><div class="he-name">ชื่อ</div><div class="he-dept">แผนก</div>'+
+    '<div class="he-q">🌴 พักร้อน</div><div class="he-q">🏠 ลากิจ</div><div class="he-q">🤒 ลาป่วย</div><div class="he-st">สถานะ</div></div>';
   var emps = r.employees.map(function(e){
     var over = String(e.status).indexOf('เกิน')>=0;
-    return '<div class="hist"><div class="hist-ic">👤</div><div class="hist-main">'+
-      '<div class="hist-type">'+esc(e.name)+'</div>'+
-      '<div class="hist-meta">'+esc(e.dept||'')+' · 🌴'+e.vac+' 🏠'+e.biz+' 🤒'+e.sick+'</div></div>'+
-      (over?'<span class="badge no">เกินสิทธิ์</span>':'')+'</div>'; }).join('');
+    return '<div class="hr-emp'+(over?' over':'')+'">'+
+      '<div class="he-name">👤 '+esc(e.name)+'</div>'+
+      '<div class="he-dept">'+esc(e.dept||'')+'</div>'+
+      '<div class="he-q"><b>🌴 '+e.vac+'</b></div>'+
+      '<div class="he-q"><b>🏠 '+e.biz+'</b></div>'+
+      '<div class="he-q"><b>🤒 '+e.sick+'</b></div>'+
+      '<div class="he-st">'+(over?'<span class="badge no">เกินสิทธิ์</span>':'<span class="badge ok">ปกติ</span>')+'</div>'+
+      '</div>'; }).join('');
   var empCard='<div class="card"><div class="card-title"><span class="ic"></span>พนักงาน ('+r.employees.length+') · สิทธิ์คงเหลือ</div>'+
-    (emps||'<div class="empty" style="padding:20px"><div class="e-txt">ไม่มีข้อมูล</div></div>')+'</div>';
+    (emps?'<div class="hr-emp-list">'+empHead+emps+'</div>':'<div class="empty" style="padding:20px"><div class="e-txt">ไม่มีข้อมูล</div></div>')+'</div>';
 
-  return summary+otcard+pendCard+empCard;
+  return '<div class="hr-top">'+summary+otcard+'</div>'+pendCard+empCard;
 }
 
 // ════════════ VIEW: SETTINGS (admin · ADMIN/OWNER) ════════════
