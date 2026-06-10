@@ -1135,6 +1135,7 @@ function renderHr(r){
     if(x.reason) info += '<div class="pend-info">💬 '+esc(x.reason)+'</div>';
     if(x.kind!=='ot' && x.remaining!=null) info += '<div class="pend-info bal">🎫 สิทธิ์'+esc(x.type)+'คงเหลือ <b>'+balNum(x.remaining)+'</b> วัน</div>';
     return '<div class="pend">'+
+      '<div class="pend-kind'+(x.kind==='ot'?' ot':'')+'">'+(x.kind==='ot'?'⏰ คำขอ OT':'📋 คำขอลา')+'</div>'+
       '<div class="pend-top"><div class="hist-ic">'+emo+'</div><div class="hist-main">'+
         '<div class="hist-type">'+esc(x.name)+(x.resubmit?' <span class="re-badge">🔄 แก้ไขส่งใหม่</span>':'')+'</div>'+
         '<div class="hist-meta">'+esc(x.type)+' · '+when+' · <b>'+amt+'</b> · '+esc(x.id)+'</div></div></div>'+
