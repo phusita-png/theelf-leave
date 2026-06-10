@@ -314,6 +314,7 @@ function submitLeave(){
   }
   // สรุปยืนยันก่อนส่ง
   var lt=S.leaveTypes[f.type], days=countLeaveDays(f);
+  if (f.period!=='hours' && days<=0) return toast('ช่วงที่เลือกเป็นวันหยุดทั้งหมด เลือกวันทำงานนะคะ 😊','err');
   var per=f.period==='morning'?'ครึ่งเช้า':f.period==='afternoon'?'ครึ่งบ่าย':f.period==='hours'?'ราย ชม.':'เต็มวัน';
   var qty=f.period==='hours'?(otHours(f.stime,f.etime)||0)+' ชม. (≈'+days+' วัน)':days+' วัน';
   var dt=fmtThai(f.start)+(f.end&&dkey(f.end)!==dkey(f.start)?' — '+fmtThai(f.end):'')+
@@ -1315,8 +1316,18 @@ function buildCalLegend(y,mo){
 function countLeaveDays(f){
   if (f.period==='morning'||f.period==='afternoon') return 0.5;
   if (f.period==='hours'){ var h=otHours(f.stime,f.etime); return h>0?Math.round(h/8*100)/100:0; }
-  if (!f.end || dkey(f.end)===dkey(f.start)) return 1;
-  return Math.round((f.end-f.start)/86400000)+1;
+  // นับเฉพาะวันทำงาน — ข้ามวันหยุดกะ + วันหยุดบริษัท (ตรงกับ backend _countWorkDays_)
+  var offSet=(S.schedule&&S.schedule.off&&S.schedule.off.length)?S.schedule.off:[0,6];
+  var s=f.start, e=f.end||f.start;
+  var cur=new Date(s.getFullYear(),s.getMonth(),s.getDate());
+  var end=new Date(e.getFullYear(),e.getMonth(),e.getDate());
+  if(end<cur) return 0;
+  var n=0,guard=0;
+  while(cur<=end && guard<400){
+    if(offSet.indexOf(cur.getDay())<0 && !holidayName(cur)) n++;
+    cur.setDate(cur.getDate()+1); guard++;
+  }
+  return n;
 }
 function endBeforeStart(s,e){ if(!s||!e) return false; return tmin(e)<tmin(s); }
 function tmin(t){ var p=String(t).split(':'); return (parseInt(p[0])||0)*60+(parseInt(p[1])||0); }
