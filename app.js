@@ -964,7 +964,25 @@ function doHrViewDocs(kind, id){
   }).catch(function(e){ toast(String(e.message||e),'err'); });
 }
 // 📊 HR ดูประวัติการลา/OT ของพนักงานคนนั้น — ใช้ประเมินก่อนอนุมัติ (modal ในแอป)
-function balNum(v){ return v==null?'—':(Number.isInteger(v)?v:Number(v).toFixed(1)); }
+// ปัดทศนิยม ≤3 หลัก + ตัด trailing zero (กัน floating point เพี้ยน เช่น 0.0004999… → 0)
+function num3(v){ return String(Math.round((Number(v)||0)*1000)/1000); }
+function balNum(v){ return v==null?'—':num3(v); }
+// ตารางสิทธิ์การลาครบทุกประเภท (ใช้ไป/คงเหลือ) — ข้อมูลพิจารณาหลักใน modal ประวัติ
+function leaveStatsTable(stats, fallbackBal){
+  if(stats && stats.length){
+    var rows = stats.map(function(s){
+      var rem=s.remaining, low=(rem!=null && rem<=0);
+      return '<div class="lstat-row">'+
+        '<span class="ls-t">'+s.emoji+' '+esc(s.name)+'</span>'+
+        '<span class="ls-u">'+(s.used==null?'—':num3(s.used))+'</span>'+
+        '<span class="ls-r'+(low?' low':'')+'">'+(rem==null?'—':num3(rem))+(low?' ⚠️':'')+'</span></div>';
+    }).join('');
+    return '<div class="lstat"><div class="lstat-h">🎫 สิทธิ์การลา (ปีนี้)</div>'+
+      '<div class="lstat-row head"><span>ประเภท</span><span>ใช้ไป</span><span>คงเหลือ</span></div>'+rows+'</div>';
+  }
+  if(fallbackBal) return '<div class="hr-bal">🎫 คงเหลือ · 🌴 '+balNum(fallbackBal.vac)+' · 🏠 '+balNum(fallbackBal.biz)+' · 🤒 '+balNum(fallbackBal.sick)+'</div>';
+  return '';
+}
 function doHrViewHistory(kind, uid, empid, name){
   toast('กำลังโหลดประวัติ…');
   api('hrEmpHistory',{kind:kind,targetUserId:uid||'',empId:empid||''}).then(function(r){
@@ -984,9 +1002,8 @@ function doHrViewHistory(kind, uid, empid, name){
     } else {
       head='📊 ประวัติการลา · '+nm;
       var sumCard = lvSummaryCard(r.summary || lvSummary(r.history||[]));
-      var balLine = r.balances
-        ? '<div class="hr-bal">🎫 สิทธิ์คงเหลือ · 🌴 พักร้อน <b>'+balNum(r.balances.vac)+'</b> · 🏠 ลากิจ <b>'+balNum(r.balances.biz)+'</b> · 🤒 ลาป่วย <b>'+balNum(r.balances.sick)+'</b></div>'
-        : '';
+      // 🎫 ตารางสิทธิ์การลาครบทุกประเภท (ใช้ไป/คงเหลือ) — ข้อมูลพิจารณาหลัก วางบนสุด
+      var statsTable = leaveStatsTable(r.leaveStats, r.balances);
       var list = (r.history&&r.history.length)
         ? '<div class="card">'+r.history.map(function(h){
             var dt=h.startDate+(h.endDate&&h.endDate!==h.startDate?' — '+h.endDate:'');
@@ -994,7 +1011,7 @@ function doHrViewHistory(kind, uid, empid, name){
               '<div class="hist-type">'+esc(h.type)+'</div>'+
               '<div class="hist-meta">📅 '+dt+' · '+h.days+' วัน</div></div>'+statusBadge(h.status)+'</div>'; }).join('')+'</div>'
         : emptyBox('🍃','ยังไม่มีประวัติการลา');
-      bodyInner = sumCard + balLine + list;
+      bodyInner = statsTable + sumCard + list;
     }
     c.innerHTML='<div class="cfm-box"><div class="cfm-head">'+head+'</div>'+
       '<div class="cfm-body cfm-scroll">'+bodyInner+'</div>'+
@@ -1125,9 +1142,9 @@ function renderHr(r){
     return '<div class="hr-emp'+(over?' over':'')+'">'+
       '<div class="he-name">👤 '+esc(e.name)+'</div>'+
       '<div class="he-dept">'+esc(e.dept||'')+'</div>'+
-      '<div class="he-q"><b>🌴 '+e.vac+'</b></div>'+
-      '<div class="he-q"><b>🏠 '+e.biz+'</b></div>'+
-      '<div class="he-q"><b>🤒 '+e.sick+'</b></div>'+
+      '<div class="he-q"><b>🌴 '+num3(e.vac)+'</b></div>'+
+      '<div class="he-q"><b>🏠 '+num3(e.biz)+'</b></div>'+
+      '<div class="he-q"><b>🤒 '+num3(e.sick)+'</b></div>'+
       '<div class="he-st">'+(over?'<span class="badge no">เกินสิทธิ์</span>':'<span class="badge ok">ปกติ</span>')+'</div>'+
       '</div>'; }).join('');
   var empCard='<div class="card"><div class="card-title"><span class="ic"></span>พนักงาน ('+r.employees.length+') · สิทธิ์คงเหลือ</div>'+
@@ -1465,7 +1482,10 @@ function mockApi(action, params){
     else if(action==='hrEmpHistory'){
       if(params&&params.kind==='ot') resolve({ok:true,kind:'ot',name:'นายตัวอย่าง ทดสอบ',history:MOCK_OT_HIST,count:MOCK_OT_HIST.length});
       else resolve({ok:true,kind:'leave',name:'นางสาวชนัญชิดา โชคธนอนันต์',history:MOCK_LV_HIST,count:MOCK_LV_HIST.length,
-        summary:lvSummary(MOCK_LV_HIST),balances:{vac:16,biz:10,sick:29}}); }
+        summary:lvSummary(MOCK_LV_HIST),balances:{vac:16,biz:10,sick:29},
+        leaveStats:[{key:'vac',name:'พักร้อน',emoji:'🌴',used:2.5,remaining:3.5},{key:'biz',name:'ลากิจ',emoji:'🏠',used:3,remaining:0},
+          {key:'sick',name:'ลาป่วย',emoji:'🤒',used:5,remaining:25},{key:'bday',name:'ลาวันเกิด',emoji:'🎂',used:0,remaining:1},
+          {key:'special',name:'วันเกิดคนพิเศษ',emoji:'💝',used:0,remaining:1},{key:'unpaid',name:'ลาไม่รับค่าจ้าง',emoji:'📄',used:2,remaining:1}]}); }
     else resolve({ok:true,profile:S.profile,balances:S.balances,holidays:S.holidays,schedule:S.schedule,leaveTypes:S.leaveTypes,
       otTypes:S.otTypes,otThisMonth:S.otThisMonth,recent:S.recent});
   },220); });
