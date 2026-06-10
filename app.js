@@ -39,12 +39,36 @@ function init() {
   if (CFG.DEV_USER_ID) { S.auth = {userId:CFG.DEV_USER_ID}; bootstrap(); return; }
   initLiff();
 }
+// ── Auth / idToken refresh (PC Admin เปิดยาว → idToken หมดอายุ ~1 ชม.) ──
+var _reauthing = false;
+function _idTokenExpMs_(t){
+  try{ var p=JSON.parse(atob(String(t).split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))); return (p.exp||0)*1000; }catch(e){ return 0; }
+}
+function _isAuthErr_(m){
+  m=String(m||'').toLowerCase();
+  return m.indexOf('idtoken')>=0 || m.indexOf('id token')>=0 || m.indexOf('expired')>=0 || m.indexOf('หมดอายุ')>=0;
+}
+// ต่ออายุ session: liff.login() ออก idToken ใหม่ (LINE session ยังอยู่ → กลับมาเร็ว ไม่ต้องสแกนซ้ำ)
+function reauth(){
+  if(_reauthing || CFG.MOCK || CFG.DEV_USER_ID) return; _reauthing=true;
+  try{ var last=+(sessionStorage.getItem('reauth_ts')||0);
+    if(Date.now()-last < 8000){ return fail('ต่ออายุเซสชันไม่สำเร็จ — ปิดแล้วเปิดแอปใหม่อีกครั้งค่ะ','🔑'); }
+    sessionStorage.setItem('reauth_ts', Date.now());
+  }catch(e){}
+  toast('เซสชันหมดอายุ · กำลังเข้าสู่ระบบใหม่…');
+  setTimeout(function(){
+    try{ if(liff.isLoggedIn && liff.isLoggedIn()) liff.logout(); }catch(e){}   // ล้าง token เก่า → บังคับออกใหม่สด
+    try{ liff.login(); }catch(e){ location.reload(); }
+  }, 700);
+}
 function initLiff() {
   if (!window.liff || !CFG.LIFF_ID || CFG.LIFF_ID.indexOf('PASTE') === 0)
     return fail('ยังไม่ได้ตั้งค่า LIFF_ID ใน config.js');
   liff.init({liffId:CFG.LIFF_ID}).then(function(){
     if (!liff.isLoggedIn()) { liff.login(); return; }
-    S.auth = {idToken:liff.getIDToken()};
+    var _tok = liff.getIDToken();
+    if (!_tok || _idTokenExpMs_(_tok) < Date.now() + 60000) { reauth(); return; }   // หมด/ใกล้หมดใน 1 นาที → ต่ออายุก่อน
+    S.auth = {idToken:_tok};
     // deep-link ?edit=LV-xxx (HR ส่งกลับให้แก้) — รับจาก query หรือ liff.state
     try {
       var qs = new URLSearchParams(location.search);
@@ -70,7 +94,9 @@ function api(action, params) {
     Object.keys(all).forEach(function(k){ if (all[k]!=null) q.push(encodeURIComponent(k)+'='+encodeURIComponent(all[k])); });
     var sc = document.createElement('script'), done = false;
     var t = setTimeout(function(){ if(done)return; done=true; clean(); reject(new Error('หมดเวลาเชื่อมต่อ')); }, 20000);
-    window[cb] = function(d){ if(done)return; done=true; clearTimeout(t); clean(); resolve(d); };
+    window[cb] = function(d){ if(done)return; done=true; clearTimeout(t); clean();
+      if (d && d.ok===false && _isAuthErr_(d.error)) reauth();   // token หมดกลางคัน → ต่ออายุอัตโนมัติ
+      resolve(d); };
     function clean(){ delete window[cb]; if(sc.parentNode) sc.parentNode.removeChild(sc); }
     sc.onerror = function(){ if(done)return; done=true; clearTimeout(t); clean(); reject(new Error('เชื่อมต่อ API ไม่ได้')); };
     sc.src = CFG.API_URL + '?' + q.join('&');
