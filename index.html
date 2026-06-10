@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=37">
+  <link rel="stylesheet" href="styles.css?v=38">
 </head>
 <body>
 
@@ -39,8 +39,22 @@
     <!-- Views -->
     <main id="main" class="main"></main>
 
-    <!-- Bottom nav -->
+    <!-- Bottom nav (มือถือ) / Sidebar (desktop) -->
     <nav class="nav">
+      <!-- ═══ ก้อน HR (desktop เท่านั้น · ตามสิทธิ์) ═══ -->
+      <div class="nav-sec">ภาพรวม</div>
+      <button class="nav-btn nav-admin" data-view="dashboard" aria-label="แดชบอร์ด"><span class="nav-emo">📊</span><span>แดชบอร์ด</span></button>
+      <button class="nav-btn nav-admin" data-view="leavecal" aria-label="ปฏิทินการลา"><span class="nav-emo">🗓️</span><span>ปฏิทินการลา</span></button>
+      <div class="nav-sec">ดำเนินการ</div>
+      <button class="nav-btn nav-admin" data-view="hr" aria-label="อนุมัติทั้งหมด"><span class="nav-emo">✅</span><span>อนุมัติทั้งหมด</span></button>
+      <button class="nav-btn nav-admin" data-view="mgleave" aria-label="จัดการการลา"><span class="nav-emo">📋</span><span>จัดการการลา</span></button>
+      <button class="nav-btn nav-admin" data-view="mgot" aria-label="จัดการ OT"><span class="nav-emo">⏰</span><span>จัดการ OT</span></button>
+      <button class="nav-btn nav-admin" data-view="mgpay" aria-label="จัดการ Payroll"><span class="nav-emo">💰</span><span>จัดการ Payroll</span></button>
+      <div class="nav-sec">จัดการ</div>
+      <button class="nav-btn nav-admin" data-view="emps" aria-label="พนักงาน"><span class="nav-emo">👥</span><span>พนักงาน</span></button>
+      <button class="nav-btn nav-admin" data-view="settings" aria-label="ตั้งค่าระบบ"><span class="nav-emo">⚙️</span><span>ตั้งค่าระบบ</span></button>
+      <!-- ═══ ก้อนของฉัน (มือถือ = bottom nav 6 ปุ่มนี้) ═══ -->
+      <div class="nav-sec">ข้อมูลของฉัน</div>
       <button class="nav-btn active" data-view="home" aria-label="หน้าหลัก">
         <svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20h14V9.5"/></svg>
         <span>หน้าหลัก</span>
@@ -65,19 +79,6 @@
         <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.5-6 8-6s8 2 8 6"/></svg>
         <span>โปรไฟล์</span>
       </button>
-      <!-- เมนู admin — โชว์เฉพาะ desktop + คนมีสิทธิ์ (JS เพิ่ม class allow) -->
-      <button class="nav-btn nav-admin" data-view="leavecal" aria-label="ปฏิทินทีม">
-        <svg viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="16" rx="2.5"/><path d="M3 9h18M8 2.5v4M16 2.5v4M7 13h3M13 16.5h4"/></svg>
-        <span>ปฏิทินทีม</span>
-      </button>
-      <button class="nav-btn nav-admin" data-view="hr" aria-label="แผง HR">
-        <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M8.5 11.5l2 2 4-4.5"/></svg>
-        <span>แผง HR</span>
-      </button>
-      <button class="nav-btn nav-admin" data-view="settings" aria-label="ตั้งค่า">
-        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/></svg>
-        <span>ตั้งค่า</span>
-      </button>
     </nav>
   </div>
 
@@ -85,6 +86,6 @@
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script src="config.js?v=29"></script>
-  <script src="app.js?v=37"></script>
+  <script src="app.js?v=38"></script>
 </body>
 </html>

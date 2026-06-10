@@ -17,9 +17,14 @@ var VIEW_HEAD = {
   history: ['ประวัติ','คำขอลา & OT ของคุณ'],
   profile: ['โปรไฟล์','ข้อมูล & สิทธิ์การลา'],
   documents:['เอกสาร','ดาวน์โหลดเอกสารของคุณ'],
-  hr:      ['แผง HR','ภาพรวม & รออนุมัติ'],
+  hr:      ['อนุมัติทั้งหมด','ลา · OT · คำขอลงทะเบียน'],
   leavecal:['ปฏิทินการลา','ภาพรวมการลาทั้งทีม'],
-  settings:['ตั้งค่าระบบ','บทบาท · โควต้า · ข้อมูลพนักงาน']
+  dashboard:['แดชบอร์ด','สรุปภาพรวม HR'],
+  mgleave: ['จัดการการลา','ดู · แก้ · โควต้า · export'],
+  mgot:    ['จัดการ OT','ดู · แก้ · คำนวณ · ส่งสรุป'],
+  mgpay:   ['จัดการ Payroll','dashboard · สลิป · กท.20'],
+  emps:    ['พนักงาน','เพิ่ม · แก้ · รายชื่อ'],
+  settings:['ตั้งค่าระบบ','บทบาท · ค่ากลางระบบ']
 };
 
 var S = {
@@ -194,13 +199,19 @@ function goTo(view){
 }
 // เปิดเมนู admin ใน sidebar (desktop) ตามสิทธิ์ — มือถือ CSS ซ่อนเสมอ (ใช้ hub link เดิม)
 function setupNavRoles(){
-  var p = S.profile || {};
-  var hr = document.querySelector('.nav-btn[data-view="hr"]');
-  var st = document.querySelector('.nav-btn[data-view="settings"]');
-  var lc = document.querySelector('.nav-btn[data-view="leavecal"]');
-  if (hr) hr.classList.toggle('allow', !!p.canApprove);
-  if (st) st.classList.toggle('allow', !!p.canAdmin);
-  if (lc) lc.classList.toggle('allow', !!p.canApprove);
+  var p = S.profile || {}, ap = !!p.canApprove, ad = !!p.canAdmin;
+  var roles = {dashboard:ap, leavecal:ap, hr:ap, mgleave:ap, mgot:ap, mgpay:ad, emps:ad, settings:ad};
+  Object.keys(roles).forEach(function(v){
+    var el=document.querySelector('.nav-btn[data-view="'+v+'"]'); if(el) el.classList.toggle('allow', roles[v]); });
+  // section label โชว์เฉพาะกลุ่มที่มีปุ่ม visible (desktop)
+  document.querySelectorAll('.nav-sec').forEach(function(sec){
+    var has=false, n=sec.nextElementSibling;
+    while(n && !n.classList.contains('nav-sec')){
+      if(n.classList.contains('nav-btn') && (!n.classList.contains('nav-admin')||n.classList.contains('allow'))){ has=true; break; }
+      n=n.nextElementSibling;
+    }
+    sec.classList.toggle('has-items', has);
+  });
 }
 function render(){
   var h = VIEW_HEAD[S.view] || ['',''];
@@ -214,6 +225,11 @@ function render(){
   else if (S.view==='documents'){ m.innerHTML = '<div class="card"><div class="skel" style="height:60px"></div></div>'; loadDocuments(); }
   else if (S.view==='hr'){ m.innerHTML = '<div class="card"><div class="skel" style="height:120px"></div></div>'; loadHr(); }
   else if (S.view==='leavecal'){ m.innerHTML = viewLeaveCal(); wireLeaveCal(); loadLeaveCal(); }
+  else if (S.view==='dashboard'){ m.innerHTML = viewSoon('📊 แดชบอร์ด','วันนี้ใครลา/OT · สถิติเดือนนี้ · จำนวนพนักงาน/แผนก · เข้าใหม่-ลาออก'); }
+  else if (S.view==='mgleave'){ m.innerHTML = viewSoon('📋 จัดการการลา','ดูใบลาทั้งหมด+ค้นหา · แก้/ยกเลิก · ปรับโควต้า · export'); }
+  else if (S.view==='mgot'){ m.innerHTML = viewSoon('⏰ จัดการ OT','ดู OT ทั้งหมด · แก้/ยกเลิก · ยอดคำนวณ · export · ส่ง mail/LINE'); }
+  else if (S.view==='mgpay'){ m.innerHTML = viewSoon('💰 จัดการ Payroll','dashboard · ยอดรายเดือน · สลิป · คำนวณ · ทะเบียน/ภงด.1ก · กท.20'); }
+  else if (S.view==='emps'){ m.innerHTML = viewSoon('👥 พนักงาน','เพิ่ม/แก้/ดูรายชื่อ + ข้อมูล + กะ + โควต้า'); }
   else if (S.view==='settings'){ m.innerHTML = '<div class="card"><div class="skel" style="height:120px"></div></div>'; loadSettings(); }
   else if (S.view==='history'){ m.innerHTML = viewHistory(); wireHistory(); }
   else if (S.view==='profile') m.innerHTML = viewProfile();
@@ -1508,6 +1524,9 @@ function otHours(s,e){
 }
 function paintAvatar(){ if(!S.avatar)return; var a=document.getElementById('hd-avatar'); if(a) a.innerHTML='<img src="'+S.avatar+'">'; }
 function emptyBox(emo,txt){ return '<div class="card"><div class="empty"><div class="e-emo">'+emo+'</div><div class="e-txt">'+esc(txt)+'</div></div></div>'; }
+function viewSoon(title,desc){ return '<div class="card"><div class="soon"><div class="soon-emo">🚧</div>'+
+  '<div class="soon-t">'+esc(title)+'</div><div class="soon-d">'+esc(desc)+'</div>'+
+  '<div class="soon-b">กำลังพัฒนา — เร็วๆ นี้ค่ะ</div></div></div>'; }
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 var _tt;
 function toast(msg,kind){ var t=document.getElementById('toast'); t.textContent=msg; t.className='toast show'+(kind?' '+kind:''); clearTimeout(_tt); _tt=setTimeout(function(){ t.className='toast'; },3200); }

@@ -498,9 +498,9 @@ textarea:focus,input[type=time]:focus{border-color:var(--red)}
 @media (min-width:1024px){
   /* โครง grid: header เต็มกว้าง · ซ้าย sidebar · ขวา content */
   .app{
-    max-width:1240px; padding-bottom:0;
+    max-width:1680px; padding-bottom:0;
     display:grid;
-    grid-template-columns:240px 1fr;
+    grid-template-columns:236px 1fr;
     grid-template-rows:auto 1fr;
     grid-template-areas:"hd hd" "nav main";
     box-shadow:0 0 0 1px var(--line);
@@ -511,30 +511,32 @@ textarea:focus,input[type=time]:focus{border-color:var(--red)}
   .hd-title{font-size:18px}
   .hd-sub{font-size:13px}
 
-  /* bottom nav → sidebar ซ้าย (แนวตั้ง) */
+  /* bottom nav → sidebar ซ้าย (แนวตั้ง · scroll ได้) */
   .nav{
     grid-area:nav;
     position:sticky; top:74px; align-self:start;
-    height:calc(100vh - 74px);
+    height:calc(100vh - 74px); overflow-y:auto;
     left:auto; bottom:auto; transform:none;
     width:auto; max-width:none;
-    flex-direction:column; gap:4px;
+    flex-direction:column; gap:2px;
     border-top:none; border-right:1px solid var(--line);
-    box-shadow:none; padding:16px 12px;
+    box-shadow:none; padding:10px 12px;
     background:var(--card);
   }
   .nav-btn{
     flex:0 0 auto; flex-direction:row; justify-content:flex-start;
-    gap:13px; width:100%; padding:12px 15px; border-radius:12px;
-    font-size:14px; color:var(--slate); transition:background .12s}
-  .nav-btn svg{width:21px;height:21px}
-  .nav-btn span{font-size:14px}
+    gap:12px; width:100%; padding:10px 14px; border-radius:11px;
+    font-size:13.5px; color:var(--slate); transition:background .12s}
+  .nav-btn svg{width:20px;height:20px}
+  .nav-btn .nav-emo{width:20px;font-size:16px;text-align:center;flex:0 0 auto;line-height:20px}
+  .nav-btn span{font-size:13.5px}
   .nav-btn:hover{background:var(--bg)}
   .nav-btn.active{background:var(--red-tint);color:var(--red-deep)}
   .nav-btn.active svg{transform:none}
   .nav-admin.allow{display:flex}   /* desktop + มีสิทธิ์ → แสดงเมนู admin */
-  /* เส้นคั่นก่อนกลุ่ม admin */
-  .nav-admin.allow[data-view="hr"]{margin-top:10px;border-top:1px solid var(--line);padding-top:16px}
+  /* section label (โชว์เฉพาะกลุ่มมีปุ่ม) */
+  .nav-sec.has-items{display:block;font-size:10.5px;color:#a0a6b4;text-transform:uppercase;
+    letter-spacing:.5px;padding:13px 14px 4px;font-weight:700}
 
   /* content กว้าง */
   .main{grid-area:main; padding:26px 32px; max-width:none}
@@ -618,3 +620,12 @@ textarea:focus,input[type=time]:focus{border-color:var(--red)}
   .lc-cell{min-height:62px;padding:4px}
   .lc-ev{font-size:9.5px;padding:1px 4px}
 }
+
+/* section label — ซ่อน default (มือถือ) · desktop เปิดผ่าน .has-items */
+.nav-sec{display:none}
+/* หน้า "กำลังพัฒนา" (placeholder เมนูใหม่) */
+.soon{text-align:center;padding:46px 20px}
+.soon-emo{font-size:42px}
+.soon-t{font-size:18px;font-weight:700;margin-top:12px}
+.soon-d{font-size:13px;color:var(--muted);margin-top:8px;line-height:1.6;max-width:430px;margin:8px auto 0}
+.soon-b{display:inline-block;margin-top:16px;background:var(--bg);color:var(--muted);font-size:12px;font-weight:600;padding:7px 16px;border-radius:20px}
