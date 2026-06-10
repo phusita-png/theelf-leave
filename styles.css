@@ -562,3 +562,59 @@ textarea:focus,input[type=time]:focus{border-color:var(--red)}
   .toast{bottom:24px;left:auto;right:24px;transform:translateY(20px)}
   .toast.show{transform:translateY(0)}
 }
+
+/* ════════════════ ปฏิทินการลารวม (HR) v.70 ════════════════ */
+.lc-top{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:12px}
+.lc-nav{display:flex;align-items:center;gap:8px}
+.lc-navbtn{border:1px solid var(--line);background:#fff;border-radius:8px;width:32px;height:32px;cursor:pointer;font-size:16px;color:var(--muted)}
+.lc-month{font-weight:700;font-size:16px;min-width:140px;text-align:center}
+.lc-filters{display:flex;gap:8px;margin-left:auto;flex-wrap:wrap}
+.lc-sel{border:1px solid var(--line);border-radius:8px;padding:7px 11px;font-size:12.5px;font-family:inherit;background:#fff;color:var(--ink)}
+.lc-legend{display:flex;gap:13px;flex-wrap:wrap;margin-bottom:12px;font-size:12px;color:var(--muted)}
+.lc-li{display:flex;align-items:center;gap:6px}
+.lc-sw{width:11px;height:11px;border-radius:3px;display:inline-block}
+.lc-body{display:flex;gap:14px;align-items:flex-start}
+.lc-cal{flex:1;min-width:0;background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.lc-grid{display:grid;grid-template-columns:repeat(7,1fr)}
+.lc-dow{padding:9px 4px;text-align:center;font-size:11.5px;font-weight:600;color:var(--muted);background:#fafbfc;border-bottom:1px solid var(--line)}
+.lc-dow.we{color:var(--red)}
+.lc-cell{min-height:90px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:6px;cursor:pointer;overflow:hidden}
+.lc-cell:nth-child(7n){border-right:none}
+.lc-cell:hover{background:#f7f9ff}
+.lc-cell.we{background:#fcfcfd}
+.lc-cell.other{background:#fafafb;cursor:default}
+.lc-cell.other .lc-dn{color:#c7ccd6}
+.lc-cell.today .lc-dn{background:var(--red);color:#fff;border-radius:50%;width:23px;height:23px;display:inline-flex;align-items:center;justify-content:center}
+.lc-cell.sel{box-shadow:inset 0 0 0 2px var(--red)}
+.lc-dn{font-size:12.5px;font-weight:600;line-height:23px}
+.lc-evs{margin-top:3px;display:flex;flex-direction:column;gap:2px}
+.lc-ev{font-size:10.5px;padding:2px 5px;border-radius:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-left:3px solid}
+.lc-ev.pend{opacity:.6;border-left-style:dashed}
+.lc-more{font-size:10px;color:var(--muted);font-weight:600;padding-left:3px}
+.lc-detail{width:300px;flex-shrink:0;background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px}
+.lc-ddate{font-size:15px;font-weight:700}
+.lc-dsub{font-size:12px;color:var(--muted);margin-bottom:12px}
+.lc-dcard{border:1px solid var(--line);border-left:4px solid var(--line);border-radius:10px;padding:11px;margin-bottom:9px}
+.lc-dnm{font-weight:600;font-size:13.5px}
+.lc-dmt{font-size:11.5px;color:var(--muted);margin-top:3px}
+.lc-dcard .badge{margin-top:7px}
+.lc-dempty{text-align:center;color:var(--muted);padding:26px 10px;font-size:13px}
+.lc-dempty .e{font-size:30px;display:block;margin-bottom:7px}
+.lc-foot{margin-top:12px;padding-top:12px;border-top:1px dashed var(--line);font-size:12px;color:var(--muted);line-height:1.7}
+.lc-foot b{color:var(--ink)}
+/* leave-type colors (Google-style) */
+.lev-sick{border-left-color:#EA4335;background:#fce8e6;color:#b3261e}
+.lev-biz{border-left-color:#4285F4;background:#e8f0fe;color:#174ea6}
+.lev-vac{border-left-color:#34A853;background:#e6f4ea;color:#137333}
+.lev-unpaid{border-left-color:#80868b;background:#f1f3f4;color:#5f6368}
+.lev-bday{border-left-color:#A142F4;background:#f3e8fd;color:#6a1b9a}
+.lev-special{border-left-color:#E91E8C;background:#fde7f3;color:#ad1457}
+.lc-sw.lev-sick{background:#EA4335}.lc-sw.lev-biz{background:#4285F4}.lc-sw.lev-vac{background:#34A853}
+.lc-sw.lev-unpaid{background:#80868b}.lc-sw.lev-bday{background:#A142F4}.lc-sw.lev-special{background:#E91E8C}
+/* มือถือ: panel ลงล่าง + cell เตี้ยลง */
+@media (max-width:1023px){
+  .lc-body{flex-direction:column}
+  .lc-detail{width:100%}
+  .lc-cell{min-height:62px;padding:4px}
+  .lc-ev{font-size:9.5px;padding:1px 4px}
+}

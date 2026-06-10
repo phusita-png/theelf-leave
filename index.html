@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=36">
+  <link rel="stylesheet" href="styles.css?v=37">
 </head>
 <body>
 
@@ -66,6 +66,10 @@
         <span>โปรไฟล์</span>
       </button>
       <!-- เมนู admin — โชว์เฉพาะ desktop + คนมีสิทธิ์ (JS เพิ่ม class allow) -->
+      <button class="nav-btn nav-admin" data-view="leavecal" aria-label="ปฏิทินทีม">
+        <svg viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="16" rx="2.5"/><path d="M3 9h18M8 2.5v4M16 2.5v4M7 13h3M13 16.5h4"/></svg>
+        <span>ปฏิทินทีม</span>
+      </button>
       <button class="nav-btn nav-admin" data-view="hr" aria-label="แผง HR">
         <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M8.5 11.5l2 2 4-4.5"/></svg>
         <span>แผง HR</span>
@@ -81,6 +85,6 @@
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script src="config.js?v=29"></script>
-  <script src="app.js?v=36"></script>
+  <script src="app.js?v=37"></script>
 </body>
 </html>

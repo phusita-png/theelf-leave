@@ -18,6 +18,7 @@ var VIEW_HEAD = {
   profile: ['โปรไฟล์','ข้อมูล & สิทธิ์การลา'],
   documents:['เอกสาร','ดาวน์โหลดเอกสารของคุณ'],
   hr:      ['แผง HR','ภาพรวม & รออนุมัติ'],
+  leavecal:['ปฏิทินการลา','ภาพรวมการลาทั้งทีม'],
   settings:['ตั้งค่าระบบ','บทบาท · โควต้า · ข้อมูลพนักงาน']
 };
 
@@ -28,7 +29,8 @@ var S = {
   leaveForm:{type:'vac',start:null,end:null,period:'full',reason:'',stime:'',etime:''},
   otForm:{date:null,start:'',end:'',type:'1',reason:''},
   calLeave:new Date(), calOt:new Date(), histTab:'leave',
-  editLeaveId:null, editOtId:null, pendingEdit:null, pendingView:null   // โหมดแก้ไข + deep-link view
+  editLeaveId:null, editOtId:null, pendingEdit:null, pendingView:null,   // โหมดแก้ไข + deep-link view
+  leaveCalMonth:null, leaveCalItems:[], leaveCalSel:null, leaveCalDept:'', leaveCalType:''   // ปฏิทินการลารวม (HR)
 };
 
 // ════════════ INIT ════════════
@@ -195,8 +197,10 @@ function setupNavRoles(){
   var p = S.profile || {};
   var hr = document.querySelector('.nav-btn[data-view="hr"]');
   var st = document.querySelector('.nav-btn[data-view="settings"]');
+  var lc = document.querySelector('.nav-btn[data-view="leavecal"]');
   if (hr) hr.classList.toggle('allow', !!p.canApprove);
   if (st) st.classList.toggle('allow', !!p.canAdmin);
+  if (lc) lc.classList.toggle('allow', !!p.canApprove);
 }
 function render(){
   var h = VIEW_HEAD[S.view] || ['',''];
@@ -209,6 +213,7 @@ function render(){
   else if (S.view==='payslip'){ m.innerHTML = '<div class="card"><div class="skel" style="height:120px"></div></div>'; loadPayslip(); }
   else if (S.view==='documents'){ m.innerHTML = '<div class="card"><div class="skel" style="height:60px"></div></div>'; loadDocuments(); }
   else if (S.view==='hr'){ m.innerHTML = '<div class="card"><div class="skel" style="height:120px"></div></div>'; loadHr(); }
+  else if (S.view==='leavecal'){ m.innerHTML = viewLeaveCal(); wireLeaveCal(); loadLeaveCal(); }
   else if (S.view==='settings'){ m.innerHTML = '<div class="card"><div class="skel" style="height:120px"></div></div>'; loadSettings(); }
   else if (S.view==='history'){ m.innerHTML = viewHistory(); wireHistory(); }
   else if (S.view==='profile') m.innerHTML = viewProfile();
@@ -1153,6 +1158,98 @@ function renderHr(r){
   return '<div class="hr-top">'+summary+otcard+'</div>'+pendCard+empCard;
 }
 
+// ════════════ VIEW: ปฏิทินการลารวม (HR · APPROVER+) ════════════
+var LC_TYPES = {
+  sick:{e:'🤒',label:'ลาป่วย'}, biz:{e:'🏠',label:'ลากิจ'}, vac:{e:'🌴',label:'ลาพักร้อน'},
+  unpaid:{e:'📄',label:'ไม่รับค่าจ้าง'}, bday:{e:'🎂',label:'ลาวันเกิด'}, special:{e:'💝',label:'วันเกิดคนพิเศษ'}
+};
+function dkeyISO(d){ return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); }
+function lcDayKey(y,mo1,d){ return y+'-'+('0'+mo1).slice(-2)+'-'+('0'+d).slice(-2); }
+function viewLeaveCal(){
+  var legend = Object.keys(LC_TYPES).map(function(k){
+    return '<span class="lc-li"><i class="lc-sw lev-'+k+'"></i>'+LC_TYPES[k].label+'</span>'; }).join('');
+  var typeOpts = '<option value="">ทุกประเภท</option>'+Object.keys(LC_TYPES).map(function(k){
+    return '<option value="'+k+'"'+(S.leaveCalType===k?' selected':'')+'>'+LC_TYPES[k].label+'</option>'; }).join('');
+  return '<div class="lc-top">'+
+      '<div class="lc-nav"><button id="lcPrev" class="lc-navbtn">‹</button>'+
+        '<span class="lc-month" id="lcMonth">…</span>'+
+        '<button id="lcNext" class="lc-navbtn">›</button></div>'+
+      '<div class="lc-filters">'+
+        '<select class="lc-sel" id="lcDept"><option value="">ทุกแผนก</option></select>'+
+        '<select class="lc-sel" id="lcType">'+typeOpts+'</select></div>'+
+    '</div>'+
+    '<div class="lc-legend">'+legend+'</div>'+
+    '<div class="lc-body"><div class="lc-cal" id="lcCal"><div class="skel" style="height:300px"></div></div>'+
+      '<aside class="lc-detail" id="lcDetail"></aside></div>';
+}
+function wireLeaveCal(){
+  if(!S.leaveCalMonth){ var n=new Date(); S.leaveCalMonth=new Date(n.getFullYear(),n.getMonth(),1); }
+  var prev=document.getElementById('lcPrev'), next=document.getElementById('lcNext');
+  prev&&prev.addEventListener('click',function(){ var m=S.leaveCalMonth; S.leaveCalMonth=new Date(m.getFullYear(),m.getMonth()-1,1); S.leaveCalSel=null; loadLeaveCal(); });
+  next&&next.addEventListener('click',function(){ var m=S.leaveCalMonth; S.leaveCalMonth=new Date(m.getFullYear(),m.getMonth()+1,1); S.leaveCalSel=null; loadLeaveCal(); });
+  var dp=document.getElementById('lcDept'), tp=document.getElementById('lcType');
+  dp&&dp.addEventListener('change',function(){ S.leaveCalDept=dp.value; renderLeaveCalGrid(); renderLeaveCalPanel(S.leaveCalSel); });
+  tp&&tp.addEventListener('change',function(){ S.leaveCalType=tp.value; renderLeaveCalGrid(); renderLeaveCalPanel(S.leaveCalSel); });
+}
+function loadLeaveCal(){
+  if(!S.leaveCalMonth){ var n=new Date(); S.leaveCalMonth=new Date(n.getFullYear(),n.getMonth(),1); }
+  var y=S.leaveCalMonth.getFullYear(), mo1=S.leaveCalMonth.getMonth()+1;
+  var ml=document.getElementById('lcMonth'); if(ml) ml.textContent=TH_MONTHS[mo1-1]+' '+(y+543);
+  api('hrLeaveCalendar',{year:y,month:mo1}).then(function(r){
+    var c=document.getElementById('lcCal'); if(!c) return;
+    if(!r.ok){ c.innerHTML=emptyBox('🔒',r.error||'ไม่มีสิทธิ์'); return; }
+    S.leaveCalItems=r.items||[];
+    var dp=document.getElementById('lcDept');
+    if(dp && (r.depts||[]).length){ dp.innerHTML='<option value="">ทุกแผนก</option>'+r.depts.map(function(d){
+      return '<option value="'+esc(d)+'"'+(S.leaveCalDept===d?' selected':'')+'>'+esc(d)+'</option>'; }).join(''); }
+    renderLeaveCalGrid(); renderLeaveCalPanel(S.leaveCalSel);
+  }).catch(function(e){ var c=document.getElementById('lcCal'); if(c)c.innerHTML=emptyBox('😿',String(e.message||e)); });
+}
+function lcFiltered(){
+  return S.leaveCalItems.filter(function(it){
+    if(S.leaveCalDept && it.dept!==S.leaveCalDept) return false;
+    if(S.leaveCalType && it.typeKey!==S.leaveCalType) return false;
+    return true; });
+}
+function renderLeaveCalGrid(){
+  var c=document.getElementById('lcCal'); if(!c) return;
+  var cv=S.leaveCalMonth, y=cv.getFullYear(), mo=cv.getMonth();
+  var first=new Date(y,mo,1).getDay(), dim=new Date(y,mo+1,0).getDate(), prevDim=new Date(y,mo,0).getDate();
+  var items=lcFiltered(), todayK=dkeyISO(new Date());
+  function on(key){ return items.filter(function(it){ return it.start<=key && key<=it.end; }); }
+  var h='<div class="lc-grid">';
+  ['อา','จ','อ','พ','พฤ','ศ','ส'].forEach(function(dn,i){ h+='<div class="lc-dow'+(i===0||i===6?' we':'')+'">'+dn+'</div>'; });
+  for(var i=0;i<first;i++){ h+='<div class="lc-cell other"><div class="lc-dn">'+(prevDim-first+1+i)+'</div></div>'; }
+  for(var d=1;d<=dim;d++){
+    var key=lcDayKey(y,mo+1,d), day=on(key), dow=new Date(y,mo,d).getDay();
+    var cls=((dow===0||dow===6)?' we':'')+(key===todayK?' today':'')+(key===S.leaveCalSel?' sel':'');
+    var evs=day.slice(0,3).map(function(it){ return '<div class="lc-ev lev-'+it.typeKey+(it.pending?' pend':'')+'" title="'+esc(it.name)+' · '+esc(it.typeName)+'">'+esc(it.name)+'</div>'; }).join('');
+    var more=day.length>3?'<div class="lc-more">+'+(day.length-3)+' อื่นๆ</div>':'';
+    h+='<div class="lc-cell'+cls+'" data-k="'+key+'"><div class="lc-dn">'+d+'</div><div class="lc-evs">'+evs+more+'</div></div>';
+  }
+  var trail=(7-((first+dim)%7))%7;
+  for(var t=1;t<=trail;t++){ h+='<div class="lc-cell other"><div class="lc-dn">'+t+'</div></div>'; }
+  h+='</div>';
+  c.innerHTML=h;
+  c.querySelectorAll('.lc-cell[data-k]').forEach(function(el){
+    el.addEventListener('click',function(){ S.leaveCalSel=el.dataset.k; renderLeaveCalGrid(); renderLeaveCalPanel(S.leaveCalSel); }); });
+}
+function renderLeaveCalPanel(key){
+  var el=document.getElementById('lcDetail'); if(!el) return;
+  var items=lcFiltered();
+  var foot='<div class="lc-foot">📋 เดือนนี้ <b>'+items.length+'</b> ใบลา · แตะวันบนปฏิทินเพื่อดูรายละเอียด</div>';
+  if(!key){ el.innerHTML='<div class="lc-dempty"><span class="e">🗓️</span>เลือกวันบนปฏิทิน</div>'+foot; return; }
+  var day=items.filter(function(it){ return it.start<=key && key<=it.end; });
+  var p=key.split('-'), dlabel=(+p[2])+' '+TH_MONTHS[(+p[1])-1]+' '+((+p[0])+543);
+  var head='<div class="lc-ddate">'+dlabel+'</div><div class="lc-dsub">'+day.length+' รายการลา</div>';
+  var cards=day.length?day.map(function(it){
+    return '<div class="lc-dcard lev-'+it.typeKey+'"><div class="lc-dnm">'+(LC_TYPES[it.typeKey]?LC_TYPES[it.typeKey].e:'📋')+' '+esc(it.name)+'</div>'+
+      '<div class="lc-dmt">'+esc(it.dept||'')+' · '+esc(it.typeName)+' · '+it.days+' วัน</div>'+
+      '<span class="badge '+(it.pending?'wait':'ok')+'">'+(it.pending?'⏳ รออนุมัติ':'✅ อนุมัติ')+'</span></div>'; }).join('')
+    : '<div class="lc-dempty"><span class="e">🍃</span>วันนี้ไม่มีใครลา</div>';
+  el.innerHTML=head+cards+foot;
+}
+
 // ════════════ VIEW: SETTINGS (admin · ADMIN/OWNER) ════════════
 function loadSettings(){
   api('adminBootstrap',{}).then(function(r){
@@ -1474,6 +1571,12 @@ function mockApi(action, params){
         {name:'นายตัวอย่าง ทดสอบ',dept:'ฝ่ายขาย',vac:6,biz:0,sick:28,used:12,status:'⚠️ เกินสิทธิ์'}],
       pending:[{kind:'leave',id:'LV-003',name:'นางสาวชนัญชิดา โชคธนอนันต์',type:'ลากิจ',date:'02/06/2569',endDate:'03/06/2569',days:2,reason:'ไปทำธุระที่ต่างจังหวัด',remaining:8,userId:'MOCK',empId:'EMP-001'},
         {kind:'ot',id:'OT-002',name:'นายตัวอย่าง ทดสอบ',type:'ลูกค้าร้องขอ',date:'28/05/2569',startTime:'18:00',endTime:'21:00',hours:3,reason:'ลูกค้าขอแก้งานด่วน',userId:'MOCK2',empId:'EMP-002'}]});
+    else if(action==='hrLeaveCalendar'){ var ly=params.year,lm=('0'+params.month).slice(-2);
+      resolve({ok:true,year:ly,month:params.month,depts:['Live Sale','CRM & Telesale','Content Creator'],items:[
+        {id:'LV-1',name:'สมชาย ใจดี',dept:'Live Sale',typeName:'ลาป่วย',typeKey:'sick',start:ly+'-'+lm+'-02',end:ly+'-'+lm+'-03',days:2,status:'อนุมัติ',pending:false},
+        {id:'LV-2',name:'วิชัย ตั้งใจ',dept:'CRM & Telesale',typeName:'ลาพักร้อน',typeKey:'vac',start:ly+'-'+lm+'-09',end:ly+'-'+lm+'-11',days:3,status:'อนุมัติ',pending:false},
+        {id:'LV-3',name:'ก้อง พากเพียร',dept:'Content Creator',typeName:'ลากิจ',typeKey:'biz',start:ly+'-'+lm+'-09',end:ly+'-'+lm+'-09',days:1,status:'รอการอนุมัติ',pending:true},
+        {id:'LV-4',name:'สุดา รักงาน',dept:'Live Sale',typeName:'ลาวันเกิด',typeKey:'bday',start:ly+'-'+lm+'-04',end:ly+'-'+lm+'-04',days:1,status:'อนุมัติ',pending:false}]}); }
     else if(action==='pendingRegistrations') resolve({ok:true,count:2,pending:[
       {userId:'MOCKP1',typedName:'นภา สดใส',lineDisplay:'Napa S.',submittedAt:'09/06/2569 08:10',matched:true,empId:'EMP-010',dept:'ฝ่ายขาย'},
       {userId:'MOCKP2',typedName:'ก้อง พากเพียร',lineDisplay:'Kong',submittedAt:'09/06/2569 08:25',matched:false,empId:'',dept:''}]});
