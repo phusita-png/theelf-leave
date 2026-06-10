@@ -1057,21 +1057,34 @@ function renderHr(r){
 
   var pend = r.pending.length ? r.pending.map(function(x){
     var emo = x.kind==='ot' ? '⏰' : (TYPE_EMOJI[x.type]||'📋');
-    var amt = x.kind==='ot' ? (x.hours+' ชม.') : (x.days+' วัน');
+    var when, amt;
+    if(x.kind==='ot'){
+      when = esc(x.date)+(x.startTime?(' · '+esc(x.startTime)+'–'+esc(x.endTime)):'');
+      amt = x.hours+' ชม.';
+    } else {
+      when = esc(x.date)+(x.endDate&&x.endDate!==x.date?(' – '+esc(x.endDate)):'');
+      amt = x.days+' วัน';
+    }
     var d = 'data-kind="'+x.kind+'" data-id="'+esc(x.id)+'" data-name="'+esc(x.name)+'" data-uid="'+esc(x.userId||'')+'" data-empid="'+esc(x.empId||'')+'"';
-    return '<div class="pend"><div class="pend-top"><div class="hist-ic">'+emo+'</div><div class="hist-main">'+
-      '<div class="hist-type">'+esc(x.name)+(x.resubmit?' <span class="re-badge">🔄 แก้ไขส่งใหม่</span>':'')+'</div>'+
-      '<div class="hist-meta">'+esc(x.type)+' · '+esc(x.date)+' · '+amt+' · '+esc(x.id)+'</div></div></div>'+
-      '<div class="pend-act2"><button class="pend-btn hist" data-hist="1" '+d+'>📊 '+(x.kind==='ot'?'ดูประวัติ OT ย้อนหลัง':'ดูประวัติการลาย้อนหลัง')+'</button></div>'+
-      '<div class="pend-act">'+
+    // เหตุผล + สิทธิ์คงเหลือ (ช่วยตัดสินใจในการ์ดเลย ไม่ต้องกดดูประวัติ)
+    var info = '';
+    if(x.reason) info += '<div class="pend-info">💬 '+esc(x.reason)+'</div>';
+    if(x.kind!=='ot' && x.remaining!=null) info += '<div class="pend-info bal">🎫 สิทธิ์'+esc(x.type)+'คงเหลือ <b>'+balNum(x.remaining)+'</b> วัน</div>';
+    return '<div class="pend">'+
+      '<div class="pend-top"><div class="hist-ic">'+emo+'</div><div class="hist-main">'+
+        '<div class="hist-type">'+esc(x.name)+(x.resubmit?' <span class="re-badge">🔄 แก้ไขส่งใหม่</span>':'')+'</div>'+
+        '<div class="hist-meta">'+esc(x.type)+' · '+when+' · <b>'+amt+'</b> · '+esc(x.id)+'</div></div></div>'+
+      info+
+      '<div class="pend-main2">'+
         '<button class="pend-btn no" data-rej="1" '+d+'>❌ ไม่อนุมัติ</button>'+
         '<button class="pend-btn ok" data-appr="1" '+d+'>✅ อนุมัติ</button>'+
       '</div>'+
-      '<div class="pend-act2">'+
-        (x.kind!=='ot' ? '<button class="pend-btn doc" data-doc="1" '+d+'>📎 ขอเอกสารเพิ่ม</button>' : '')+
-        '<button class="pend-btn redit" data-redit="1" '+d+'>📝 ส่งกลับให้แก้ไข</button>'+
+      '<div class="pend-sub">'+
+        '<button class="pend-btn hist" data-hist="1" '+d+'>📊 ประวัติ</button>'+
+        (x.kind!=='ot' ? '<button class="pend-btn doc" data-doc="1" '+d+'>📎 ขอเอกสาร</button>' : '')+
+        '<button class="pend-btn redit" data-redit="1" '+d+'>📝 ส่งกลับแก้ไข</button>'+
+        (x.docUrl ? '<button class="pend-btn viewdoc" data-viewdoc="1" '+d+'>📨 ดูแนบ</button>' : '')+
       '</div>'+
-      (x.docUrl ? '<div class="pend-act2"><button class="pend-btn viewdoc" data-viewdoc="1" '+d+'>📨 ดูเอกสารที่พนักงานแนบ</button></div>' : '')+
       '</div>'; }).join('')
     : '<div class="empty" style="padding:20px"><div class="e-emo">✅</div><div class="e-txt">ไม่มีรายการค้างอนุมัติ</div></div>';
   var pendCard='<div class="card"><div class="card-title"><span class="ic"></span>รออนุมัติ ('+r.pending.length+')</div>'+
@@ -1416,8 +1429,8 @@ function mockApi(action, params){
       leave:{total:8,approved:5,pending:2,rejected:1},ot:{hours:24.5,count:6,pending:1},
       employees:[{name:'นางสาวชนัญชิดา โชคธนอนันต์',dept:'สำนักงานใหญ่',vac:16,biz:10,sick:29,used:5,status:'✅ ปกติ'},
         {name:'นายตัวอย่าง ทดสอบ',dept:'ฝ่ายขาย',vac:6,biz:0,sick:28,used:12,status:'⚠️ เกินสิทธิ์'}],
-      pending:[{kind:'leave',id:'LV-003',name:'นางสาวชนัญชิดา โชคธนอนันต์',type:'ลากิจ',date:'02/06/2569',days:1,userId:'MOCK',empId:'EMP-001'},
-        {kind:'ot',id:'OT-002',name:'นายตัวอย่าง ทดสอบ',type:'ลูกค้าร้องขอ',date:'28/05/2569',hours:3,userId:'MOCK2',empId:'EMP-002'}]});
+      pending:[{kind:'leave',id:'LV-003',name:'นางสาวชนัญชิดา โชคธนอนันต์',type:'ลากิจ',date:'02/06/2569',endDate:'03/06/2569',days:2,reason:'ไปทำธุระที่ต่างจังหวัด',remaining:8,userId:'MOCK',empId:'EMP-001'},
+        {kind:'ot',id:'OT-002',name:'นายตัวอย่าง ทดสอบ',type:'ลูกค้าร้องขอ',date:'28/05/2569',startTime:'18:00',endTime:'21:00',hours:3,reason:'ลูกค้าขอแก้งานด่วน',userId:'MOCK2',empId:'EMP-002'}]});
     else if(action==='pendingRegistrations') resolve({ok:true,count:2,pending:[
       {userId:'MOCKP1',typedName:'นภา สดใส',lineDisplay:'Napa S.',submittedAt:'09/06/2569 08:10',matched:true,empId:'EMP-010',dept:'ฝ่ายขาย'},
       {userId:'MOCKP2',typedName:'ก้อง พากเพียร',lineDisplay:'Kong',submittedAt:'09/06/2569 08:25',matched:false,empId:'',dept:''}]});

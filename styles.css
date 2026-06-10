@@ -187,6 +187,13 @@ img{max-width:100%}
 .re-badge{display:inline-block;background:#E3F2FD;color:#1565C0;font-size:11px;font-weight:700;
   padding:2px 8px;border-radius:10px;margin-left:6px;vertical-align:middle}
 .pend-act2 .pend-btn:only-child{grid-column:1/-1}
+/* การ์ดอนุมัติ v.70 — เหตุผล/สิทธิ์ + ปุ่มหลัก/รอง */
+.pend-info{font-size:13px;color:var(--ink);padding-left:50px;margin-top:5px;line-height:1.5}
+.pend-info.bal{color:var(--green)}
+.pend-info.bal b{font-weight:700}
+.pend-main2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:11px;padding-left:50px}
+.pend-sub{display:flex;flex-wrap:wrap;gap:7px;margin-top:8px;padding-left:50px}
+.pend-sub .pend-btn{font-size:12px;padding:7px 11px}
 
 /* ── Reject reason picker ── */
 .rej-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
