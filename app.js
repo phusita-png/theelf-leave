@@ -39,7 +39,8 @@ var S = {
   view:'home',
   leaveForm:{type:'vac',start:null,end:null,period:'full',reason:'',stime:'',etime:''},
   otForm:{date:null,start:'',end:'',type:'1',reason:''},
-  calLeave:new Date(), calOt:new Date(), histTab:'leave', hrHist:'leave', hrHistData:null,   // hrHist=แท็บประวัติแผง HR
+  calLeave:new Date(), calOt:new Date(), histTab:'leave', hrHist:'all', hrHistData:null,   // hrHist=แท็บประวัติแผง HR
+  hrSum:{mode:'period',year:null,month:null,from:'',to:''},   // ตัวกรองสรุปแผง HR
   editLeaveId:null, editOtId:null, pendingEdit:null, pendingView:null,   // โหมดแก้ไข + deep-link view
   leaveCalMonth:null, leaveCalItems:[], leaveCalSel:null, leaveCalDept:'', leaveCalType:''   // ปฏิทินการลารวม (HR)
 };
@@ -896,7 +897,7 @@ function loadHr(){
   api('hrDashboard',{}).then(function(r){
     var m=document.getElementById('main'); if(!m) return;
     if(!r.ok){ m.innerHTML = backBar()+emptyBox('🔒', r.error||'ไม่มีสิทธิ์'); bindBack(); return; }
-    m.innerHTML = backBar()+'<div id="pendRegSlot"></div>'+renderHr(r); bindBack(); wireHrPending(); wireHrHistTabs();
+    m.innerHTML = backBar()+'<div id="pendRegSlot"></div>'+renderHr(r); bindBack(); wireHrPending(); wireHrHistTabs(); wireHrSumFilter();
     loadPendingRegs(); loadHrHistory();
   }).catch(function(e){ var m=document.getElementById('main'); if(m){ m.innerHTML=backBar()+emptyBox('😿',String(e.message||e)); bindBack(); } });
 }
@@ -1138,12 +1139,10 @@ function hrDecide(kind, id, decision, reason){
   }).catch(function(e){ toast(String(e.message||e),'err'); });
 }
 function renderHr(r){
-  var lv=r.leave, ot=r.ot;
-  var stat=function(num,lb){ return '<div class="hr-stat"><div class="hr-num">'+num+'</div><div class="hr-lb">'+lb+'</div></div>'; };
-  var summary='<div class="card"><div class="card-title"><span class="ic"></span>สรุปการลา · '+esc(r.monthLabel)+'</div>'+
-    '<div class="hr-grid">'+stat(lv.total,'ยื่นทั้งหมด')+stat(lv.approved,'อนุมัติ')+stat(lv.pending,'รออนุมัติ')+stat(lv.rejected,'ไม่อนุมัติ')+'</div></div>';
-  var otcard='<div class="card"><div class="card-title ot"><span class="ic"></span>OT · '+esc(r.monthLabel)+'</div>'+
-    '<div class="hr-grid ot">'+stat(ot.count,'รายการ')+stat(ot.approved,'อนุมัติ')+stat(ot.pending,'รออนุมัติ')+stat(ot.rejected,'ไม่อนุมัติ')+'</div></div>';
+  // การ์ดสรุป (ลา+OT) + แถบตัวกรอง (รอบ/เดือน/ปี/ช่วงวันที่) — ค่าเริ่มจาก hrDashboard (รอบ 26–25)
+  var sumCard='<div class="card hr-sum-card"><div class="card-title"><span class="ic"></span>สรุปการลา &amp; OT</div>'+
+    hrSumFilterBar()+
+    '<div id="hrSumGrid">'+hrSumGrids(r.leave, r.ot, r.monthLabel)+'</div></div>';
 
   var pend = r.pending.length ? r.pending.map(function(x){
     var emo = x.kind==='ot' ? '⏰' : (TYPE_EMOJI[x.type]||'📋');
@@ -1189,16 +1188,71 @@ function renderHr(r){
   // ประวัติทั้งบริษัท — แท็บ ลา/OT/ลงทะเบียน · เรียงวันที่ใหม่→เก่า · lazy load
   var histCard='<div class="card"><div class="card-title"><span class="ic"></span>📜 ประวัติทั้งบริษัท</div>'+
     '<div class="htabs">'+
+      '<button class="htab'+(S.hrHist==='all'?' sel':'')+'" data-hh="all">📂 ทั้งหมด</button>'+
       '<button class="htab'+(S.hrHist==='leave'?' sel':'')+'" data-hh="leave">📋 การลา</button>'+
       '<button class="htab'+(S.hrHist==='ot'?' sel ot':'')+'" data-hh="ot">⏰ OT</button>'+
       '<button class="htab'+(S.hrHist==='reg'?' sel':'')+'" data-hh="reg">📝 ลงทะเบียน</button>'+
     '</div>'+
     '<div id="hrHistBody"><div class="skel" style="height:64px"></div></div></div>';
 
-  return '<div class="hr-top">'+summary+otcard+'</div>'+pendCard+histCard;
+  return sumCard+pendCard+histCard;
 }
 
-// ════════════ แผง HR: ประวัติทั้งบริษัท (3 แท็บ) ════════════
+// ════════════ แผง HR: ตัวกรองสรุป (รอบ/เดือน/ปี/ช่วงวันที่) ════════════
+var TH_MO_SHORT=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+function hrSumFilterBar(){
+  var f=S.hrSum, now=new Date(), curY=now.getFullYear()+543;
+  var modeSel='<select class="hr-fsel" id="hrSumMode">'+
+    [['period','รอบเดือนนี้ (26–25)'],['month','เลือกเดือน'],['year','เลือกปี'],['range','ช่วงวันที่']]
+      .map(function(o){ return '<option value="'+o[0]+'"'+(f.mode===o[0]?' selected':'')+'>'+o[1]+'</option>'; }).join('')+'</select>';
+  // ปี (พ.ศ.) ย้อนหลัง 4 ปี
+  var years=[]; for(var y=curY;y>=curY-4;y--) years.push(y);
+  var yearOpts=years.map(function(y){ return '<option value="'+y+'"'+((f.year||curY)===y?' selected':'')+'>'+y+'</option>'; }).join('');
+  var monthOpts=TH_MO_SHORT.map(function(m,i){ return '<option value="'+(i+1)+'"'+((f.month||(now.getMonth()+1))===(i+1)?' selected':'')+'>'+m+'</option>'; }).join('');
+  var inputs='';
+  if(f.mode==='month') inputs='<select class="hr-fsel" id="hrSumMonth">'+monthOpts+'</select><select class="hr-fsel" id="hrSumYear">'+yearOpts+'</select>';
+  else if(f.mode==='year') inputs='<select class="hr-fsel" id="hrSumYear">'+yearOpts+'</select>';
+  else if(f.mode==='range') inputs='<input type="date" class="hr-fdate" id="hrSumFrom" value="'+esc(f.from)+'"><span class="hr-fdash">–</span><input type="date" class="hr-fdate" id="hrSumTo" value="'+esc(f.to)+'">';
+  return '<div class="hr-filter">🔎 '+modeSel+inputs+'<button class="hr-fbtn" id="hrSumGo">ดูข้อมูล</button></div>';
+}
+function hrSumGrids(lv, ot, label){
+  var stat=function(num,lb){ return '<div class="hr-stat"><div class="hr-num">'+num+'</div><div class="hr-lb">'+lb+'</div></div>'; };
+  return '<div class="hr-sum-lb">📅 '+esc(label||'')+'</div>'+
+    '<div class="hr-sum-2col">'+
+      '<div class="hr-sum-block"><div class="hr-sum-h">📋 การลา</div>'+
+        '<div class="hr-grid">'+stat(lv.total,'ยื่นทั้งหมด')+stat(lv.approved,'อนุมัติ')+stat(lv.pending,'รออนุมัติ')+stat(lv.rejected,'ไม่อนุมัติ')+'</div></div>'+
+      '<div class="hr-sum-block ot"><div class="hr-sum-h ot">⏰ OT'+(ot.hours?' · '+ot.hours+' ชม.':'')+'</div>'+
+        '<div class="hr-grid ot">'+stat(ot.count,'รายการ')+stat(ot.approved,'อนุมัติ')+stat(ot.pending,'รออนุมัติ')+stat(ot.rejected,'ไม่อนุมัติ')+'</div></div>'+
+    '</div>';
+}
+function wireHrSumFilter(){
+  var mode=document.getElementById('hrSumMode');
+  if(mode) mode.addEventListener('change', function(){
+    S.hrSum.mode=mode.value;
+    // re-render แถบตัวกรอง (input เปลี่ยนตามโหมด) — คงค่าการ์ดเดิมไว้
+    var bar=document.querySelector('.hr-filter'); if(bar) bar.outerHTML=hrSumFilterBar(); wireHrSumFilter();
+  });
+  var go=document.getElementById('hrSumGo');
+  if(go) go.addEventListener('click', loadHrSummary);
+}
+function loadHrSummary(){
+  var f=S.hrSum;
+  var my=document.getElementById('hrSumYear'), mm=document.getElementById('hrSumMonth');
+  var fr=document.getElementById('hrSumFrom'), to=document.getElementById('hrSumTo');
+  if(my) f.year=+my.value; if(mm) f.month=+mm.value;
+  if(fr) f.from=isoToThai(fr.value); if(to) f.to=isoToThai(to.value);
+  if(f.mode==='range' && (!f.from||!f.to)) return toast('เลือกช่วงวันที่ให้ครบค่ะ','err');
+  var g=document.getElementById('hrSumGrid'); if(g) g.innerHTML='<div class="skel" style="height:120px"></div>';
+  api('hrSummary',{mode:f.mode,year:f.year,month:f.month,from:f.from,to:f.to}).then(function(r){
+    var gg=document.getElementById('hrSumGrid'); if(!gg) return;
+    if(!r.ok){ gg.innerHTML='<div class="hr-note">'+esc(r.error||'โหลดไม่ได้')+'</div>'; return; }
+    gg.innerHTML=hrSumGrids(r.leave, r.ot, r.label);
+  }).catch(function(e){ var gg=document.getElementById('hrSumGrid'); if(gg) gg.innerHTML='<div class="hr-note">'+esc(String(e.message||e))+'</div>'; });
+}
+// "yyyy-mm-dd" (input date) → "dd/MM/yyyy" พ.ศ.
+function isoToThai(iso){ if(!iso) return ''; var p=iso.split('-'); if(p.length!==3) return ''; return p[2]+'/'+p[1]+'/'+((+p[0])+543); }
+
+// ════════════ แผง HR: ประวัติทั้งบริษัท (4 แท็บ) ════════════
 function loadHrHistory(){
   // โหลดครั้งเดียว cache ใน S.hrHistData แล้วสลับแท็บ client-side
   if(S.hrHistData){ paintHrHistory(); return; }
@@ -1209,34 +1263,36 @@ function loadHrHistory(){
 }
 function paintHrHistory(){
   var b=document.getElementById('hrHistBody'); if(!b||!S.hrHistData) return;
-  var d=S.hrHistData, t=S.hrHist;
-  if(t==='leave'){
-    b.innerHTML = !d.leave.length ? emptyBox('🍃','ยังไม่มีประวัติการลา') :
-      '<div class="hr-hist">'+d.leave.map(function(h){
-        var dt=h.startDate+(h.endDate&&h.endDate!==h.startDate?' — '+h.endDate:'');
-        return '<div class="hist"><div class="hist-ic">'+(TYPE_EMOJI[h.type]||'📋')+'</div>'+
-          '<div class="hist-main"><div class="hist-type">'+esc(h.name)+'</div>'+
-          '<div class="hist-meta"><span>'+esc(h.type)+'</span><span>·</span><span>📅 '+dt+'</span><span>·</span><span>⏱ '+h.days+' วัน</span></div></div>'+
-          statusBadge(h.status)+'</div>'; }).join('')+'</div>';
-  } else if(t==='ot'){
-    b.innerHTML = !d.ot.length ? emptyBox('🍃','ยังไม่มีประวัติ OT') :
-      '<div class="hr-hist">'+d.ot.map(function(o){
-        return '<div class="hist"><div class="hist-ic">⏰</div>'+
-          '<div class="hist-main"><div class="hist-type">'+esc(o.name)+'</div>'+
-          '<div class="hist-meta"><span>'+esc(o.otType||'OT')+'</span><span>·</span><span>📅 '+esc(o.otDate)+'</span><span>·</span>'+
-          '<span>🕐 '+esc(o.startTime)+'–'+esc(o.endTime)+'</span><span>·</span><span>'+o.hours+' ชม.</span></div></div>'+
-          statusBadge(o.status)+'</div>'; }).join('')+'</div>';
-  } else {
-    b.innerHTML = !d.reg.length ? emptyBox('🍃','ยังไม่มีประวัติลงทะเบียน') :
-      '<div class="hr-hist">'+d.reg.map(function(g){
-        var meta='<span>'+(g.empId?esc(g.empId):'ยังไม่มีในระบบ')+(g.dept?' · '+esc(g.dept):'')+'</span><span>·</span><span>📅 '+esc(g.submittedAt)+'</span>';
-        if(g.by) meta+='<span>·</span><span>โดย '+esc(g.by)+'</span>';
-        if(g.reason) meta+='<span>·</span><span>💬 '+esc(g.reason)+'</span>';
-        return '<div class="hist"><div class="hist-ic">📝</div>'+
-          '<div class="hist-main"><div class="hist-type">'+esc(g.name)+'</div>'+
-          '<div class="hist-meta">'+meta+'</div></div>'+
-          regBadge(g.status)+'</div>'; }).join('')+'</div>';
+  var d=S.hrHistData, t=S.hrHist, list, empty;
+  if(t==='leave'){ list=d.leave; empty='ยังไม่มีประวัติการลา'; }
+  else if(t==='ot'){ list=d.ot; empty='ยังไม่มีประวัติ OT'; }
+  else if(t==='reg'){ list=d.reg; empty='ยังไม่มีประวัติลงทะเบียน'; }
+  else { list=d.leave.concat(d.ot).concat(d.reg).sort(function(a,b){ return (b.ts||0)-(a.ts||0); }); empty='ยังไม่มีประวัติ'; }
+  b.innerHTML = !list.length ? emptyBox('🍃',empty) : '<div class="hr-hist">'+list.map(histRow).join('')+'</div>';
+}
+// render 1 รายการประวัติตามชนิด (leave/ot/reg) — reuse ทั้งแท็บเดี่ยว + แท็บทั้งหมด
+function histRow(h){
+  if(h.kind==='ot'){
+    return '<div class="hist"><div class="hist-ic">⏰</div>'+
+      '<div class="hist-main"><div class="hist-type">'+esc(h.name)+'</div>'+
+      '<div class="hist-meta"><span>'+esc(h.otType||'OT')+'</span><span>·</span><span>📅 '+esc(h.otDate)+'</span><span>·</span>'+
+      '<span>🕐 '+esc(h.startTime)+'–'+esc(h.endTime)+'</span><span>·</span><span>'+h.hours+' ชม.</span></div></div>'+
+      statusBadge(h.status)+'</div>';
   }
+  if(h.kind==='reg'){
+    var meta='<span>'+(h.empId?esc(h.empId):'ยังไม่มีในระบบ')+(h.dept?' · '+esc(h.dept):'')+'</span><span>·</span><span>📅 '+esc(h.submittedAt)+'</span>';
+    if(h.by) meta+='<span>·</span><span>โดย '+esc(h.by)+'</span>';
+    if(h.reason) meta+='<span>·</span><span>💬 '+esc(h.reason)+'</span>';
+    return '<div class="hist"><div class="hist-ic">📝</div>'+
+      '<div class="hist-main"><div class="hist-type">'+esc(h.name)+'</div>'+
+      '<div class="hist-meta">'+meta+'</div></div>'+regBadge(h.status)+'</div>';
+  }
+  // leave (default)
+  var dt=h.startDate+(h.endDate&&h.endDate!==h.startDate?' — '+h.endDate:'');
+  return '<div class="hist"><div class="hist-ic">'+(TYPE_EMOJI[h.type]||'📋')+'</div>'+
+    '<div class="hist-main"><div class="hist-type">'+esc(h.name)+'</div>'+
+    '<div class="hist-meta"><span>'+esc(h.type)+'</span><span>·</span><span>📅 '+dt+'</span><span>·</span><span>⏱ '+h.days+' วัน</span></div></div>'+
+    statusBadge(h.status)+'</div>';
 }
 // badge สถานะลงทะเบียน (pending/approved/rejected)
 function regBadge(st){
@@ -1677,12 +1733,14 @@ function mockApi(action, params){
       {userId:'MOCKP2',typedName:'ก้อง พากเพียร',lineDisplay:'Kong',submittedAt:'09/06/2569 08:25',matched:false,empId:'',dept:''}]});
     else if(action==='decideRegistration') resolve({ok:true,name:'(mock)',status:params.decision==='approve'?'approved':'rejected'});
     else if(action==='addEmployeeApprove') resolve({ok:true,fullName:(params&&params.name||'')+' '+(params&&params.lastName||''),written:['โควต้าลา','วันลาคงเหลือ','payroll','OT'],linked:true,warnings:[]});
+    else if(action==='hrSummary') resolve({ok:true,mode:params.mode,label:'(ตัวอย่าง) '+({period:'รอบ 26–25',month:'รายเดือน',year:'รายปี',range:'ช่วงวันที่'}[params.mode]||''),
+      leave:{total:8,approved:5,pending:2,rejected:1},ot:{count:6,hours:24.5,approved:4,pending:1,rejected:1}});
     else if(action==='hrAllHistory') resolve({ok:true,
-      leave:MOCK_LV_HIST.map(function(h){ return {name:'นางสาวชนัญชิดา โชคธนอนันต์',type:h.type,startDate:h.startDate,endDate:h.endDate,days:h.days,status:h.status}; }),
-      ot:MOCK_OT_HIST.map(function(o){ return {name:'นายตัวอย่าง ทดสอบ',otType:o.otType,otDate:o.otDate,startTime:o.startTime,endTime:o.endTime,hours:o.hours,status:o.status}; }),
-      reg:[{name:'นภา สดใส',empId:'EMP-010',dept:'ฝ่ายขาย',status:'approved',submittedAt:'09/06/2569 08:10',decidedAt:'09/06/2569 09:00',by:'HR แอดมิน',reason:''},
-        {name:'ก้อง พากเพียร',empId:'',dept:'',status:'rejected',submittedAt:'09/06/2569 08:25',decidedAt:'09/06/2569 09:05',by:'HR แอดมิน',reason:'ชื่อไม่ตรงระบบ'},
-        {name:'มานี รักดี',empId:'EMP-011',dept:'Live Sale',status:'pending',submittedAt:'10/06/2569 10:00',decidedAt:'',by:'',reason:''}]});
+      leave:MOCK_LV_HIST.map(function(h,i){ return {kind:'leave',name:'นางสาวชนัญชิดา โชคธนอนันต์',type:h.type,startDate:h.startDate,endDate:h.endDate,days:h.days,status:h.status,ts:300-i*10}; }),
+      ot:MOCK_OT_HIST.map(function(o,i){ return {kind:'ot',name:'นายตัวอย่าง ทดสอบ',otType:o.otType,otDate:o.otDate,startTime:o.startTime,endTime:o.endTime,hours:o.hours,status:o.status,ts:250-i*10}; }),
+      reg:[{kind:'reg',name:'นภา สดใส',empId:'EMP-010',dept:'ฝ่ายขาย',status:'approved',submittedAt:'09/06/2569 08:10',decidedAt:'09/06/2569 09:00',by:'HR แอดมิน',reason:'',ts:280},
+        {kind:'reg',name:'ก้อง พากเพียร',empId:'',dept:'',status:'rejected',submittedAt:'09/06/2569 08:25',decidedAt:'09/06/2569 09:05',by:'HR แอดมิน',reason:'ชื่อไม่ตรงระบบ',ts:190},
+        {kind:'reg',name:'มานี รักดี',empId:'EMP-011',dept:'Live Sale',status:'pending',submittedAt:'10/06/2569 10:00',decidedAt:'',by:'',reason:'',ts:200}]});
     else if(action==='hrEmpHistory'){
       if(params&&params.kind==='ot') resolve({ok:true,kind:'ot',name:'นายตัวอย่าง ทดสอบ',history:MOCK_OT_HIST,count:MOCK_OT_HIST.length});
       else resolve({ok:true,kind:'leave',name:'นางสาวชนัญชิดา โชคธนอนันต์',history:MOCK_LV_HIST,count:MOCK_LV_HIST.length,
