@@ -131,6 +131,7 @@ function bootstrap() {
     if (S.pendingEdit) enterEditById(S.pendingEdit);   // deep-link → เปิดหน้าแก้เลย (ลา/OT)
     else if (S.pendingView === 'hr' && S.profile && S.profile.canApprove) goTo('hr');   // deep-link → เด้งแผง HR เลย
     else if (S.pendingView === 'settings' && S.profile && S.profile.canAdmin) goTo('settings');
+    else if (window.innerWidth >= 1024) goTo(S.profile && S.profile.canApprove ? 'hr' : 'leavecal');
   }).catch(function(e){ fail(String(e.message || e)); });
 }
 function apply(r){
