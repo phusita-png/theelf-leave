@@ -1274,9 +1274,9 @@ function paintHrHistory(){
 }
 // ป้ายประเภท (โชว์ในแท็บ "ทั้งหมด" เพื่อแยก ลา/OT/ลงทะเบียน)
 function kindChip(kind){
-  if(kind==='ot') return '<span class="hist-kind k-ot">⏰ OT</span>';
-  if(kind==='reg') return '<span class="hist-kind k-reg">📝 ลงทะเบียน</span>';
-  return '<span class="hist-kind k-leave">📋 ลา</span>';
+  if(kind==='ot') return '<span class="hist-kind k-ot">OT</span>';
+  if(kind==='reg') return '<span class="hist-kind k-reg">ลงทะเบียน</span>';
+  return '<span class="hist-kind k-leave">การลา</span>';
 }
 // บรรทัดผู้อนุมัติ/ไม่อนุมัติ + เวลา (จาก audit log) — เฉพาะลา/OT ที่ดำเนินการแล้ว
 function apprLine(h){
