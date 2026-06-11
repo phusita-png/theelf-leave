@@ -576,8 +576,14 @@ textarea:focus,input[type=time]:focus{border-color:var(--red)}
   /* ── แผง HR เต็มจอ (B3) ── */
   .hr-top{display:grid;grid-template-columns:1fr 1fr;gap:16px}
   .hr-top>.card{margin-bottom:16px}
-  .hr-pend-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
-  .hr-pend-list .pend{border-bottom:none;border:1px solid var(--line);border-radius:12px;padding:13px}
+  /* รออนุมัติ → รายการเดียวเรียงลง · ข้อมูลซ้าย · ปุ่มขวา */
+  .hr-pend-list{display:flex;flex-direction:column;gap:12px}
+  .hr-pend-list .pend{border-bottom:none;border:1px solid var(--line);border-radius:12px;padding:14px 18px;
+    display:flex;align-items:center;gap:22px}
+  .hr-pend-list .pend-l{flex:1;min-width:0}
+  .hr-pend-list .pend-r{flex:0 0 300px}
+  .hr-pend-list .pend-info,.hr-pend-list .pend-main2,.hr-pend-list .pend-sub{padding-left:0}
+  .hr-pend-list .pend-main2{margin-top:0}
   /* พนักงาน → ตารางช่อง (เส้นแบ่ง + zebra) */
   .hr-emp-list{border:1px solid var(--line);border-radius:10px;overflow:hidden}
   .hr-emp{display:grid;grid-template-columns:1.8fr 4.2fr minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) minmax(90px,auto);gap:0;align-items:center;

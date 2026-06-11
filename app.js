@@ -39,7 +39,7 @@ var S = {
   view:'home',
   leaveForm:{type:'vac',start:null,end:null,period:'full',reason:'',stime:'',etime:''},
   otForm:{date:null,start:'',end:'',type:'1',reason:''},
-  calLeave:new Date(), calOt:new Date(), histTab:'leave',
+  calLeave:new Date(), calOt:new Date(), histTab:'leave', hrHist:'leave', hrHistData:null,   // hrHist=แท็บประวัติแผง HR
   editLeaveId:null, editOtId:null, pendingEdit:null, pendingView:null,   // โหมดแก้ไข + deep-link view
   leaveCalMonth:null, leaveCalItems:[], leaveCalSel:null, leaveCalDept:'', leaveCalType:''   // ปฏิทินการลารวม (HR)
 };
@@ -892,12 +892,27 @@ function loadDocuments(){
 
 // ════════════ VIEW: HR DASHBOARD (read-only) ════════════
 function loadHr(){
+  S.hrHistData=null;   // reset cache — โหลดประวัติสดทุกครั้งเปิดแผง HR
   api('hrDashboard',{}).then(function(r){
     var m=document.getElementById('main'); if(!m) return;
     if(!r.ok){ m.innerHTML = backBar()+emptyBox('🔒', r.error||'ไม่มีสิทธิ์'); bindBack(); return; }
-    m.innerHTML = backBar()+'<div id="pendRegSlot"></div>'+renderHr(r); bindBack(); wireHrPending();
-    loadPendingRegs();
+    m.innerHTML = backBar()+'<div id="pendRegSlot"></div>'+renderHr(r); bindBack(); wireHrPending(); wireHrHistTabs();
+    loadPendingRegs(); loadHrHistory();
   }).catch(function(e){ var m=document.getElementById('main'); if(m){ m.innerHTML=backBar()+emptyBox('😿',String(e.message||e)); bindBack(); } });
+}
+function wireHrHistTabs(){
+  document.querySelectorAll('[data-hh]').forEach(function(el){
+    el.addEventListener('click', function(){
+      S.hrHist=el.dataset.hh;
+      document.querySelectorAll('[data-hh]').forEach(function(b){
+        var sel=b.dataset.hh===S.hrHist;
+        b.classList.toggle('sel', sel);
+        if(b.dataset.hh==='ot') b.classList.toggle('ot', sel);
+      });
+      var body=document.getElementById('hrHistBody'); if(body) body.innerHTML='<div class="skel" style="height:64px"></div>';
+      paintHrHistory();
+    });
+  });
 }
 // 📝 รายการรออนุมัติลงทะเบียน — โหลดแยก แล้วแทรกบนสุดของแผง HR
 function loadPendingRegs(){
@@ -1146,20 +1161,24 @@ function renderHr(r){
     if(x.reason) info += '<div class="pend-info">💬 '+esc(x.reason)+'</div>';
     if(x.kind!=='ot' && x.remaining!=null) info += '<div class="pend-info bal">🎫 สิทธิ์'+esc(x.type)+'คงเหลือ <b>'+balNum(x.remaining)+'</b> วัน</div>';
     return '<div class="pend">'+
-      '<div class="pend-kind'+(x.kind==='ot'?' ot':'')+'">'+(x.kind==='ot'?'⏰ คำขอ OT':'📋 คำขอลา')+'</div>'+
-      '<div class="pend-top"><div class="hist-ic">'+emo+'</div><div class="hist-main">'+
-        '<div class="hist-type">'+esc(x.name)+(x.resubmit?' <span class="re-badge">🔄 แก้ไขส่งใหม่</span>':'')+'</div>'+
-        '<div class="hist-meta">'+esc(x.type)+' · '+when+' · <b>'+amt+'</b> · '+esc(x.id)+'</div></div></div>'+
-      info+
-      '<div class="pend-main2">'+
-        '<button class="pend-btn no" data-rej="1" '+d+'>❌ ไม่อนุมัติ</button>'+
-        '<button class="pend-btn ok" data-appr="1" '+d+'>✅ อนุมัติ</button>'+
+      '<div class="pend-l">'+
+        '<div class="pend-kind'+(x.kind==='ot'?' ot':'')+'">'+(x.kind==='ot'?'⏰ คำขอ OT':'📋 คำขอลา')+'</div>'+
+        '<div class="pend-top"><div class="hist-ic">'+emo+'</div><div class="hist-main">'+
+          '<div class="hist-type">'+esc(x.name)+(x.resubmit?' <span class="re-badge">🔄 แก้ไขส่งใหม่</span>':'')+'</div>'+
+          '<div class="hist-meta">'+esc(x.type)+' · '+when+' · <b>'+amt+'</b> · '+esc(x.id)+'</div></div></div>'+
+        info+
       '</div>'+
-      '<div class="pend-sub">'+
-        '<button class="pend-btn hist" data-hist="1" '+d+'>📊 ประวัติ</button>'+
-        (x.kind!=='ot' ? '<button class="pend-btn doc" data-doc="1" '+d+'>📎 ขอเอกสาร</button>' : '')+
-        '<button class="pend-btn redit" data-redit="1" '+d+'>📝 ส่งกลับแก้ไข</button>'+
-        (x.docUrl ? '<button class="pend-btn viewdoc" data-viewdoc="1" '+d+'>📨 ดูแนบ</button>' : '')+
+      '<div class="pend-r">'+
+        '<div class="pend-main2">'+
+          '<button class="pend-btn no" data-rej="1" '+d+'>❌ ไม่อนุมัติ</button>'+
+          '<button class="pend-btn ok" data-appr="1" '+d+'>✅ อนุมัติ</button>'+
+        '</div>'+
+        '<div class="pend-sub">'+
+          '<button class="pend-btn hist" data-hist="1" '+d+'>📊 ประวัติ</button>'+
+          (x.kind!=='ot' ? '<button class="pend-btn doc" data-doc="1" '+d+'>📎 ขอเอกสาร</button>' : '')+
+          '<button class="pend-btn redit" data-redit="1" '+d+'>📝 ส่งกลับแก้ไข</button>'+
+          (x.docUrl ? '<button class="pend-btn viewdoc" data-viewdoc="1" '+d+'>📨 ดูแนบ</button>' : '')+
+        '</div>'+
       '</div>'+
       '</div>'; }).join('')
     : '<div class="empty" style="padding:20px"><div class="e-emo">✅</div><div class="e-txt">ไม่มีรายการค้างอนุมัติ</div></div>';
@@ -1167,23 +1186,64 @@ function renderHr(r){
     (r.pending.length?'<div class="hr-note ok2">👇 กดอนุมัติ/ไม่อนุมัติได้เลย · ระบบแจ้งพนักงานทาง LINE อัตโนมัติ</div>':'')+
     '<div class="hr-pend-list">'+pend+'</div></div>';
 
-  // พนักงาน — แถวแบบ table (desktop กางเป็นคอลัมน์ · มือถือยุบเป็นการ์ด)
-  var empHead='<div class="hr-emp head"><div class="he-name">ชื่อ-นามสกุล</div><div class="he-dept">ตำแหน่ง</div>'+
-    '<div class="he-q">🤒 ลาป่วย</div><div class="he-q">🏠 ลากิจ</div><div class="he-q">🌴 พักร้อน</div><div class="he-st">สถานะ</div></div>';
-  var emps = r.employees.map(function(e){
-    var over = String(e.status).indexOf('เกิน')>=0;
-    return '<div class="hr-emp'+(over?' over':'')+'">'+
-      '<div class="he-name">👤 '+esc(e.name)+'</div>'+
-      '<div class="he-dept">'+esc(e.dept||'')+'</div>'+
-      '<div class="he-q" data-l="ลาป่วย"><b>🤒 '+num3(e.sick)+'</b></div>'+
-      '<div class="he-q" data-l="ลากิจ"><b>🏠 '+num3(e.biz)+'</b></div>'+
-      '<div class="he-q" data-l="พักร้อน"><b>🌴 '+num3(e.vac)+'</b></div>'+
-      '<div class="he-st">'+(over?'<span class="badge no">เกินสิทธิ์</span>':'<span class="badge ok">ปกติ</span>')+'</div>'+
-      '</div>'; }).join('');
-  var empCard='<div class="card"><div class="card-title"><span class="ic"></span>พนักงาน ('+r.employees.length+') · สิทธิ์คงเหลือ</div>'+
-    (emps?'<div class="hr-emp-list">'+empHead+emps+'</div>':'<div class="empty" style="padding:20px"><div class="e-txt">ไม่มีข้อมูล</div></div>')+'</div>';
+  // ประวัติทั้งบริษัท — แท็บ ลา/OT/ลงทะเบียน · เรียงวันที่ใหม่→เก่า · lazy load
+  var histCard='<div class="card"><div class="card-title"><span class="ic"></span>📜 ประวัติทั้งบริษัท</div>'+
+    '<div class="htabs">'+
+      '<button class="htab'+(S.hrHist==='leave'?' sel':'')+'" data-hh="leave">📋 การลา</button>'+
+      '<button class="htab'+(S.hrHist==='ot'?' sel ot':'')+'" data-hh="ot">⏰ OT</button>'+
+      '<button class="htab'+(S.hrHist==='reg'?' sel':'')+'" data-hh="reg">📝 ลงทะเบียน</button>'+
+    '</div>'+
+    '<div id="hrHistBody"><div class="skel" style="height:64px"></div></div></div>';
 
-  return '<div class="hr-top">'+summary+otcard+'</div>'+pendCard+empCard;
+  return '<div class="hr-top">'+summary+otcard+'</div>'+pendCard+histCard;
+}
+
+// ════════════ แผง HR: ประวัติทั้งบริษัท (3 แท็บ) ════════════
+function loadHrHistory(){
+  // โหลดครั้งเดียว cache ใน S.hrHistData แล้วสลับแท็บ client-side
+  if(S.hrHistData){ paintHrHistory(); return; }
+  api('hrAllHistory',{}).then(function(r){
+    if(!r.ok){ var b=document.getElementById('hrHistBody'); if(b) b.innerHTML=emptyBox('🔒',r.error||'โหลดไม่ได้'); return; }
+    S.hrHistData = r; paintHrHistory();
+  }).catch(function(e){ var b=document.getElementById('hrHistBody'); if(b) b.innerHTML=emptyBox('😿',String(e.message||e)); });
+}
+function paintHrHistory(){
+  var b=document.getElementById('hrHistBody'); if(!b||!S.hrHistData) return;
+  var d=S.hrHistData, t=S.hrHist;
+  if(t==='leave'){
+    b.innerHTML = !d.leave.length ? emptyBox('🍃','ยังไม่มีประวัติการลา') :
+      '<div class="hr-hist">'+d.leave.map(function(h){
+        var dt=h.startDate+(h.endDate&&h.endDate!==h.startDate?' — '+h.endDate:'');
+        return '<div class="hist"><div class="hist-ic">'+(TYPE_EMOJI[h.type]||'📋')+'</div>'+
+          '<div class="hist-main"><div class="hist-type">'+esc(h.name)+'</div>'+
+          '<div class="hist-meta"><span>'+esc(h.type)+'</span><span>·</span><span>📅 '+dt+'</span><span>·</span><span>⏱ '+h.days+' วัน</span></div></div>'+
+          statusBadge(h.status)+'</div>'; }).join('')+'</div>';
+  } else if(t==='ot'){
+    b.innerHTML = !d.ot.length ? emptyBox('🍃','ยังไม่มีประวัติ OT') :
+      '<div class="hr-hist">'+d.ot.map(function(o){
+        return '<div class="hist"><div class="hist-ic">⏰</div>'+
+          '<div class="hist-main"><div class="hist-type">'+esc(o.name)+'</div>'+
+          '<div class="hist-meta"><span>'+esc(o.otType||'OT')+'</span><span>·</span><span>📅 '+esc(o.otDate)+'</span><span>·</span>'+
+          '<span>🕐 '+esc(o.startTime)+'–'+esc(o.endTime)+'</span><span>·</span><span>'+o.hours+' ชม.</span></div></div>'+
+          statusBadge(o.status)+'</div>'; }).join('')+'</div>';
+  } else {
+    b.innerHTML = !d.reg.length ? emptyBox('🍃','ยังไม่มีประวัติลงทะเบียน') :
+      '<div class="hr-hist">'+d.reg.map(function(g){
+        var meta='<span>'+(g.empId?esc(g.empId):'ยังไม่มีในระบบ')+(g.dept?' · '+esc(g.dept):'')+'</span><span>·</span><span>📅 '+esc(g.submittedAt)+'</span>';
+        if(g.by) meta+='<span>·</span><span>โดย '+esc(g.by)+'</span>';
+        if(g.reason) meta+='<span>·</span><span>💬 '+esc(g.reason)+'</span>';
+        return '<div class="hist"><div class="hist-ic">📝</div>'+
+          '<div class="hist-main"><div class="hist-type">'+esc(g.name)+'</div>'+
+          '<div class="hist-meta">'+meta+'</div></div>'+
+          regBadge(g.status)+'</div>'; }).join('')+'</div>';
+  }
+}
+// badge สถานะลงทะเบียน (pending/approved/rejected)
+function regBadge(st){
+  st=String(st||'');
+  if(st==='approved') return '<span class="badge ok">✅ อนุมัติ</span>';
+  if(st==='rejected') return '<span class="badge no">❌ ปฏิเสธ</span>';
+  return '<span class="badge wait">⏳ รออนุมัติ</span>';
 }
 
 // ════════════ VIEW: ปฏิทินการลารวม (HR · APPROVER+) ════════════
@@ -1617,6 +1677,12 @@ function mockApi(action, params){
       {userId:'MOCKP2',typedName:'ก้อง พากเพียร',lineDisplay:'Kong',submittedAt:'09/06/2569 08:25',matched:false,empId:'',dept:''}]});
     else if(action==='decideRegistration') resolve({ok:true,name:'(mock)',status:params.decision==='approve'?'approved':'rejected'});
     else if(action==='addEmployeeApprove') resolve({ok:true,fullName:(params&&params.name||'')+' '+(params&&params.lastName||''),written:['โควต้าลา','วันลาคงเหลือ','payroll','OT'],linked:true,warnings:[]});
+    else if(action==='hrAllHistory') resolve({ok:true,
+      leave:MOCK_LV_HIST.map(function(h){ return {name:'นางสาวชนัญชิดา โชคธนอนันต์',type:h.type,startDate:h.startDate,endDate:h.endDate,days:h.days,status:h.status}; }),
+      ot:MOCK_OT_HIST.map(function(o){ return {name:'นายตัวอย่าง ทดสอบ',otType:o.otType,otDate:o.otDate,startTime:o.startTime,endTime:o.endTime,hours:o.hours,status:o.status}; }),
+      reg:[{name:'นภา สดใส',empId:'EMP-010',dept:'ฝ่ายขาย',status:'approved',submittedAt:'09/06/2569 08:10',decidedAt:'09/06/2569 09:00',by:'HR แอดมิน',reason:''},
+        {name:'ก้อง พากเพียร',empId:'',dept:'',status:'rejected',submittedAt:'09/06/2569 08:25',decidedAt:'09/06/2569 09:05',by:'HR แอดมิน',reason:'ชื่อไม่ตรงระบบ'},
+        {name:'มานี รักดี',empId:'EMP-011',dept:'Live Sale',status:'pending',submittedAt:'10/06/2569 10:00',decidedAt:'',by:'',reason:''}]});
     else if(action==='hrEmpHistory'){
       if(params&&params.kind==='ot') resolve({ok:true,kind:'ot',name:'นายตัวอย่าง ทดสอบ',history:MOCK_OT_HIST,count:MOCK_OT_HIST.length});
       else resolve({ok:true,kind:'leave',name:'นางสาวชนัญชิดา โชคธนอนันต์',history:MOCK_LV_HIST,count:MOCK_LV_HIST.length,
