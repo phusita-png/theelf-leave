@@ -26,6 +26,12 @@ var VIEW_HEAD = {
   emps:    ['พนักงาน','เพิ่ม · แก้ · รายชื่อ'],
   settings:['ตั้งค่าระบบ','บทบาท · ค่ากลางระบบ']
 };
+// ไอคอนเมนู (โชว์หน้า topbar desktop) — ตรงกับ nav-emo ใน index.html
+var VIEW_ICON = {
+  home:'🏠', leave:'📅', ot:'⏰', payslip:'💰', history:'📋', profile:'🙂',
+  documents:'📎', hr:'✅', leavecal:'🗓️', dashboard:'📊',
+  mgleave:'📋', mgot:'⏰', mgpay:'💰', emps:'👥', settings:'⚙️'
+};
 
 var S = {
   auth:null, profile:null, balances:null, holidays:[], schedule:null, leaveTypes:null, otTypes:null,
@@ -217,6 +223,10 @@ function render(){
   var h = VIEW_HEAD[S.view] || ['',''];
   document.getElementById('hdTitle').textContent = h[0];
   document.getElementById('hdSub').textContent = h[1];
+  // topbar (desktop) — โชว์ชื่อเมนูที่กด + ไอคอน
+  var tt=document.getElementById('tbTitle');
+  if(tt){ tt.textContent=h[0]; document.getElementById('tbSub').textContent=h[1];
+    document.getElementById('tbIcon').textContent=VIEW_ICON[S.view]||''; }
   var m = document.getElementById('main');
   if (S.view==='home')      { m.innerHTML = viewHome(); wireHome(); }
   else if (S.view==='leave'){ m.innerHTML = viewLeave(); wireLeave(); }
@@ -1525,7 +1535,9 @@ function otHours(s,e){
   if(em<sm) em+=1440;
   return Math.round((em-sm)/60*100)/100;
 }
-function paintAvatar(){ if(!S.avatar)return; var a=document.getElementById('hd-avatar'); if(a) a.innerHTML='<img src="'+S.avatar+'">'; }
+function paintAvatar(){ if(!S.avatar)return; var img='<img src="'+S.avatar+'">';
+  var a=document.getElementById('hd-avatar'); if(a) a.innerHTML=img;
+  var t=document.getElementById('tb-avatar'); if(t) t.innerHTML=img; }
 function emptyBox(emo,txt){ return '<div class="card"><div class="empty"><div class="e-emo">'+emo+'</div><div class="e-txt">'+esc(txt)+'</div></div></div>'; }
 function viewSoon(title,desc){ return '<div class="card"><div class="soon"><div class="soon-emo">🚧</div>'+
   '<div class="soon-t">'+esc(title)+'</div><div class="soon-d">'+esc(desc)+'</div>'+

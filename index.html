@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=41">
+  <link rel="stylesheet" href="styles.css?v=42">
 </head>
 <body>
 
@@ -36,11 +36,26 @@
       <div id="hd-avatar" class="hd-avatar">🙂</div>
     </header>
 
+    <!-- Topbar (desktop เท่านั้น · โชว์ชื่อเมนูที่กด — แทน header แดง) -->
+    <div id="topbar" class="topbar">
+      <span class="tb-icon" id="tbIcon">🏠</span>
+      <div class="tb-mid">
+        <div class="tb-title" id="tbTitle">ระบบลา &amp; OT</div>
+        <div class="tb-sub" id="tbSub">บจก.ดิเอลฟ์</div>
+      </div>
+      <div id="tb-avatar" class="tb-avatar">🙂</div>
+    </div>
+
     <!-- Views -->
     <main id="main" class="main"></main>
 
     <!-- Bottom nav (มือถือ) / Sidebar (desktop) -->
     <nav class="nav">
+      <!-- ░ Brand (desktop sidebar เท่านั้น · แทนโลโก้ในแถบแดง) ░ -->
+      <div class="nav-brand">
+        <span class="nb-logo"><img src="logo.png" alt="The Elf" onerror="this.style.display='none';this.parentNode.classList.add('noimg')"></span>
+        <div class="nb-txt">The Elf<small>HR Console</small></div>
+      </div>
       <!-- ═══ ก้อน HR (desktop เท่านั้น · ตามสิทธิ์) ═══ -->
       <div class="nav-sec">ภาพรวม</div>
       <button class="nav-btn nav-admin" data-view="dashboard" aria-label="แดชบอร์ด"><span class="nav-emo">📊</span><span>แดชบอร์ด</span></button>
@@ -86,6 +101,6 @@
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script src="config.js?v=29"></script>
-  <script src="app.js?v=41"></script>
+  <script src="app.js?v=42"></script>
 </body>
 </html>

@@ -496,28 +496,52 @@ textarea:focus,input[type=time]:focus{border-color:var(--red)}
    มือถือไม่กระทบเลย (ทุกอย่างอยู่ใน media query นี้)
    ════════════════════════════════════════════════════════════ */
 .nav-admin{display:none}   /* ปุ่ม admin: ซ่อนทุกที่เป็น default (มือถือใช้ hub link) */
+.topbar,.nav-brand{display:none}   /* topbar + brand: desktop เท่านั้น (มือถือใช้แถบแดง .hd) */
 
 @media (min-width:1024px){
-  /* โครง grid: header เต็มกว้าง · ซ้าย sidebar · ขวา content */
+  /* โครง grid: ซ้าย sidebar(มี brand) · ขวา topbar + content · เต็มจอจริง (v.71 เฟส1.5) */
   .app{
-    max-width:1680px; padding-bottom:0;
+    max-width:none; padding-bottom:0;
     display:grid;
-    grid-template-columns:236px 1fr;
+    grid-template-columns:248px 1fr;
     grid-template-rows:auto 1fr;
-    grid-template-areas:"hd hd" "nav main";
-    box-shadow:0 0 0 1px var(--line);
+    grid-template-areas:"nav top" "nav main";
+    box-shadow:none;
     background:var(--card);
     min-height:100vh;
   }
-  .hd{grid-area:hd; padding:16px 26px}
-  .hd-title{font-size:18px}
-  .hd-sub{font-size:13px}
+  .hd{display:none}   /* ซ่อนแถบแดงเต็มกว้าง — ใช้ brand ใน sidebar + topbar แทน */
 
-  /* bottom nav → sidebar ซ้าย (แนวตั้ง · scroll ได้) */
+  /* ── Topbar (โชว์ชื่อเมนูที่กด · เยื้องขวาในเนื้อหา) ── */
+  .topbar{
+    display:flex; grid-area:top; align-items:center; gap:14px;
+    background:var(--card); border-bottom:1px solid var(--line);
+    padding:12px 32px; position:sticky; top:0; z-index:12}
+  .tb-icon{font-size:22px; line-height:1; flex:0 0 auto}
+  .tb-mid{flex:1; min-width:0}
+  .tb-title{font-size:18px; font-weight:700; line-height:1.2; color:var(--ink)}
+  .tb-sub{font-size:12.5px; color:var(--muted); margin-top:2px}
+  .tb-avatar{width:38px;height:38px;border-radius:50%;background:var(--red-tint);
+    border:2px solid var(--red-soft);display:flex;align-items:center;justify-content:center;
+    font-size:18px;overflow:hidden;flex:0 0 auto}
+  .tb-avatar img{width:100%;height:100%;object-fit:cover}
+
+  /* ── Brand (โลโก้+ชื่อระบบ · หัว sidebar ค้างซ้ายบน) ── */
+  .nav-brand{display:flex; align-items:center; gap:10px;
+    padding:13px 14px; margin:-10px -12px 8px; border-bottom:1px solid var(--line)}
+  .nb-logo{width:38px;height:38px;border-radius:10px;background:#fff;flex:0 0 auto;
+    display:flex;align-items:center;justify-content:center;overflow:hidden;
+    box-shadow:0 1px 4px rgba(0,0,0,.12)}
+  .nb-logo img{width:100%;height:100%;object-fit:contain;padding:3px}
+  .nb-logo.noimg::before{content:'E';font-weight:800;color:var(--red);font-size:18px}
+  .nb-txt{font-weight:700;font-size:15px;line-height:1.1;color:var(--ink)}
+  .nb-txt small{display:block;font-weight:400;font-size:10.5px;color:var(--muted);margin-top:2px}
+
+  /* bottom nav → sidebar ซ้าย (เต็มความสูง · scroll ได้) */
   .nav{
     grid-area:nav;
-    position:sticky; top:74px; align-self:start;
-    height:calc(100vh - 74px); overflow-y:auto;
+    position:sticky; top:0; align-self:start;
+    height:100vh; overflow-y:auto;
     left:auto; bottom:auto; transform:none;
     width:auto; max-width:none;
     flex-direction:column; gap:2px;
