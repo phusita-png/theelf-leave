@@ -580,7 +580,7 @@ textarea:focus,input[type=time]:focus{border-color:var(--red)}
   .hr-pend-list .pend{border-bottom:none;border:1px solid var(--line);border-radius:12px;padding:13px}
   /* พนักงาน → ตารางช่อง (เส้นแบ่ง + zebra) */
   .hr-emp-list{border:1px solid var(--line);border-radius:10px;overflow:hidden}
-  .hr-emp{display:grid;grid-template-columns:2fr 1.4fr minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 1.8fr;gap:0;align-items:center;
+  .hr-emp{display:grid;grid-template-columns:1.8fr 2.8fr minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 1.4fr;gap:0;align-items:center;
     padding:0;border-bottom:1px solid var(--line)}
   .hr-emp:last-child{border-bottom:none}
   .hr-emp>div{padding:11px 12px;border-left:1px solid var(--line)}
