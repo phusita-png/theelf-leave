@@ -193,7 +193,8 @@ img{max-width:100%}
 .pend-info.bal b{font-weight:700}
 .pend-main2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:11px;padding-left:50px}
 .pend-sub{display:flex;flex-wrap:wrap;gap:7px;margin-top:8px;padding-left:50px}
-.pend-sub .pend-btn{font-size:12px;padding:7px 11px}
+.pend-sub .pend-btn{flex:1 1 0;min-width:0;font-size:12px;padding:8px 6px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pend-kind{display:inline-block;font-size:11px;font-weight:700;color:var(--red-deep);background:var(--red-tint);padding:3px 11px;border-radius:8px;margin-bottom:9px}
 .pend-kind.ot{color:var(--ot);background:var(--ot-tint)}
 /* ตารางสิทธิ์การลา (modal ประวัติ) v.70 */
@@ -585,7 +586,7 @@ textarea:focus,input[type=time]:focus{border-color:var(--red)}
   .hr-emp>div{padding:11px 12px;border-left:1px solid var(--line)}
   .hr-emp>div:first-child{border-left:none}
   .hr-emp:nth-child(odd):not(.head){background:#fafbfc}   /* zebra (head=child1 → emp คี่=สลับ) */
-  .hr-emp.head{background:var(--slate-tint);font-size:12px;font-weight:700;color:var(--slate);position:sticky;top:0;z-index:2}
+  .hr-emp.head{display:grid;background:var(--slate-tint);font-size:12px;font-weight:700;color:var(--slate);position:sticky;top:0;z-index:2}
   .hr-emp .he-name{flex:none;font-size:13.5px}
   .hr-emp .he-q,.hr-emp .he-st{text-align:center}
   .hr-emp.over{background:var(--red-tint)}
