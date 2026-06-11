@@ -1219,9 +1219,9 @@ function hrSumGrids(lv, ot, label){
   var stat=function(num,lb){ return '<div class="hr-stat"><div class="hr-num">'+num+'</div><div class="hr-lb">'+lb+'</div></div>'; };
   return '<div class="hr-sum-lb">📅 '+esc(label||'')+'</div>'+
     '<div class="hr-sum-2col">'+
-      '<div class="hr-sum-block"><div class="hr-sum-h">📋 การลา</div>'+
+      '<div class="hr-sum-block"><div class="hr-sum-h">การลา</div>'+
         '<div class="hr-grid">'+stat(lv.total,'ยื่นทั้งหมด')+stat(lv.approved,'อนุมัติ')+stat(lv.pending,'รออนุมัติ')+stat(lv.rejected,'ไม่อนุมัติ')+'</div></div>'+
-      '<div class="hr-sum-block ot"><div class="hr-sum-h ot">⏰ OT'+(ot.hours?' · '+ot.hours+' ชม.':'')+'</div>'+
+      '<div class="hr-sum-block ot"><div class="hr-sum-h">OT</div>'+
         '<div class="hr-grid ot">'+stat(ot.count,'รายการ')+stat(ot.approved,'อนุมัติ')+stat(ot.pending,'รออนุมัติ')+stat(ot.rejected,'ไม่อนุมัติ')+'</div></div>'+
     '</div>';
 }
