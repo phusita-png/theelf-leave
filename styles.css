@@ -527,9 +527,10 @@ textarea:focus,input[type=time]:focus{border-color:var(--red)}
     font-size:18px;overflow:hidden;flex:0 0 auto}
   .tb-avatar img{width:100%;height:100%;object-fit:cover}
 
-  /* ── Brand (โลโก้+ชื่อระบบ · หัว sidebar · สูง = topbar) ── */
+  /* ── Brand (โลโก้+ชื่อระบบ · หัว sidebar · พื้นแดง ตัวขาว เข้าชุด topbar) ── */
   .nav-brand{display:flex; align-items:center; gap:10px;
-    height:63px; padding:0 14px; margin:-10px -12px 8px; border-bottom:1px solid var(--line)}
+    height:63px; padding:0 14px; margin:-10px -12px 8px;
+    background:var(--red); box-shadow:0 2px 12px rgba(204,16,25,.22)}
   /* เอา "หน้าหลัก" ออกบน PC (ซ้ำกับเมนูทำงาน HR) — โปรไฟล์เลื่อนขึ้นแทน */
   .nav-btn[data-view="home"]{display:none}
   .nb-logo{width:38px;height:38px;border-radius:10px;background:#fff;flex:0 0 auto;
@@ -537,8 +538,8 @@ textarea:focus,input[type=time]:focus{border-color:var(--red)}
     box-shadow:0 1px 4px rgba(0,0,0,.12)}
   .nb-logo img{width:100%;height:100%;object-fit:contain;padding:3px}
   .nb-logo.noimg::before{content:'E';font-weight:800;color:var(--red);font-size:18px}
-  .nb-txt{font-weight:700;font-size:15px;line-height:1.1;color:var(--ink)}
-  .nb-txt small{display:block;font-weight:400;font-size:10.5px;color:var(--muted);margin-top:2px}
+  .nb-txt{font-weight:700;font-size:15px;line-height:1.1;color:#fff}
+  .nb-txt small{display:block;font-weight:400;font-size:10.5px;color:rgba(255,255,255,.82);margin-top:2px}
 
   /* bottom nav → sidebar ซ้าย (เต็มความสูง · scroll ได้) */
   .nav{
