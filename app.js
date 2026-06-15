@@ -49,6 +49,7 @@ var S = {
 window.addEventListener('DOMContentLoaded', init);
 function init() {
   bindNav();
+  bindHelp();
   if (CFG.MOCK) { mockBootstrap(); return; }
   if (CFG.DEV_USER_ID) { S.auth = {userId:CFG.DEV_USER_ID}; bootstrap(); return; }
   initLiff();
@@ -221,6 +222,45 @@ function setupNavRoles(){
     sec.classList.toggle('has-items', has);
   });
 }
+// ════════════ HELP OVERLAY (คู่มือในแอป · ตาม role) ════════════
+function helpUrl(){
+  // HR/ผู้อนุมัติ → คู่มือ HR (ครบ 3 + อนุมัติ) · พนักงานทั่วไป → คู่มือพนักงาน
+  return (S.profile && S.profile.canApprove) ? 'guides/hr/index.html' : 'guides/employee/index.html';
+}
+function bindHelp(){
+  var fab = document.getElementById('helpFab');
+  if (fab) fab.addEventListener('click', openHelp);
+}
+function openHelp(){
+  var h = document.getElementById('help');
+  if (!h){
+    h = document.createElement('div'); h.id='help'; h.className='help';
+    h.innerHTML =
+      '<div class="help-bar">'+
+        '<span class="help-ttl">📖 คู่มือการใช้งาน</span>'+
+        '<a class="help-open" target="_blank" rel="noopener">↗ เปิดเต็มหน้า</a>'+
+        '<button class="help-x" aria-label="ปิด">✕</button>'+
+      '</div>'+
+      '<div class="help-load">กำลังโหลดคู่มือ…</div>'+
+      '<iframe class="help-frame" title="คู่มือการใช้งาน"></iframe>';
+    document.body.appendChild(h);
+    h.querySelector('.help-x').addEventListener('click', closeHelp);
+    h.addEventListener('click', function(e){ if(e.target===h) closeHelp(); });
+    h.querySelector('.help-frame').addEventListener('load', function(){
+      var l=h.querySelector('.help-load'); if(l) l.style.display='none'; });
+  }
+  var url = helpUrl();
+  h.querySelector('.help-open').setAttribute('href', url);
+  var l=h.querySelector('.help-load'); if(l) l.style.display='';
+  h.querySelector('.help-frame').src = url;   // โหลดไฟล์เฉพาะตอนเปิด (ไฟล์ใหญ่ ~1MB)
+  h.classList.add('show');
+}
+function closeHelp(){
+  var h = document.getElementById('help'); if(!h) return;
+  h.classList.remove('show');
+  var f=h.querySelector('.help-frame'); if(f) f.src='about:blank';   // คืน memory
+}
+
 function render(){
   var h = VIEW_HEAD[S.view] || ['',''];
   document.getElementById('hdTitle').textContent = h[0];

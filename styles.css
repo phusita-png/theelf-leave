@@ -501,6 +501,27 @@ textarea:focus,input[type=time]:focus{border-color:var(--red)}
 .cfm-btn.go{background:var(--red);color:#fff}
 .cfm-btn.go.ot{background:var(--ot)}
 
+/* ── Help: ปุ่มลอย (?) + overlay คู่มือ ── */
+.help-fab{position:fixed;right:16px;bottom:70px;z-index:45;width:48px;height:48px;border:none;
+  border-radius:50%;background:var(--red);color:#fff;font-size:24px;font-weight:700;cursor:pointer;
+  box-shadow:0 6px 18px rgba(204,16,25,.4);display:flex;align-items:center;justify-content:center;
+  line-height:1;transition:transform .15s,box-shadow .15s}
+.help-fab:active{transform:scale(.92)}
+.help-fab:hover{box-shadow:0 8px 22px rgba(204,16,25,.5)}
+.help{position:fixed;inset:0;background:rgba(20,26,40,.55);z-index:120;display:none;flex-direction:column}
+.help.show{display:flex;animation:fade .18s ease}
+.help-bar{display:flex;align-items:center;gap:12px;background:var(--red);color:#fff;
+  padding:13px 16px calc(13px) ;padding-top:calc(13px + env(safe-area-inset-top));flex:0 0 auto}
+.help-ttl{font-weight:700;font-size:16px;flex:1}
+.help-open{color:#fff;font-size:13px;font-weight:600;text-decoration:none;opacity:.9;white-space:nowrap}
+.help-open:hover{opacity:1;text-decoration:underline}
+.help-x{border:none;background:rgba(255,255,255,.2);color:#fff;width:34px;height:34px;border-radius:50%;
+  font-size:16px;cursor:pointer;flex:0 0 auto;line-height:1}
+.help-x:active{transform:scale(.92)}
+.help-load{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#fff;
+  font-size:14px;font-weight:600}
+.help-frame{flex:1;width:100%;border:none;background:#fff;display:block}
+
 /* ── Skeleton ── */
 .skel{background:linear-gradient(90deg,#eef0f4 25%,#f6f7fa 50%,#eef0f4 75%);background-size:200% 100%;
   animation:sh 1.2s infinite;border-radius:12px}
@@ -630,6 +651,8 @@ textarea:focus,input[type=time]:focus{border-color:var(--red)}
   /* toast ลอยมุมล่างขวา (ไม่มี bottom nav แล้ว) */
   .toast{bottom:24px;left:auto;right:24px;transform:translateY(20px)}
   .toast.show{transform:translateY(0)}
+  /* FAB คู่มือ: ไม่มี bottom nav → ขยับลงมุม + เหนือ toast */
+  .help-fab{bottom:88px;right:24px;width:54px;height:54px;font-size:26px}
 }
 
 /* ════════════════ ปฏิทินการลารวม (HR) v.70 ════════════════ */
