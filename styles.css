@@ -653,7 +653,7 @@ textarea:focus,input[type=time]:focus{border-color:var(--red)}
   .toast{bottom:24px;left:auto;right:24px;transform:translateY(20px)}
   .toast.show{transform:translateY(0)}
   /* FAB คู่มือ: ไม่มี bottom nav → ขยับลงมุม + เหนือ toast */
-  .help-fab{bottom:88px;right:24px;font-size:15px;padding:12px 18px}
+  .help-fab{bottom:46px;right:24px;font-size:15px;padding:12px 18px}
 }
 
 /* ════════════════ ปฏิทินการลารวม (HR) v.70 ════════════════ */
