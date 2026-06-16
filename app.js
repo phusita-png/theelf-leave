@@ -1717,7 +1717,7 @@ function paintMgList(){
   var head='<div class="mg-head">📋 '+esc(S.mgData.label||'')+' · '+S.mgData.count+' ใบ'+(S.mgData.count>500?' (แสดง 500 ล่าสุด)':'')+'</div>';
   var table = !list.length ? emptyBox('🍃','ไม่มีใบลาตามเงื่อนไข') :
     '<div class="mg-tbwrap"><table class="mg-table"><thead><tr>'+
-      '<th>วันที่ยื่น</th><th>พนักงาน</th><th>ประเภท</th><th>วันที่ลา</th><th class="ce">จำนวน</th><th class="ce">สถานะ</th><th class="ce">จัดการ</th>'+
+      '<th>วันที่ยื่น</th><th class="ce">รหัส</th><th>พนักงาน</th><th>แผนก</th><th>ประเภท</th><th>วันที่ลา</th><th class="ce">จำนวน</th><th class="ce">สถานะ</th><th class="ce">จัดการ</th>'+
     '</tr></thead><tbody>'+list.map(mgRowTable).join('')+'</tbody></table></div>';
   box.innerHTML='<div class="card">'+head+mgSummaryBar(counts)+table+'</div>';
   box.querySelectorAll('[data-mgf]').forEach(function(el){ el.addEventListener('click',function(){ S.mgStatus=el.dataset.mgf; var ss=document.getElementById('mgStatus'); if(ss) ss.value=el.dataset.mgf; paintMgList(); }); });
@@ -1730,17 +1730,20 @@ function mgFindLeave(id){ return (S.mgData&&S.mgData.leaves||[]).filter(function
 function mgRowTable(h){
   var grp=mgStatusGroup(h.status);
   var dt=h.startDate+(h.endDate&&h.endDate!==h.startDate?' – '+h.endDate:'');
-  // 3 slot คงที่ (แก้ | แนบ | ยกเลิก) → ปุ่มชนิดเดียวกันตรงแนวกันทุกแถว · ยกเลิกขวาสุด
+  // ปุ่มชิดขวา ไม่เว้นช่อง · กว้างเท่ากันทุกปุ่ม · ยกเลิกขวาสุด (2 ก็ชิด 2 · 3 ก็ 3)
   var acts;
   if(grp==='pending'||grp==='approved'){
-    var bEdit = grp==='pending' ? '<button class="mg-ib edit" data-mgedit="'+esc(h.id)+'">✏️ แก้ไข</button>' : '<span class="mg-sp"></span>';
-    var bDoc  = h.docUrl ? '<button class="mg-ib doc" data-mgdoc="'+esc(h.docUrl)+'">📎 เอกสารแนบ</button>' : '<span class="mg-sp"></span>';
-    var bCx   = '<button class="mg-ib cx" data-mgcancel="'+esc(h.id)+'">🚫 ยกเลิก</button>';
-    acts='<div class="mg-acts2">'+bEdit+bDoc+bCx+'</div>';
+    var b='';
+    if(grp==='pending') b+='<button class="mg-ib edit" data-mgedit="'+esc(h.id)+'">✏️ แก้ไข</button>';
+    if(h.docUrl) b+='<button class="mg-ib doc" data-mgdoc="'+esc(h.docUrl)+'">📎 เอกสารแนบ</button>';
+    b+='<button class="mg-ib cx" data-mgcancel="'+esc(h.id)+'">🚫 ยกเลิก</button>';
+    acts='<div class="mg-acts2">'+b+'</div>';
   } else acts='<span class="mg-sub2">ปิดแล้ว</span>';
   return '<tr class="mg-tr" data-mgrow="'+esc(h.id)+'">'+
     '<td class="mg-sub2">'+esc(h.submittedAt||'-')+'</td>'+
-    '<td><b>'+esc(h.name)+'</b>'+(h.empId?' <span class="mg-emp">'+esc(h.empId)+'</span>':'')+(h.dept?'<div class="mg-sub2">'+esc(h.dept)+'</div>':'')+'</td>'+
+    '<td class="mg-sub2 ce">'+esc(h.empId||'-')+'</td>'+
+    '<td class="lft"><b>'+esc(h.name)+'</b></td>'+
+    '<td class="lft">'+esc(h.dept||'-')+'</td>'+
     '<td>'+(TYPE_EMOJI[h.type]||'📋')+' '+esc(h.type)+'</td>'+
     '<td>'+esc(dt)+'</td>'+
     '<td class="ce">'+esc(h.timeDisplay||h.days)+'</td>'+

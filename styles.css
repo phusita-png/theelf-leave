@@ -580,12 +580,11 @@ textarea:focus,input[type=time]:focus{border-color:var(--red)}
 .mg-tr{cursor:pointer;transition:background .12s}
 .mg-tr:hover{background:var(--red-tint)}
 .mg-sub2{font-size:11.5px;color:var(--muted)}
-.mg-actcell{white-space:nowrap;text-align:right;min-width:280px}
-.mg-acts2{display:inline-grid;grid-template-columns:72px 100px 82px;gap:6px}
-.mg-acts2 .mg-sp{display:block}
+.mg-actcell{white-space:nowrap;text-align:right}
+.mg-acts2{display:flex;justify-content:flex-end;gap:6px}
 .mg-ib{border:none;background:var(--bg);border-radius:8px;cursor:pointer;font-family:inherit;
   font-size:12.5px;font-weight:700;color:var(--ink);padding:8px 6px;line-height:1;
-  white-space:nowrap;width:100%;text-align:center;display:inline-block}
+  white-space:nowrap;width:96px;text-align:center;display:inline-block;flex:0 0 auto}
 .mg-ib:active{transform:scale(.94)}
 .mg-ib.cx{background:var(--red-tint);color:var(--red-deep)}
 .mg-ib.doc{background:var(--green-tint);color:var(--green)}
