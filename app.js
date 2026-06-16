@@ -108,7 +108,7 @@ function api(action, params) {
     var cb = '__lv_' + (++_seq) + '_' + Date.now();
     var q = ['action=' + encodeURIComponent(action), 'callback=' + cb];
     var all = Object.assign({}, S.auth || {}, params || {});
-    Object.keys(all).forEach(function(k){ if (all[k]!=null) q.push(encodeURIComponent(k)+'='+encodeURIComponent(all[k])); });
+    Object.keys(all).forEach(function(k){ if (all[k]!=null){ var v=all[k]; if (typeof v==='object') v=JSON.stringify(v); q.push(encodeURIComponent(k)+'='+encodeURIComponent(v)); } });
     var sc = document.createElement('script'), done = false;
     var t = setTimeout(function(){ if(done)return; done=true; clean(); reject(new Error('หมดเวลาเชื่อมต่อ')); }, 20000);
     window[cb] = function(d){ if(done)return; done=true; clearTimeout(t); clean();
