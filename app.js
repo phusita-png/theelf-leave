@@ -1511,6 +1511,10 @@ function mgToolsTabHtml(){
       '<button class="mg-tool add" id="mgAddBtn"><b>➕ ยื่นลาแทนพนักงาน</b><span>เลือกคน + กรอกใบลา · ติ๊ก "อนุมัติเลย" ได้</span></button>'+
       '<button class="mg-tool quota" id="mgQuotaBtn"><b>🎫 ปรับโควต้าวันลา</b><span>แก้โควต้าทั้งปีรายคน 6 ประเภท</span></button>'+
     '</div>'+
+  '</div>'+
+  '<div class="card">'+
+    '<div class="mg-head">🎫 โควต้าวันลารายคน (ทั้งปี) <span class="mg-sub2">— คลิกแถวเพื่อแก้โควต้า</span></div>'+
+    '<div id="mgQuotaTbl"><div class="skel" style="height:120px"></div></div>'+
   '</div>';
 }
 function mgFilterBar(){
@@ -1551,8 +1555,24 @@ function wireMgListTab(){
   ensureMgUsers();
 }
 function wireMgToolsTab(){
-  var add=document.getElementById('mgAddBtn'); if(add) add.addEventListener('click',openMgProxy);
-  var q=document.getElementById('mgQuotaBtn'); if(q) q.addEventListener('click',openMgQuota);
+  var add=document.getElementById('mgAddBtn'); if(add) add.addEventListener('click',function(){ openMgProxy(); });
+  var q=document.getElementById('mgQuotaBtn'); if(q) q.addEventListener('click',function(){ openMgQuota(); });
+  renderMgQuotaTable();
+}
+function renderMgQuotaTable(){
+  var box=document.getElementById('mgQuotaTbl'); if(!box) return;
+  if(!S.mgUsers){ api('adminBootstrap',{}).then(function(r){ if(r.ok){ S.mgUsers=r.users; S.mgRoles=r.roles; } renderMgQuotaTable(); }).catch(function(){ box.innerHTML=emptyBox('😿','โหลดรายชื่อไม่ได้'); }); return; }
+  var QF=[['sick','🤒 ป่วย'],['biz','📋 กิจ'],['vac','🌴 พักร้อน'],['bday','🎂 วันเกิด'],['special','🎁 คนพิเศษ'],['unpaid','📄 ไม่รับเงิน']];
+  var us=(S.mgUsers||[]).filter(function(u){return u.lineUserId;}).sort(function(a,b){return String(a.name||'').localeCompare(String(b.name||''),'th');});
+  if(!us.length){ box.innerHTML=emptyBox('🍃','ยังไม่มีพนักงาน'); return; }
+  var head='<tr><th class="ce">#</th><th class="lft">ชื่อ-นามสกุล</th><th>ฝ่าย</th>'+QF.map(function(o){return '<th class="ce">'+o[1]+'</th>';}).join('')+'</tr>';
+  var rows=us.map(function(u,i){ var q=u.quota||{};
+    return '<tr class="mg-tr" data-mgq="'+esc(u.lineUserId)+'"><td class="ce">'+(i+1)+'</td>'+
+      '<td class="lft"><b>'+esc(u.name)+'</b>'+(u.empId?' <span class="mg-sub2">'+esc(u.empId)+'</span>':'')+'</td><td>'+esc(u.dept||'-')+'</td>'+
+      QF.map(function(o){ var v=q[o[0]]; return '<td class="ce">'+(v!=null?mgNum(v):'-')+'</td>'; }).join('')+'</tr>';
+  }).join('');
+  box.innerHTML='<div class="mg-tbwrap"><table class="mg-table"><thead>'+head+'</thead><tbody>'+rows+'</tbody></table></div>';
+  box.querySelectorAll('[data-mgq]').forEach(function(el){ el.addEventListener('click',function(){ openMgQuota(el.dataset.mgq); }); });
 }
 function wireMgFilter(){
   var mode=document.getElementById('mgMode');
@@ -1639,13 +1659,15 @@ function paintMgReport(){
     MG_RPT_TYPES.forEach(function(t){
       var k=t[0], inr=Number(p.inRange[k])||0, ytd=Number(p.ytd[k])||0;
       tds+='<td class="ce">'+(inr?'<b>'+mgNum(inr)+'</b>':'')+'</td><td class="ce">'+(ytd?mgNum(ytd):'')+'</td>';
-      if(t[2]){ var q=Number(p.quota[k])||0, rem=q-ytd, cls=rem<0?'neg':(q>0&&rem<=1?'low':''); tds+='<td class="ce '+cls+'">'+(q?mgNum(rem):'')+'</td>'; }
+      if(t[2]){ var q=Number(p.quota[k])||0, rem=q-ytd, hasQ=q>0;
+        var cls=hasQ?(rem<0?'neg':(rem<=1?'low':'')):'';
+        tds+='<td class="ce '+cls+'">'+(hasQ?mgNum(rem):'<span class="mg-sub2">–</span>')+'</td>'; }
     });
     return '<tr'+(p.retired?' class="rtd"':'')+'><td class="ce">'+(i+1)+'</td><td class="mg-sub2">'+esc(p.empId)+'</td>'+
       '<td class="lft"><b>'+esc(p.name)+'</b>'+(p.retired?' <span class="mg-sub2">(ลาออก)</span>':'')+'</td>'+
       '<td>'+esc(p.dept||'-')+'</td><td class="mg-sub2 ce">'+esc(p.startWork||'-')+'</td><td class="ce">'+esc(p.branch||'-')+'</td>'+tds+'</tr>';
   }).join('');
-  box.innerHTML='<div class="mg-head">📊 '+esc(d.label||'')+' · '+ps.length+' คน</div>'+
+  box.innerHTML='<div class="mg-head">📊 '+esc(d.label||'')+' · '+ps.length+' คน <span class="mg-legend">🔴 เกินสิทธิ์ · 🟠 เหลือ≤1 · – ไม่ได้ตั้งโควต้า</span></div>'+
     '<div class="mg-tbwrap"><table class="mg-table mg-rpt"><thead>'+h1+h2+'</thead><tbody>'+rows+'</tbody></table></div>';
 }
 function doMgReportExport(){
@@ -1694,7 +1716,7 @@ function paintMgList(){
   var head='<div class="mg-head">📋 '+esc(S.mgData.label||'')+' · '+S.mgData.count+' ใบ'+(S.mgData.count>500?' (แสดง 500 ล่าสุด)':'')+'</div>';
   var table = !list.length ? emptyBox('🍃','ไม่มีใบลาตามเงื่อนไข') :
     '<div class="mg-tbwrap"><table class="mg-table"><thead><tr>'+
-      '<th>ยื่น</th><th>พนักงาน</th><th>ประเภท</th><th>ช่วงลา</th><th class="ce">จำนวน</th><th class="ce">สถานะ</th><th class="ce">จัดการ</th>'+
+      '<th>วันที่ยื่น</th><th>พนักงาน</th><th>ประเภท</th><th>วันที่ลา</th><th class="ce">จำนวน</th><th class="ce">สถานะ</th><th class="ce">จัดการ</th>'+
     '</tr></thead><tbody>'+list.map(mgRowTable).join('')+'</tbody></table></div>';
   box.innerHTML='<div class="card">'+head+mgSummaryBar(counts)+table+'</div>';
   box.querySelectorAll('[data-mgf]').forEach(function(el){ el.addEventListener('click',function(){ S.mgStatus=el.dataset.mgf; var ss=document.getElementById('mgStatus'); if(ss) ss.value=el.dataset.mgf; paintMgList(); }); });
@@ -1708,9 +1730,10 @@ function mgRowTable(h){
   var grp=mgStatusGroup(h.status);
   var dt=h.startDate+(h.endDate&&h.endDate!==h.startDate?' – '+h.endDate:'');
   var acts='';
-  if(grp==='pending') acts+='<button class="mg-ib edit" data-mgedit="'+esc(h.id)+'" title="แก้ไข">✏️</button>';
-  if(grp==='pending'||grp==='approved') acts+='<button class="mg-ib cx" data-mgcancel="'+esc(h.id)+'" title="ยกเลิก">🚫</button>';
-  if(h.docUrl) acts+='<button class="mg-ib doc" data-mgdoc="'+esc(h.docUrl)+'" title="เอกสารแนบ">📎</button>';
+  if(grp==='pending') acts+='<button class="mg-ib edit" data-mgedit="'+esc(h.id)+'">✏️ แก้</button>';
+  if(grp==='pending'||grp==='approved') acts+='<button class="mg-ib cx" data-mgcancel="'+esc(h.id)+'">🚫 ยกเลิก</button>';
+  if(h.docUrl) acts+='<button class="mg-ib doc" data-mgdoc="'+esc(h.docUrl)+'">📎 แนบ</button>';
+  if(!acts) acts='<span class="mg-sub2">ปิดแล้ว</span>';
   return '<tr class="mg-tr" data-mgrow="'+esc(h.id)+'">'+
     '<td class="mg-sub2">'+esc(h.submittedAt||'-')+'</td>'+
     '<td><b>'+esc(h.name)+'</b>'+(h.empId?' <span class="mg-emp">'+esc(h.empId)+'</span>':'')+(h.dept?'<div class="mg-sub2">'+esc(h.dept)+'</div>':'')+'</td>'+
@@ -1718,7 +1741,7 @@ function mgRowTable(h){
     '<td>'+esc(dt)+'</td>'+
     '<td class="ce">'+esc(h.timeDisplay||h.days)+'</td>'+
     '<td class="ce">'+statusBadge(h.status)+'</td>'+
-    '<td class="ce mg-actcell">'+(acts||'<span class="mg-sub2">—</span>')+'</td>'+
+    '<td class="mg-actcell">'+acts+'</td>'+
   '</tr>';
 }
 // คลิกแถว → รายละเอียดเต็ม + เอกสาร + ปุ่มแก้/ยกเลิก
@@ -1847,20 +1870,22 @@ function openMgProxy(){
     }
   });
 }
-// 🎫 ปรับโควต้ารายคน
-function openMgQuota(){
+// 🎫 ปรับโควต้ารายคน (pre = lineUserId ที่ preselect — จากคลิกแถวตาราง)
+function openMgQuota(pre){
   if(!S.mgUsers) return toast('กำลังโหลดรายชื่อพนักงาน… ลองอีกครั้งค่ะ');
   var qf=[['sick','🤒 ลาป่วย'],['biz','🏠 ลากิจ'],['vac','🌴 พักร้อน'],['bday','🎂 วันเกิด'],['special','💝 คนพิเศษ'],['unpaid','📄 ไม่รับค่าจ้าง']];
   modalForm({ title:'ปรับโควต้าวันลา', emoji:'🎫', accent:'leave', okLabel:'💾 บันทึกโควต้า',
-    body:'<label class="field-lb">👤 พนักงาน</label><select id="mgqEmp" class="hr-fsel mg-full">'+mgEmpOptions('')+'</select>'+
+    body:'<label class="field-lb">👤 พนักงาน</label><select id="mgqEmp" class="hr-fsel mg-full">'+mgEmpOptions(pre||'')+'</select>'+
       '<div class="hr-note" style="margin:10px 0">กรอกเฉพาะช่องที่ต้องการเปลี่ยน (เว้นว่าง=ไม่แก้) · เป็นโควต้า "ทั้งปี"</div>'+
       '<div class="mg-qgrid">'+qf.map(function(o){return '<label class="mg-qf"><span>'+o[1]+'</span><input type="number" min="0" step="0.5" class="mg-qin" data-q="'+o[0]+'" placeholder="—"></label>';}).join('')+'</div>',
     onMount:function(c){
       var sel=c.querySelector('#mgqEmp');
-      sel.addEventListener('change',function(){
+      var fill=function(){
         var u=(S.mgUsers||[]).filter(function(x){return x.lineUserId===sel.value;})[0], q=(u&&u.quota)||{};
         c.querySelectorAll('.mg-qin').forEach(function(inp){ var k=inp.dataset.q; inp.value=''; inp.placeholder=(q[k]!=null?('ปัจจุบัน '+q[k]):'—'); });
-      });
+      };
+      sel.addEventListener('change',fill);
+      if(pre){ sel.value=pre; fill(); }
     },
     onOk:function(c){
       var sel=c.querySelector('#mgqEmp'), u=(S.mgUsers||[]).filter(function(x){return x.lineUserId===sel.value;})[0];
@@ -1871,7 +1896,7 @@ function openMgQuota(){
       api('setLeaveQuota',{empId:u.empId,quota:quota}).then(function(r){
         if(!r.ok){ if(btn){btn.disabled=false;btn.textContent='💾 บันทึกโควต้า';} return toast(r.error||'บันทึกไม่สำเร็จ','err'); }
         closeConfirm(); toast('🎫 ปรับโควต้า '+u.name+' แล้ว ('+r.changed+' รายการ)','ok');
-        S.mgUsers=null; api('adminBootstrap',{}).then(function(rr){ if(rr.ok) S.mgUsers=rr.users; });
+        S.mgUsers=null; api('adminBootstrap',{}).then(function(rr){ if(rr.ok){ S.mgUsers=rr.users; if(S.mgTab==='tools') renderMgQuotaTable(); } });
       }).catch(function(e){ if(btn){btn.disabled=false;btn.textContent='💾 บันทึกโควต้า';} toast(String(e.message||e),'err'); });
     }
   });
