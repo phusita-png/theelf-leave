@@ -1733,8 +1733,8 @@ function mgRowTable(h){
   // 3 slot คงที่ (แก้ | แนบ | ยกเลิก) → ปุ่มชนิดเดียวกันตรงแนวกันทุกแถว · ยกเลิกขวาสุด
   var acts;
   if(grp==='pending'||grp==='approved'){
-    var bEdit = grp==='pending' ? '<button class="mg-ib edit" data-mgedit="'+esc(h.id)+'">✏️ แก้</button>' : '<span class="mg-sp"></span>';
-    var bDoc  = h.docUrl ? '<button class="mg-ib doc" data-mgdoc="'+esc(h.docUrl)+'">📎 แนบ</button>' : '<span class="mg-sp"></span>';
+    var bEdit = grp==='pending' ? '<button class="mg-ib edit" data-mgedit="'+esc(h.id)+'">✏️ แก้ไข</button>' : '<span class="mg-sp"></span>';
+    var bDoc  = h.docUrl ? '<button class="mg-ib doc" data-mgdoc="'+esc(h.docUrl)+'">📎 เอกสารแนบ</button>' : '<span class="mg-sp"></span>';
     var bCx   = '<button class="mg-ib cx" data-mgcancel="'+esc(h.id)+'">🚫 ยกเลิก</button>';
     acts='<div class="mg-acts2">'+bEdit+bDoc+bCx+'</div>';
   } else acts='<span class="mg-sub2">ปิดแล้ว</span>';
