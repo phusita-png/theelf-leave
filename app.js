@@ -43,6 +43,8 @@ var S = {
   hrSum:{mode:'period',year:null,month:null,from:'',to:''},   // ตัวกรองสรุปแผง HR
   mgTab:'report', mgFilter:{mode:'period',year:null,month:null,from:'',to:''}, mgSearch:'', mgStatus:'all', mgData:null, mgUsers:null, mgRoles:null,  // จัดการการลา (เฟส 3)
   mgRptFilter:{mode:'period',year:null,month:null,from:'',to:''}, mgRptData:null,   // แท็บสรุปรายคน
+  otTab:'report', mgotFilter:{mode:'period',year:null,month:null,from:'',to:''}, mgotSearch:'', mgotStatus:'all', mgotData:null,  // จัดการ OT (เฟส 4)
+  mgotRptFilter:{mode:'period',year:null,month:null,from:'',to:''}, mgotRptData:null,
   editLeaveId:null, editOtId:null, pendingEdit:null, pendingView:null,   // โหมดแก้ไข + deep-link view
   leaveCalMonth:null, leaveCalItems:[], leaveCalSel:null, leaveCalDept:'', leaveCalType:''   // ปฏิทินการลารวม (HR)
 };
@@ -211,7 +213,7 @@ function goTo(view){
 // เปิดเมนู admin ใน sidebar (desktop) ตามสิทธิ์ — มือถือ CSS ซ่อนเสมอ (ใช้ hub link เดิม)
 function setupNavRoles(){
   var p = S.profile || {}, ap = !!p.canApprove, ad = !!p.canAdmin;
-  var roles = {dashboard:ap, leavecal:ap, hr:ap, mgleave:ad, mgot:ap, mgpay:ad, emps:ad, settings:ad};
+  var roles = {dashboard:ap, leavecal:ap, hr:ap, mgleave:ad, mgot:ad, mgpay:ad, emps:ad, settings:ad};
   Object.keys(roles).forEach(function(v){
     var el=document.querySelector('.nav-btn[data-view="'+v+'"]'); if(el) el.classList.toggle('allow', roles[v]); });
   // section label โชว์เฉพาะกลุ่มที่มีปุ่ม visible (desktop)
@@ -281,7 +283,7 @@ function render(){
   else if (S.view==='leavecal'){ m.innerHTML = viewLeaveCal(); wireLeaveCal(); loadLeaveCal(); }
   else if (S.view==='dashboard'){ m.innerHTML = viewSoon('📊 แดชบอร์ด','วันนี้ใครลา/OT · สถิติเดือนนี้ · จำนวนพนักงาน/แผนก · เข้าใหม่-ลาออก'); }
   else if (S.view==='mgleave'){ m.innerHTML = viewMgleave(); wireMgleave(); loadMgleave(); }
-  else if (S.view==='mgot'){ m.innerHTML = viewSoon('⏰ จัดการ OT','ดู OT ทั้งหมด · แก้/ยกเลิก · ยอดคำนวณ · export · ส่ง mail/LINE'); }
+  else if (S.view==='mgot'){ m.innerHTML = viewMgot(); wireMgot(); }
   else if (S.view==='mgpay'){ m.innerHTML = viewSoon('💰 จัดการ Payroll','dashboard · ยอดรายเดือน · สลิป · คำนวณ · ทะเบียน/ภงด.1ก · กท.20'); }
   else if (S.view==='emps'){ m.innerHTML = viewSoon('👥 พนักงาน','เพิ่ม/แก้/ดูรายชื่อ + ข้อมูล + กะ + โควต้า'); }
   else if (S.view==='settings'){ m.innerHTML = '<div class="card"><div class="skel" style="height:120px"></div></div>'; loadSettings(); }
@@ -1922,6 +1924,260 @@ function doMgExport(){
       onOk:function(){ window.open(r.url,'_blank'); closeConfirm(); }
     });
   }).catch(function(e){ toast(String(e.message||e),'err'); });
+}
+
+// ════════════════════════════════════════════════════════════════
+//  VIEW: จัดการ OT (mgot · PC HR Console เฟส 4 · ADMIN/OWNER) — 3 แท็บ
+//  📊 สรุป OT (คำนวณสด) · 📋 รายการ OT (ดู/แก้/ยกเลิก) · ⚙️ ตั้งค่า (ยื่นแทน)
+// ════════════════════════════════════════════════════════════════
+function viewMgot(){
+  if(!(S.profile&&S.profile.canAdmin)) return backBar()+emptyBox('🔒','เฉพาะผู้ดูแลระบบ (ADMIN/OWNER)');
+  var tabs=[['report','📊 สรุป OT'],['list','📋 รายการ OT'],['tools','⚙️ ตั้งค่า']];
+  return backBar()+
+    '<div class="mg-tabs">'+tabs.map(function(t){return '<button class="mg-tab'+(S.otTab===t[0]?' on':'')+'" data-ottab="'+t[0]+'">'+t[1]+'</button>';}).join('')+'</div>'+
+    '<div id="otTab"></div>';
+}
+function wireMgot(){
+  bindBack();
+  if(!(S.profile&&S.profile.canAdmin)) return;
+  document.querySelectorAll('[data-ottab]').forEach(function(el){ el.addEventListener('click',function(){ switchOtTab(el.dataset.ottab); }); });
+  switchOtTab(S.otTab||'report');
+}
+function switchOtTab(tab){
+  S.otTab=tab;
+  document.querySelectorAll('[data-ottab]').forEach(function(el){ el.classList.toggle('on', el.dataset.ottab===tab); });
+  var box=document.getElementById('otTab'); if(!box) return;
+  if(tab==='list'){ box.innerHTML=otListTabHtml(); wireOtListTab(); loadOtList(); }
+  else if(tab==='tools'){ box.innerHTML=otToolsTabHtml(); wireOtToolsTab(); ensureMgUsers(); }
+  else { box.innerHTML=otReportTabHtml(); wireOtReportTab(); loadOtReport(); }
+}
+// filter bar ร่วม (prefix กัน id ชนกับ mgleave)
+function otFilterBar(prefix, f){
+  var modeSel='<select class="hr-fsel" id="'+prefix+'Mode">'+
+    [['period','รอบเดือนนี้ (26–25)'],['month','เลือกเดือน'],['year','เลือกปี'],['range','ช่วงวันที่'],['all','ทั้งหมด']]
+      .map(function(o){return '<option value="'+o[0]+'"'+(f.mode===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('')+'</select>';
+  var nowY=new Date().getFullYear()+543, curM=new Date().getMonth()+1;
+  var yrs=''; for(var y=nowY;y>=nowY-3;y--) yrs+='<option value="'+y+'"'+((f.year||nowY)===y?' selected':'')+'>'+y+'</option>';
+  var TH=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  var mons=''; for(var mo=1;mo<=12;mo++) mons+='<option value="'+mo+'"'+((f.month||curM)===mo?' selected':'')+'>'+TH[mo-1]+'</option>';
+  var inputs='';
+  if(f.mode==='month') inputs='<select class="hr-fsel" id="'+prefix+'Month">'+mons+'</select><select class="hr-fsel" id="'+prefix+'Year">'+yrs+'</select>';
+  else if(f.mode==='year') inputs='<select class="hr-fsel" id="'+prefix+'Year">'+yrs+'</select>';
+  else if(f.mode==='range') inputs='<input type="date" class="hr-fdate" id="'+prefix+'From" value="'+esc(thaiToIso(f.from))+'"><span class="hr-fdash">–</span><input type="date" class="hr-fdate" id="'+prefix+'To" value="'+esc(thaiToIso(f.to))+'">';
+  return '<div class="hr-filter">🔎 '+modeSel+inputs+'<button class="hr-fbtn" id="'+prefix+'Go">ดูข้อมูล</button></div>';
+}
+function otReadFilter(prefix, f){
+  var my=document.getElementById(prefix+'Year'), mm=document.getElementById(prefix+'Month');
+  var fr=document.getElementById(prefix+'From'), to=document.getElementById(prefix+'To');
+  if(my) f.year=+my.value; if(mm) f.month=+mm.value;
+  if(fr) f.from=isoToThai(fr.value); if(to) f.to=isoToThai(to.value);
+}
+function _otMoney(n){ return (Number(n)||0).toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function otTypeKeyOf(name){ var t=S.otTypes||{}; for(var k in t){ if(t[k]===name) return k; } return Object.keys(t)[0]||'1'; }
+function otTypeOptions(sel){ var t=S.otTypes||{}; return Object.keys(t).map(function(k){ return '<option value="'+k+'"'+(sel===k?' selected':'')+'>'+esc(t[k])+'</option>'; }).join(''); }
+
+// ── แท็บ 📋 รายการ OT ──
+function otListTabHtml(){
+  return '<div class="card">'+
+    '<div class="hr-note ok2">📋 ดู/แก้/ยกเลิก OT รายใบ · คลิกแถวดูรายละเอียด · OT ไม่มีโควต้า</div>'+
+    otFilterBar('otl', S.mgotFilter)+
+    '<div class="mg-tools">'+
+      '<input type="text" id="otSearch" class="mg-srch" placeholder="🔎 ค้นชื่อ/รหัสพนักงาน…" value="'+esc(S.mgotSearch||'')+'">'+
+      '<select id="otStatusF" class="hr-fsel">'+
+        [['all','ทุกสถานะ'],['pending','รออนุมัติ'],['approved','อนุมัติแล้ว'],['rejected','ไม่อนุมัติ'],['cancel','ยกเลิก']]
+          .map(function(o){return '<option value="'+o[0]+'"'+(S.mgotStatus===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('')+
+      '</select>'+
+      '<button class="mg-act export" id="otExportBtn">📤 Export</button>'+
+    '</div>'+
+  '</div>'+
+  '<div id="otList"><div class="card"><div class="skel" style="height:120px"></div></div></div>';
+}
+function wireOtListTab(){
+  wireOtListFilter();
+  var s=document.getElementById('otSearch'); if(s) s.addEventListener('input',function(){ S.mgotSearch=s.value; paintOtList(); });
+  var st=document.getElementById('otStatusF'); if(st) st.addEventListener('change',function(){ S.mgotStatus=st.value; paintOtList(); });
+  var ex=document.getElementById('otExportBtn'); if(ex) ex.addEventListener('click',doOtExport);
+  ensureMgUsers();
+}
+function wireOtListFilter(){
+  var m=document.getElementById('otlMode'); if(m) m.addEventListener('change',function(){ S.mgotFilter.mode=m.value; var bar=document.querySelector('#otTab .hr-filter'); if(bar) bar.outerHTML=otFilterBar('otl',S.mgotFilter); wireOtListFilter(); });
+  var go=document.getElementById('otlGo'); if(go) go.addEventListener('click',loadOtList);
+}
+function loadOtList(){
+  if(!(S.profile&&S.profile.canAdmin)) return;
+  otReadFilter('otl', S.mgotFilter); var f=S.mgotFilter;
+  if(f.mode==='range'&&(!f.from||!f.to)) return toast('เลือกช่วงวันที่ให้ครบค่ะ','err');
+  var box=document.getElementById('otList'); if(box) box.innerHTML='<div class="card"><div class="skel" style="height:120px"></div></div>';
+  api('mgOtList',{mode:f.mode,year:f.year,month:f.month,from:f.from,to:f.to}).then(function(r){
+    if(!r.ok){ if(box) box.innerHTML=emptyBox('🔒',r.error||'โหลดไม่ได้'); return; }
+    S.mgotData=r; paintOtList();
+  }).catch(function(e){ if(box) box.innerHTML=emptyBox('😿',String(e.message||e)); });
+}
+function otCounts(list){ var c={all:list.length,pending:0,approved:0,rejected:0,cancel:0}; list.forEach(function(it){ var g=mgStatusGroup(it.status); if(c[g]!=null) c[g]++; }); return c; }
+function otSummaryBar(c){
+  var defs=[['all','ทั้งหมด',c.all],['pending','รอ',c.pending],['approved','อนุมัติ',c.approved],['rejected','ไม่อนุมัติ',c.rejected],['cancel','ยกเลิก',c.cancel]];
+  return '<div class="mg-sum">'+defs.map(function(d){ return '<button class="mg-chip s-'+d[0]+(S.mgotStatus===d[0]?' on':'')+'" data-otf="'+d[0]+'"><b>'+d[2]+'</b><span>'+d[1]+'</span></button>'; }).join('')+'</div>';
+}
+function paintOtList(){
+  var box=document.getElementById('otList'); if(!box||!S.mgotData) return;
+  var q=(S.mgotSearch||'').trim().toLowerCase();
+  var bySearch=S.mgotData.ot.filter(function(it){ if(!q) return true; return String(it.name).toLowerCase().indexOf(q)>=0||String(it.empId).toLowerCase().indexOf(q)>=0; });
+  var counts=otCounts(bySearch), sf=S.mgotStatus||'all';
+  var list=bySearch.filter(function(it){ return sf==='all'||mgStatusGroup(it.status)===sf; });
+  var head='<div class="mg-head">📋 '+esc(S.mgotData.label||'')+' · '+S.mgotData.count+' ใบ'+(S.mgotData.count>500?' (แสดง 500 ล่าสุด)':'')+'</div>';
+  var table=!list.length?emptyBox('🍃','ไม่มี OT ตามเงื่อนไข'):
+    '<div class="mg-tbwrap"><table class="mg-table"><thead><tr>'+
+      '<th>วันที่ยื่น</th><th class="ce">รหัส</th><th>พนักงาน</th><th>แผนก</th><th>วันที่ทำ</th><th class="ce">เวลา</th><th class="ce">ชม.</th><th>ประเภท</th><th class="ce">สถานะ</th><th class="ce">จัดการ</th>'+
+    '</tr></thead><tbody>'+list.map(otRowTable).join('')+'</tbody></table></div>';
+  box.innerHTML='<div class="card">'+head+otSummaryBar(counts)+table+'</div>';
+  box.querySelectorAll('[data-otf]').forEach(function(el){ el.addEventListener('click',function(){ S.mgotStatus=el.dataset.otf; var ss=document.getElementById('otStatusF'); if(ss) ss.value=el.dataset.otf; paintOtList(); }); });
+  box.querySelectorAll('[data-otrow]').forEach(function(el){ el.addEventListener('click',function(){ openOtDetail(el.dataset.otrow); }); });
+  box.querySelectorAll('[data-otedit]').forEach(function(el){ el.addEventListener('click',function(ev){ ev.stopPropagation(); openOtEdit(el.dataset.otedit); }); });
+  box.querySelectorAll('[data-otcancel]').forEach(function(el){ el.addEventListener('click',function(ev){ ev.stopPropagation(); openOtCancel(el.dataset.otcancel); }); });
+}
+function otFind(id){ return (S.mgotData&&S.mgotData.ot||[]).filter(function(x){return x.otId===id;})[0]; }
+function otRowTable(o){
+  var grp=mgStatusGroup(o.status), acts;
+  if(grp==='pending'||grp==='approved'){
+    var b='';
+    if(grp==='pending') b+='<button class="mg-ib edit" data-otedit="'+esc(o.otId)+'">✏️ แก้ไข</button>';
+    b+='<button class="mg-ib cx" data-otcancel="'+esc(o.otId)+'">🚫 ยกเลิก</button>';
+    acts='<div class="mg-acts2">'+b+'</div>';
+  } else acts='<span class="mg-sub2">ปิดแล้ว</span>';
+  return '<tr class="mg-tr" data-otrow="'+esc(o.otId)+'">'+
+    '<td class="mg-sub2">'+esc(o.submittedAt||'-')+'</td>'+
+    '<td class="mg-sub2 ce">'+esc(o.empId||'-')+'</td>'+
+    '<td class="lft"><b>'+esc(o.name)+'</b></td>'+
+    '<td class="lft">'+esc(o.dept||'-')+'</td>'+
+    '<td>'+esc(o.otDate)+'</td>'+
+    '<td class="ce mg-sub2">'+esc(o.startTime)+'–'+esc(o.endTime)+'</td>'+
+    '<td class="ce"><b>'+esc(o.hours)+'</b></td>'+
+    '<td>'+esc(o.otType)+'</td>'+
+    '<td class="ce">'+statusBadge(o.status)+'</td>'+
+    '<td class="mg-actcell">'+acts+'</td>'+
+  '</tr>';
+}
+function openOtDetail(id){
+  var o=otFind(id); if(!o) return;
+  var grp=mgStatusGroup(o.status);
+  var row=function(k,v){ return '<div class="cfm-row"><span class="cfm-k">'+k+'</span><span class="cfm-v">'+v+'</span></div>'; };
+  var body=row('พนักงาน',esc(o.name)+(o.empId?' ('+esc(o.empId)+')':''))+
+    (o.dept?row('แผนก',esc(o.dept)):'')+
+    row('วันที่ทำ OT',esc(o.otDate))+
+    row('เวลา',esc(o.startTime)+' – '+esc(o.endTime))+
+    row('จำนวน',esc(o.hours)+' ชม.')+
+    row('ประเภท',esc(o.otType))+
+    row('วันที่ยื่น',esc(o.submittedAt||'-'))+
+    row('สถานะ',statusBadge(o.status))+
+    (o.reason?row('เหตุผล',esc(o.reason)):'')+
+    (o.by?row('ผู้ดำเนินการ',esc(o.by)+(o.decidedAt?' · '+esc(o.decidedAt):'')):'')+
+    row('เลขที่',esc(o.otId))+
+    ((grp==='pending'||grp==='approved')?'<div class="mg-dacts">'+(grp==='pending'?'<button class="pend-btn redit" id="otdEdit">✏️ แก้ไข</button>':'')+'<button class="pend-btn no" id="otdCancel">🚫 ยกเลิก</button></div>':'');
+  modalForm({ title:'รายละเอียด OT', emoji:'⏰', accent:'ot', okLabel:'ปิด', body:body,
+    onMount:function(c){ var e=c.querySelector('#otdEdit'); if(e) e.addEventListener('click',function(){ closeConfirm(); openOtEdit(id); }); var x=c.querySelector('#otdCancel'); if(x) x.addEventListener('click',function(){ closeConfirm(); openOtCancel(id); }); },
+    onOk:function(){ closeConfirm(); } });
+}
+function openOtCancel(id){
+  var o=otFind(id); if(!o) return;
+  var wasApproved=mgStatusGroup(o.status)==='approved';
+  modalForm({ title:'ยกเลิก OT', emoji:'🚫', accent:'ot', okLabel:'🚫 ยืนยันยกเลิก',
+    body:'<div class="cfm-row"><span class="cfm-k">พนักงาน</span><span class="cfm-v">'+esc(o.name)+'</span></div>'+
+      '<div class="cfm-row"><span class="cfm-k">วันที่ทำ</span><span class="cfm-v">'+esc(o.otDate)+'</span></div>'+
+      '<div class="cfm-row"><span class="cfm-k">เวลา/ชม.</span><span class="cfm-v">'+esc(o.startTime)+'–'+esc(o.endTime)+' · '+esc(o.hours)+' ชม.</span></div>'+
+      (wasApproved?'<div class="hr-note" style="margin:10px 0">⚠️ OT นี้อนุมัติแล้ว — ถ้า<b>คำนวณ OT รอบนี้ + import payroll ไปแล้ว</b> ต้องสั่งคำนวณ+import ใหม่ด้วยนะคะ</div>':'')+
+      '<label class="field-lb">📝 เหตุผลการยกเลิก (แจ้งพนักงานทาง LINE)</label>'+
+      '<textarea id="otCxReason" rows="2" placeholder="เช่น แจ้งผิด / ไม่ได้ทำจริง…"></textarea>',
+    onOk:function(c){ var reason=(c.querySelector('#otCxReason').value||'').trim(); var btn=c.querySelector('[data-cfm-ok]'); if(btn){btn.disabled=true;btn.textContent='กำลังยกเลิก…';}
+      api('mgCancelOt',{otId:id,reason:reason}).then(function(r){ if(!r.ok){ if(btn){btn.disabled=false;btn.textContent='🚫 ยืนยันยกเลิก';} return toast(r.error||'ยกเลิกไม่สำเร็จ','err'); }
+        closeConfirm(); toast('🚫 ยกเลิก OT แล้ว','ok'); S.mgotData=null; loadOtList(); }).catch(function(e){ if(btn){btn.disabled=false;btn.textContent='🚫 ยืนยันยกเลิก';} toast(String(e.message||e),'err'); }); }
+  });
+}
+function otFormBody(o){
+  var emp=o.showEmp?'<label class="field-lb">👤 พนักงาน</label><select id="otfEmp" class="hr-fsel mg-full">'+mgEmpOptions(o.empSel)+'</select>':'';
+  return emp+
+    '<label class="field-lb">📅 วันที่ทำ OT</label><input type="date" class="hr-fdate mg-full" id="otfDate" value="'+esc(o.dateIso||'')+'">'+
+    '<label class="field-lb">🕐 เวลา (เริ่ม – สิ้นสุด)</label><div class="mg-drow"><input type="time" class="hr-fdate" id="otfSt" value="'+esc(o.start||'')+'"><span class="hr-fdash">–</span><input type="time" class="hr-fdate" id="otfEt" value="'+esc(o.end||'')+'"></div>'+
+    '<label class="field-lb">📋 ประเภท OT</label><select id="otfType" class="hr-fsel mg-full">'+otTypeOptions(o.type)+'</select>'+
+    '<label class="field-lb">📝 เหตุผล / รายละเอียดงาน</label><textarea id="otfReason" rows="2" placeholder="รายละเอียดงาน…">'+esc(o.reason||'')+'</textarea>';
+}
+function otReadForm(c){
+  return { otDate:isoToThai(c.querySelector('#otfDate').value), startTime:(c.querySelector('#otfSt')||{}).value||'', endTime:(c.querySelector('#otfEt')||{}).value||'', otType:c.querySelector('#otfType').value, reason:(c.querySelector('#otfReason').value||'').trim() };
+}
+function openOtEdit(id){
+  var o=otFind(id); if(!o) return;
+  modalForm({ title:'แก้ไข OT', emoji:'⏰', accent:'ot', okLabel:'✅ บันทึก',
+    body:'<div class="hr-note ok2" style="margin-bottom:10px">✏️ '+esc(o.name)+' · '+esc(o.otId)+' — บันทึกแล้วยังต้องอนุมัติอีกครั้ง</div>'+
+      otFormBody({ dateIso:thaiToIso(o.otDate), start:o.startTime, end:o.endTime, type:otTypeKeyOf(o.otType), reason:o.reason }),
+    onOk:function(c){ var p=otReadForm(c); if(!p.otDate) return toast('เลือกวันที่','err'); if(!p.startTime||!p.endTime) return toast('ใส่เวลาให้ครบ','err'); p.otId=id;
+      var btn=c.querySelector('[data-cfm-ok]'); if(btn){btn.disabled=true;btn.textContent='กำลังบันทึก…';}
+      api('mgEditOt',p).then(function(r){ if(!r.ok){ if(btn){btn.disabled=false;btn.textContent='✅ บันทึก';} return toast(r.error||'บันทึกไม่สำเร็จ','err'); }
+        closeConfirm(); toast('✏️ แก้ไข OT แล้ว · '+r.otId,'ok'); S.mgotData=null; loadOtList(); }).catch(function(e){ if(btn){btn.disabled=false;btn.textContent='✅ บันทึก';} toast(String(e.message||e),'err'); }); }
+  });
+}
+function openOtProxy(){
+  if(!S.mgUsers) return toast('กำลังโหลดรายชื่อพนักงาน… ลองอีกครั้งค่ะ');
+  modalForm({ title:'ยื่น OT แทนพนักงาน', emoji:'⏰', accent:'ot', okLabel:'➕ ยื่น OT',
+    body:otFormBody({ showEmp:true })+
+      '<label class="mg-check"><input type="checkbox" id="otfAuto"><span>✅ อนุมัติเลย (ไม่ต้องรออนุมัติ)</span></label>',
+    onOk:function(c){ var emp=c.querySelector('#otfEmp').value; if(!emp) return toast('เลือกพนักงานก่อนค่ะ','err'); var p=otReadForm(c); if(!p.otDate) return toast('เลือกวันที่','err'); if(!p.startTime||!p.endTime) return toast('ใส่เวลาให้ครบ','err'); p.targetUserId=emp; p.autoApprove=c.querySelector('#otfAuto').checked?'1':'';
+      var btn=c.querySelector('[data-cfm-ok]'); if(btn){btn.disabled=true;btn.textContent='กำลังยื่น…';}
+      api('mgProxyOt',p).then(function(r){ if(!r.ok){ if(btn){btn.disabled=false;btn.textContent='➕ ยื่น OT';} return toast(r.error||'ยื่นไม่สำเร็จ','err'); }
+        closeConfirm(); toast((r.approved?'✅ ยื่นแทน+อนุมัติแล้ว · ':'📝 ยื่นแทนแล้ว (รออนุมัติ) · ')+r.otId,'ok'); S.mgotData=null; if(S.otTab==='list') loadOtList(); }).catch(function(e){ if(btn){btn.disabled=false;btn.textContent='➕ ยื่น OT';} toast(String(e.message||e),'err'); }); }
+  });
+}
+// ── แท็บ ⚙️ ตั้งค่า ──
+function otToolsTabHtml(){
+  return '<div class="card">'+
+    '<div class="hr-note ok2">⚙️ เครื่องมือจัดการ OT — บันทึก audit + แจ้ง LINE พนักงาน</div>'+
+    '<div class="mg-toolgrid"><button class="mg-tool add" id="otAddBtn"><b>➕ ยื่น OT แทนพนักงาน</b><span>เลือกคน + กรอกวันเวลา · ติ๊ก "อนุมัติเลย" ได้</span></button></div>'+
+    '<div class="hr-note" style="margin-top:12px">🧮 การสั่งคำนวณเงิน OT รอบ + ส่ง mail/LINE สรุป ยังทำผ่านเมนูในชีท (Apps Script) — เฟสถัดไปจะย้ายมาเว็บ</div>'+
+  '</div>';
+}
+function wireOtToolsTab(){ var a=document.getElementById('otAddBtn'); if(a) a.addEventListener('click',function(){ openOtProxy(); }); }
+// ── แท็บ 📊 สรุป OT (คำนวณสด) ──
+function otReportTabHtml(){
+  return '<div class="card">'+
+    '<div class="hr-note ok2">📊 สรุป OT รายคน — คำนวณสด (ชม. + เงิน 1x/1.5x/3x) · เฉพาะใบที่อนุมัติแล้ว · ตรงสูตรระบบ OT</div>'+
+    otFilterBar('otr', S.mgotRptFilter)+
+    '<div class="mg-tools" style="justify-content:flex-end"><button class="mg-act export" id="otRptExportBtn">📤 Export Sheet</button></div>'+
+    '<div id="otReport"><div class="skel" style="height:160px"></div></div>'+
+  '</div>';
+}
+function wireOtReportTab(){ var ex=document.getElementById('otRptExportBtn'); if(ex) ex.addEventListener('click',doOtSummaryExport); wireOtRptFilter(); }
+function wireOtRptFilter(){
+  var m=document.getElementById('otrMode'); if(m) m.addEventListener('change',function(){ S.mgotRptFilter.mode=m.value; var bar=document.querySelector('#otTab .hr-filter'); if(bar) bar.outerHTML=otFilterBar('otr',S.mgotRptFilter); wireOtRptFilter(); });
+  var go=document.getElementById('otrGo'); if(go) go.addEventListener('click',loadOtReport);
+}
+function loadOtReport(){
+  if(!(S.profile&&S.profile.canAdmin)) return;
+  otReadFilter('otr', S.mgotRptFilter); var f=S.mgotRptFilter;
+  if(f.mode==='range'&&(!f.from||!f.to)) return toast('เลือกช่วงวันที่ให้ครบค่ะ','err');
+  var box=document.getElementById('otReport'); if(box) box.innerHTML='<div class="skel" style="height:160px"></div>';
+  api('mgOtSummary',{mode:f.mode,year:f.year,month:f.month,from:f.from,to:f.to}).then(function(r){ if(!r.ok){ if(box) box.innerHTML=emptyBox('🔒',r.error||'โหลดไม่ได้'); return; } S.mgotRptData=r; paintOtReport(); }).catch(function(e){ if(box) box.innerHTML=emptyBox('😿',String(e.message||e)); });
+}
+function paintOtReport(){
+  var box=document.getElementById('otReport'); if(!box||!S.mgotRptData) return;
+  var d=S.mgotRptData, ps=d.persons||[], t=d.totals||{};
+  if(!ps.length){ box.innerHTML=emptyBox('🍃','ไม่มี OT ที่อนุมัติในช่วงนี้'); return; }
+  var rows=ps.map(function(e,i){ return '<tr><td class="ce">'+(i+1)+'</td><td class="mg-sub2 ce">'+esc(e.empId)+'</td><td class="lft"><b>'+esc(e.name)+'</b></td><td class="lft">'+esc(e.dept||'-')+'</td>'+
+    '<td class="ce">'+e.count+'</td><td class="ce">'+mgNum(e.hours)+'</td>'+
+    '<td class="ce">'+mgNum(e.h1)+'</td><td class="ce">'+_otMoney(e.m1)+'</td>'+
+    '<td class="ce">'+mgNum(e.h15)+'</td><td class="ce">'+_otMoney(e.m15)+'</td>'+
+    '<td class="ce">'+mgNum(e.h3)+'</td><td class="ce">'+_otMoney(e.m3)+'</td>'+
+    '<td class="ce"><b>'+_otMoney(e.total)+'</b></td></tr>'; }).join('');
+  var foot='<tr class="ot-tot"><td colspan="4" class="lft"><b>รวมทั้งหมด</b></td><td class="ce"><b>'+t.count+'</b></td><td class="ce"><b>'+mgNum(t.hours)+'</b></td><td class="ce"></td><td class="ce"><b>'+_otMoney(t.m1)+'</b></td><td class="ce"></td><td class="ce"><b>'+_otMoney(t.m15)+'</b></td><td class="ce"></td><td class="ce"><b>'+_otMoney(t.m3)+'</b></td><td class="ce"><b>'+_otMoney(t.total)+'</b></td></tr>';
+  box.innerHTML='<div class="mg-head">📊 '+esc(d.label||'')+' · '+ps.length+' คน <span class="mg-legend">เงินบาท · คำนวณสดตามสูตรระบบ OT</span></div>'+
+    '<div class="mg-tbwrap"><table class="mg-table mg-rpt"><thead><tr><th class="ce">#</th><th class="ce">รหัส</th><th class="lft">ชื่อ-นามสกุล</th><th class="lft">แผนก</th><th class="ce">ใบ</th><th class="ce">ชม.</th><th class="ce">ชม.1x</th><th class="ce">เงิน1x</th><th class="ce">ชม.1.5x</th><th class="ce">เงิน1.5x</th><th class="ce">ชม.3x</th><th class="ce">เงิน3x</th><th class="ce">รวมเงิน</th></tr></thead><tbody>'+rows+foot+'</tbody></table></div>';
+}
+function doOtExport(){ var f=S.mgotFilter; toast('กำลังสร้างรายงาน… (อาจใช้เวลาสักครู่)'); api('mgOtExport',{mode:f.mode,year:f.year,month:f.month,from:f.from,to:f.to}).then(otExportResult).catch(function(e){ toast(String(e.message||e),'err'); }); }
+function doOtSummaryExport(){ var f=S.mgotRptFilter; toast('กำลังสร้างรายงาน… (อาจใช้เวลาสักครู่)'); api('mgOtSummaryExport',{mode:f.mode,year:f.year,month:f.month,from:f.from,to:f.to}).then(otExportResult).catch(function(e){ toast(String(e.message||e),'err'); }); }
+function otExportResult(r){
+  if(!r.ok) return toast(r.error||'export ไม่สำเร็จ','err');
+  modalForm({ title:'Export สำเร็จ', emoji:'📤', accent:'ot', okLabel:'↗ เปิดรายงาน',
+    body:'<div class="cfm-row"><span class="cfm-k">จำนวน</span><span class="cfm-v">'+r.count+' แถว</span></div>'+
+      '<div class="hr-note ok2" style="margin:10px 0">📄 Google Sheet (ใครมีลิงก์ดูได้) — ⚠️ ข้อมูลส่วนบุคคล อย่าแชร์นอกทีม HR</div>'+
+      '<a href="'+esc(r.url)+'" target="_blank" rel="noopener" class="mg-link">'+esc(r.url)+'</a>',
+    onOk:function(){ window.open(r.url,'_blank'); closeConfirm(); } });
 }
 
 // ════════════ VIEW: SETTINGS (admin · ADMIN/OWNER) ════════════

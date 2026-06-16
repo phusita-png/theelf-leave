@@ -619,6 +619,7 @@ textarea:focus,input[type=time]:focus{border-color:var(--red)}
 .mg-rpt td.neg{background:#ffcdd2;color:#b71c1c;font-weight:700}
 .mg-rpt td.low{background:#ffe0b2;color:#e65100;font-weight:700}
 .mg-rpt tr.rtd{opacity:.5}
+.mg-rpt tr.ot-tot td{background:var(--ot-tint);color:var(--ot);font-weight:700;border-top:2px solid var(--ot)}
 
 /* ── Skeleton ── */
 .skel{background:linear-gradient(90deg,#eef0f4 25%,#f6f7fa 50%,#eef0f4 75%);background-size:200% 100%;
