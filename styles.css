@@ -557,6 +557,38 @@ textarea:focus,input[type=time]:focus{border-color:var(--red)}
   border-radius:9px;background:var(--card);color:var(--ink)}
 .mg-qin:focus{outline:none;border-color:var(--red)}
 .mg-link{display:block;margin-top:10px;font-size:12.5px;color:var(--red);word-break:break-all}
+/* แถบสรุปยอด (คลิกกรอง) */
+.mg-sum{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 12px}
+.mg-chip{flex:1 1 auto;min-width:78px;border:1.5px solid var(--line);background:var(--card);border-radius:12px;
+  padding:8px 10px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:1px;font-family:inherit}
+.mg-chip b{font-size:18px;color:var(--ink);line-height:1.1}
+.mg-chip span{font-size:11px;color:var(--muted);font-weight:600}
+.mg-chip:active{transform:scale(.97)}
+.mg-chip.on{border-color:var(--red);background:var(--red-tint)}
+.mg-chip.on b,.mg-chip.on span{color:var(--red-deep)}
+.mg-chip.s-approved.on{border-color:var(--green);background:var(--green-tint)} .mg-chip.s-approved.on b,.mg-chip.s-approved.on span{color:var(--green)}
+.mg-chip.s-pending.on{border-color:var(--ot);background:var(--ot-tint)} .mg-chip.s-pending.on b,.mg-chip.s-pending.on span{color:var(--ot)}
+/* ตาราง */
+.mg-tbwrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.mg-table{width:100%;border-collapse:collapse;font-size:13.5px}
+.mg-table th{text-align:left;font-size:12px;font-weight:700;color:var(--muted);padding:8px 10px;
+  border-bottom:2px solid var(--line);white-space:nowrap}
+.mg-table td{padding:10px;border-bottom:1px solid var(--line);vertical-align:middle}
+.mg-table .ce{text-align:center}
+.mg-tr{cursor:pointer;transition:background .12s}
+.mg-tr:hover{background:var(--red-tint)}
+.mg-sub2{font-size:11.5px;color:var(--muted)}
+.mg-actcell{white-space:nowrap}
+.mg-ib{border:none;background:var(--bg);border-radius:8px;width:32px;height:32px;cursor:pointer;
+  font-size:15px;margin:0 2px;line-height:1;vertical-align:middle}
+.mg-ib:active{transform:scale(.9)}
+.mg-ib.cx{background:var(--red-tint)}
+.mg-ib.doc{background:var(--green-tint)}
+.mg-ib.edit{background:#E3F2FD}
+.mg-doclink{display:block;text-align:center;margin-top:12px;padding:11px;background:var(--green-tint);
+  color:var(--green);font-weight:700;font-size:13px;border-radius:11px;text-decoration:none}
+.mg-dacts{display:flex;gap:8px;margin-top:14px}
+.mg-dacts .pend-btn{flex:1;font-size:14px;padding:12px}
 
 /* ── Skeleton ── */
 .skel{background:linear-gradient(90deg,#eef0f4 25%,#f6f7fa 50%,#eef0f4 75%);background-size:200% 100%;

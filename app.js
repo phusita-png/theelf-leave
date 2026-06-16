@@ -1556,35 +1556,82 @@ function mgStatusGroup(st){
   if(st.indexOf('อนุมัติ')>=0) return 'approved';
   return 'pending';
 }
+function mgCounts(list){
+  var c={all:list.length,pending:0,approved:0,rejected:0,cancel:0};
+  list.forEach(function(it){ var g=mgStatusGroup(it.status); if(c[g]!=null) c[g]++; });
+  return c;
+}
+function mgSummaryBar(c){
+  var defs=[['all','ทั้งหมด',c.all],['pending','รอ',c.pending],['approved','อนุมัติ',c.approved],['rejected','ไม่อนุมัติ',c.rejected],['cancel','ยกเลิก',c.cancel]];
+  return '<div class="mg-sum">'+defs.map(function(d){
+    return '<button class="mg-chip s-'+d[0]+(S.mgStatus===d[0]?' on':'')+'" data-mgf="'+d[0]+'"><b>'+d[2]+'</b><span>'+d[1]+'</span></button>'; }).join('')+'</div>';
+}
 function paintMgList(){
   var box=document.getElementById('mgList'); if(!box||!S.mgData) return;
-  var q=(S.mgSearch||'').trim().toLowerCase(), sf=S.mgStatus||'all';
-  var list=S.mgData.leaves.filter(function(it){
-    if(sf!=='all' && mgStatusGroup(it.status)!==sf) return false;
-    if(q && String(it.name).toLowerCase().indexOf(q)<0 && String(it.empId).toLowerCase().indexOf(q)<0) return false;
-    return true;
+  var q=(S.mgSearch||'').trim().toLowerCase();
+  var bySearch=S.mgData.leaves.filter(function(it){
+    if(!q) return true;
+    return String(it.name).toLowerCase().indexOf(q)>=0 || String(it.empId).toLowerCase().indexOf(q)>=0;
   });
-  var head='<div class="mg-head">📋 '+esc(S.mgData.label||'')+' · พบ '+list.length+' ใบ'+(S.mgData.count>500?' (แสดง 500 ล่าสุด)':'')+'</div>';
-  box.innerHTML='<div class="card">'+head+(!list.length?emptyBox('🍃','ไม่มีใบลาตามเงื่อนไข'):
-    '<div class="hr-hist">'+list.map(mgRow).join('')+'</div>')+'</div>';
-  box.querySelectorAll('[data-mgedit]').forEach(function(el){ el.addEventListener('click',function(){ openMgEdit(el.dataset.mgedit); }); });
-  box.querySelectorAll('[data-mgcancel]').forEach(function(el){ el.addEventListener('click',function(){ openMgCancel(el.dataset.mgcancel); }); });
+  var counts=mgCounts(bySearch), sf=S.mgStatus||'all';
+  var list=bySearch.filter(function(it){ return sf==='all'||mgStatusGroup(it.status)===sf; });
+  var head='<div class="mg-head">📋 '+esc(S.mgData.label||'')+' · '+S.mgData.count+' ใบ'+(S.mgData.count>500?' (แสดง 500 ล่าสุด)':'')+'</div>';
+  var table = !list.length ? emptyBox('🍃','ไม่มีใบลาตามเงื่อนไข') :
+    '<div class="mg-tbwrap"><table class="mg-table"><thead><tr>'+
+      '<th>ยื่น</th><th>พนักงาน</th><th>ประเภท</th><th>ช่วงลา</th><th class="ce">จำนวน</th><th class="ce">สถานะ</th><th class="ce">จัดการ</th>'+
+    '</tr></thead><tbody>'+list.map(mgRowTable).join('')+'</tbody></table></div>';
+  box.innerHTML='<div class="card">'+head+mgSummaryBar(counts)+table+'</div>';
+  box.querySelectorAll('[data-mgf]').forEach(function(el){ el.addEventListener('click',function(){ S.mgStatus=el.dataset.mgf; var ss=document.getElementById('mgStatus'); if(ss) ss.value=el.dataset.mgf; paintMgList(); }); });
+  box.querySelectorAll('[data-mgrow]').forEach(function(el){ el.addEventListener('click',function(){ openMgDetail(el.dataset.mgrow); }); });
+  box.querySelectorAll('[data-mgedit]').forEach(function(el){ el.addEventListener('click',function(ev){ ev.stopPropagation(); openMgEdit(el.dataset.mgedit); }); });
+  box.querySelectorAll('[data-mgcancel]').forEach(function(el){ el.addEventListener('click',function(ev){ ev.stopPropagation(); openMgCancel(el.dataset.mgcancel); }); });
+  box.querySelectorAll('[data-mgdoc]').forEach(function(el){ el.addEventListener('click',function(ev){ ev.stopPropagation(); window.open(el.dataset.mgdoc,'_blank'); }); });
 }
 function mgFindLeave(id){ return (S.mgData&&S.mgData.leaves||[]).filter(function(x){return x.id===id;})[0]; }
-function mgRow(h){
+function mgRowTable(h){
   var grp=mgStatusGroup(h.status);
-  var dt=h.startDate+(h.endDate&&h.endDate!==h.startDate?' — '+h.endDate:'');
+  var dt=h.startDate+(h.endDate&&h.endDate!==h.startDate?' – '+h.endDate:'');
   var acts='';
-  if(grp==='pending') acts='<button class="pend-btn redit" data-mgedit="'+esc(h.id)+'">✏️ แก้ไข</button><button class="pend-btn no" data-mgcancel="'+esc(h.id)+'">🚫 ยกเลิก</button>';
-  else if(grp==='approved') acts='<button class="pend-btn no" data-mgcancel="'+esc(h.id)+'">🚫 ยกเลิก</button>';
-  return '<div class="mg-item"><div class="hist">'+
-    '<div class="hist-ic">'+(TYPE_EMOJI[h.type]||'📋')+'</div>'+
-    '<div class="hist-main"><div class="hist-type">'+esc(h.name)+(h.empId?' <span class="mg-emp">'+esc(h.empId)+'</span>':'')+'</div>'+
-    '<div class="hist-meta"><span>'+esc(h.type)+'</span><span>·</span><span>📅 '+esc(dt)+'</span><span>·</span><span>⏱ '+esc(h.timeDisplay||h.days+' วัน')+'</span>'+
-      (h.dept?'<span>·</span><span>'+esc(h.dept)+'</span>':'')+'</div>'+
-      (h.reason?'<div class="mg-reason">📝 '+esc(h.reason)+'</div>':'')+apprLine(h)+'</div>'+
-    statusBadge(h.status)+'</div>'+
-    (acts?'<div class="mg-acts">'+acts+'</div>':'')+'</div>';
+  if(grp==='pending') acts+='<button class="mg-ib edit" data-mgedit="'+esc(h.id)+'" title="แก้ไข">✏️</button>';
+  if(grp==='pending'||grp==='approved') acts+='<button class="mg-ib cx" data-mgcancel="'+esc(h.id)+'" title="ยกเลิก">🚫</button>';
+  if(h.docUrl) acts+='<button class="mg-ib doc" data-mgdoc="'+esc(h.docUrl)+'" title="เอกสารแนบ">📎</button>';
+  return '<tr class="mg-tr" data-mgrow="'+esc(h.id)+'">'+
+    '<td class="mg-sub2">'+esc(h.submittedAt||'-')+'</td>'+
+    '<td><b>'+esc(h.name)+'</b>'+(h.empId?' <span class="mg-emp">'+esc(h.empId)+'</span>':'')+(h.dept?'<div class="mg-sub2">'+esc(h.dept)+'</div>':'')+'</td>'+
+    '<td>'+(TYPE_EMOJI[h.type]||'📋')+' '+esc(h.type)+'</td>'+
+    '<td>'+esc(dt)+'</td>'+
+    '<td class="ce">'+esc(h.timeDisplay||h.days)+'</td>'+
+    '<td class="ce">'+statusBadge(h.status)+'</td>'+
+    '<td class="ce mg-actcell">'+(acts||'<span class="mg-sub2">—</span>')+'</td>'+
+  '</tr>';
+}
+// คลิกแถว → รายละเอียดเต็ม + เอกสาร + ปุ่มแก้/ยกเลิก
+function openMgDetail(id){
+  var h=mgFindLeave(id); if(!h) return;
+  var grp=mgStatusGroup(h.status);
+  var row=function(k,v){ return '<div class="cfm-row"><span class="cfm-k">'+k+'</span><span class="cfm-v">'+v+'</span></div>'; };
+  var body=
+    row('พนักงาน', esc(h.name)+(h.empId?' ('+esc(h.empId)+')':''))+
+    (h.dept?row('แผนก', esc(h.dept)):'')+
+    row('ประเภท', (TYPE_EMOJI[h.type]||'')+' '+esc(h.type))+
+    row('ช่วงวันลา', esc(h.startDate+(h.endDate&&h.endDate!==h.startDate?' – '+h.endDate:'')))+
+    row('จำนวน', esc(h.timeDisplay||h.days+' วัน'))+
+    row('วันที่ยื่น', esc(h.submittedAt||'-'))+
+    row('สถานะ', statusBadge(h.status))+
+    (h.reason?row('เหตุผล', esc(h.reason)):'')+
+    (h.by?row('ผู้ดำเนินการ', esc(h.by)+(h.decidedAt?' · '+esc(h.decidedAt):'')):'')+
+    row('เลขที่', esc(h.id))+
+    (h.docUrl?'<a href="'+esc(h.docUrl)+'" target="_blank" rel="noopener" class="mg-doclink">📎 เปิดเอกสารแนบ</a>':'')+
+    ((grp==='pending'||grp==='approved')?'<div class="mg-dacts">'+
+      (grp==='pending'?'<button class="pend-btn redit" id="mgdEdit">✏️ แก้ไข</button>':'')+
+      '<button class="pend-btn no" id="mgdCancel">🚫 ยกเลิก</button></div>':'');
+  modalForm({ title:'รายละเอียดใบลา', emoji:'📋', accent:'leave', okLabel:'ปิด', body:body,
+    onMount:function(c){
+      var e=c.querySelector('#mgdEdit'); if(e) e.addEventListener('click',function(){ closeConfirm(); openMgEdit(id); });
+      var x=c.querySelector('#mgdCancel'); if(x) x.addEventListener('click',function(){ closeConfirm(); openMgCancel(id); });
+    },
+    onOk:function(){ closeConfirm(); }
+  });
 }
 
 // ── ตัวช่วยฟอร์มลา (ใช้ร่วม แก้ไข + ยื่นแทน) ──
