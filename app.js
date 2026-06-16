@@ -1730,11 +1730,14 @@ function mgFindLeave(id){ return (S.mgData&&S.mgData.leaves||[]).filter(function
 function mgRowTable(h){
   var grp=mgStatusGroup(h.status);
   var dt=h.startDate+(h.endDate&&h.endDate!==h.startDate?' – '+h.endDate:'');
-  var acts='';
-  if(grp==='pending') acts+='<button class="mg-ib edit" data-mgedit="'+esc(h.id)+'">✏️ แก้</button>';
-  if(h.docUrl) acts+='<button class="mg-ib doc" data-mgdoc="'+esc(h.docUrl)+'">📎 แนบ</button>';
-  if(grp==='pending'||grp==='approved') acts+='<button class="mg-ib cx" data-mgcancel="'+esc(h.id)+'">🚫 ยกเลิก</button>';   // ยกเลิกท้ายสุด กันกดพลาด
-  if(!acts) acts='<span class="mg-sub2">ปิดแล้ว</span>';
+  // 3 slot คงที่ (แก้ | แนบ | ยกเลิก) → ปุ่มชนิดเดียวกันตรงแนวกันทุกแถว · ยกเลิกขวาสุด
+  var acts;
+  if(grp==='pending'||grp==='approved'){
+    var bEdit = grp==='pending' ? '<button class="mg-ib edit" data-mgedit="'+esc(h.id)+'">✏️ แก้</button>' : '<span class="mg-sp"></span>';
+    var bDoc  = h.docUrl ? '<button class="mg-ib doc" data-mgdoc="'+esc(h.docUrl)+'">📎 แนบ</button>' : '<span class="mg-sp"></span>';
+    var bCx   = '<button class="mg-ib cx" data-mgcancel="'+esc(h.id)+'">🚫 ยกเลิก</button>';
+    acts='<div class="mg-acts2">'+bEdit+bDoc+bCx+'</div>';
+  } else acts='<span class="mg-sub2">ปิดแล้ว</span>';
   return '<tr class="mg-tr" data-mgrow="'+esc(h.id)+'">'+
     '<td class="mg-sub2">'+esc(h.submittedAt||'-')+'</td>'+
     '<td><b>'+esc(h.name)+'</b>'+(h.empId?' <span class="mg-emp">'+esc(h.empId)+'</span>':'')+(h.dept?'<div class="mg-sub2">'+esc(h.dept)+'</div>':'')+'</td>'+
