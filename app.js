@@ -1482,7 +1482,7 @@ function thaiToIso(s){ var p=String(s||'').split('/'); if(p.length<3) return '';
 
 function viewMgleave(){
   if(!(S.profile&&S.profile.canAdmin)) return backBar()+emptyBox('🔒','เฉพาะผู้ดูแลระบบ (ADMIN/OWNER)');
-  var tabs=[['report','📊 สรุปรายคน'],['list','📋 รายการใบลา'],['tools','⚙️ ตั้งค่า']];
+  var tabs=[['report','📊 สรุปการลา'],['list','📋 รายการใบลา'],['tools','⚙️ ตั้งค่า']];
   return backBar()+
     '<div class="mg-tabs">'+tabs.map(function(t){return '<button class="mg-tab'+(S.mgTab===t[0]?' on':'')+'" data-mgtab="'+t[0]+'">'+t[1]+'</button>';}).join('')+'</div>'+
     '<div id="mgTab"></div>';
@@ -1565,13 +1565,14 @@ function renderMgQuotaTable(){
   var QF=[['sick','🤒 ป่วย'],['biz','📋 กิจ'],['vac','🌴 พักร้อน'],['bday','🎂 วันเกิด'],['special','🎁 คนพิเศษ'],['unpaid','📄 ไม่รับเงิน']];
   var us=(S.mgUsers||[]).filter(function(u){return u.lineUserId;}).sort(function(a,b){return String(a.name||'').localeCompare(String(b.name||''),'th');});
   if(!us.length){ box.innerHTML=emptyBox('🍃','ยังไม่มีพนักงาน'); return; }
-  var head='<tr><th class="ce">#</th><th class="lft">ชื่อ-นามสกุล</th><th>ฝ่าย</th>'+QF.map(function(o){return '<th class="ce">'+o[1]+'</th>';}).join('')+'</tr>';
+  var head='<tr><th class="ce">#</th><th class="ce">รหัส</th><th class="lft">ชื่อ-นามสกุล</th><th class="lft">แผนก</th>'+QF.map(function(o){return '<th class="ce">'+o[1]+'</th>';}).join('')+'</tr>';
   var rows=us.map(function(u,i){ var q=u.quota||{};
     return '<tr class="mg-tr" data-mgq="'+esc(u.lineUserId)+'"><td class="ce">'+(i+1)+'</td>'+
-      '<td class="lft"><b>'+esc(u.name)+'</b>'+(u.empId?' <span class="mg-sub2">'+esc(u.empId)+'</span>':'')+'</td><td>'+esc(u.dept||'-')+'</td>'+
+      '<td class="mg-sub2 ce">'+esc(u.empId||'-')+'</td>'+
+      '<td class="lft"><b>'+esc(u.name)+'</b></td><td class="lft">'+esc(u.dept||'-')+'</td>'+
       QF.map(function(o){ var v=q[o[0]]; return '<td class="ce">'+(v!=null?mgNum(v):'-')+'</td>'; }).join('')+'</tr>';
   }).join('');
-  box.innerHTML='<div class="mg-tbwrap"><table class="mg-table"><thead>'+head+'</thead><tbody>'+rows+'</tbody></table></div>';
+  box.innerHTML='<div class="mg-tbwrap"><table class="mg-table mg-qt"><thead>'+head+'</thead><tbody>'+rows+'</tbody></table></div>';
   box.querySelectorAll('[data-mgq]').forEach(function(el){ el.addEventListener('click',function(){ openMgQuota(el.dataset.mgq); }); });
 }
 function wireMgFilter(){
@@ -1614,7 +1615,7 @@ function mgRptFilterBar(){
 }
 function mgReportTabHtml(){
   return '<div class="card">'+
-    '<div class="hr-note ok2">📊 สรุปวันลารายคน — เดือนนี้/ในช่วง · สะสมทั้งปี · คงเหลือ · 🔴 ไฮไลต์เกินสิทธิ์</div>'+
+    '<div class="hr-note ok2">📊 สรุปการลา รายคน — เดือนนี้/ในช่วง · สะสมทั้งปี · คงเหลือ · 🔴 ไฮไลต์เกินสิทธิ์</div>'+
     mgRptFilterBar()+
     '<div class="mg-tools" style="justify-content:flex-end"><button class="mg-act export" id="mgRptExportBtn">📤 Export Sheet</button></div>'+
     '<div id="mgReport"><div class="skel" style="height:160px"></div></div>'+
@@ -1647,7 +1648,7 @@ function paintMgReport(){
   var box=document.getElementById('mgReport'); if(!box||!S.mgRptData) return;
   var d=S.mgRptData, ps=d.persons||[], firstLb=esc(d.rangeLabel||'เดือนนี้');
   if(!ps.length){ box.innerHTML=emptyBox('🍃','ไม่มีข้อมูลในช่วงที่เลือก'); return; }
-  var h1='<tr><th rowspan="2" class="ce">#</th><th rowspan="2">รหัส</th><th rowspan="2" class="lft">ชื่อ-นามสกุล</th><th rowspan="2">ฝ่าย</th><th rowspan="2" class="ce">เริ่มงาน</th><th rowspan="2" class="ce">สาขา</th>';
+  var h1='<tr><th rowspan="2" class="ce">#</th><th rowspan="2" class="ce">รหัส</th><th rowspan="2" class="lft">ชื่อ-นามสกุล</th><th rowspan="2" class="lft">แผนก</th><th rowspan="2" class="ce">เริ่มงาน</th><th rowspan="2" class="ce">สาขา</th>';
   var h2='<tr>';
   MG_RPT_TYPES.forEach(function(t){
     h1+='<th colspan="'+(t[2]?3:2)+'" class="grp ce">'+t[1]+'</th>';
@@ -1665,7 +1666,7 @@ function paintMgReport(){
     });
     return '<tr'+(p.retired?' class="rtd"':'')+'><td class="ce">'+(i+1)+'</td><td class="mg-sub2">'+esc(p.empId)+'</td>'+
       '<td class="lft"><b>'+esc(p.name)+'</b>'+(p.retired?' <span class="mg-sub2">(ลาออก)</span>':'')+'</td>'+
-      '<td>'+esc(p.dept||'-')+'</td><td class="mg-sub2 ce">'+esc(p.startWork||'-')+'</td><td class="ce">'+esc(p.branch||'-')+'</td>'+tds+'</tr>';
+      '<td class="lft">'+esc(p.dept||'-')+'</td><td class="mg-sub2 ce">'+esc(p.startWork||'-')+'</td><td class="ce">'+esc(p.branch||'-')+'</td>'+tds+'</tr>';
   }).join('');
   box.innerHTML='<div class="mg-head">📊 '+esc(d.label||'')+' · '+ps.length+' คน <span class="mg-legend">🔴 เกินสิทธิ์ · 🟠 เหลือ≤1 · – ไม่ได้ตั้งโควต้า</span></div>'+
     '<div class="mg-tbwrap"><table class="mg-table mg-rpt"><thead>'+h1+h2+'</thead><tbody>'+rows+'</tbody></table></div>';
@@ -1731,8 +1732,8 @@ function mgRowTable(h){
   var dt=h.startDate+(h.endDate&&h.endDate!==h.startDate?' – '+h.endDate:'');
   var acts='';
   if(grp==='pending') acts+='<button class="mg-ib edit" data-mgedit="'+esc(h.id)+'">✏️ แก้</button>';
-  if(grp==='pending'||grp==='approved') acts+='<button class="mg-ib cx" data-mgcancel="'+esc(h.id)+'">🚫 ยกเลิก</button>';
   if(h.docUrl) acts+='<button class="mg-ib doc" data-mgdoc="'+esc(h.docUrl)+'">📎 แนบ</button>';
+  if(grp==='pending'||grp==='approved') acts+='<button class="mg-ib cx" data-mgcancel="'+esc(h.id)+'">🚫 ยกเลิก</button>';   // ยกเลิกท้ายสุด กันกดพลาด
   if(!acts) acts='<span class="mg-sub2">ปิดแล้ว</span>';
   return '<tr class="mg-tr" data-mgrow="'+esc(h.id)+'">'+
     '<td class="mg-sub2">'+esc(h.submittedAt||'-')+'</td>'+
