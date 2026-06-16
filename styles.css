@@ -352,6 +352,7 @@ textarea:focus,input[type=time]:focus{border-color:var(--red)}
 .badge.wait{background:var(--ot-tint);color:var(--ot)}
 .badge.no{background:var(--red-tint);color:var(--red-deep)}
 .badge.edit{background:#E3F2FD;color:#1565C0}
+.badge.cancel{background:#ECEFF1;color:#607D8B}
 
 /* ── การ์ดสรุปประวัติลา ── */
 .lv-sum{padding:14px 16px}
@@ -522,6 +523,40 @@ textarea:focus,input[type=time]:focus{border-color:var(--red)}
 .help-load{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#fff;
   font-size:14px;font-weight:600}
 .help-frame{flex:1;width:100%;border:none;background:#fff;display:block}
+
+/* ── จัดการการลา (mgleave · เฟส 3) ── */
+.mg-tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:4px 0 10px}
+.mg-srch{flex:1;min-width:160px;font-family:inherit;font-size:14px;padding:9px 12px;
+  border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink)}
+.mg-srch:focus{outline:none;border-color:var(--red)}
+.mg-actions{display:flex;flex-wrap:wrap;gap:8px}
+.mg-act{flex:1 1 auto;border:none;border-radius:11px;padding:11px 12px;font-family:inherit;
+  font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap}
+.mg-act:active{transform:scale(.97)}
+.mg-act.add{background:var(--red);color:#fff}
+.mg-act.quota{background:var(--ot-tint);color:var(--ot)}
+.mg-act.export{background:var(--slate-tint);color:var(--slate)}
+.mg-head{font-size:13px;font-weight:700;color:var(--red-deep);margin-bottom:10px}
+.mg-item{border-bottom:1px solid var(--line);padding-bottom:10px;margin-bottom:10px}
+.mg-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}
+.mg-item .hist{border-bottom:none;padding:0}
+.mg-emp{font-size:11px;font-weight:600;color:var(--muted);background:var(--bg);padding:1px 7px;border-radius:7px}
+.mg-reason{font-size:12.5px;color:var(--muted);margin-top:3px}
+.mg-acts{display:flex;gap:8px;margin-top:8px}
+.mg-acts .pend-btn{flex:1;font-size:13px}
+.mg-full{width:100%;box-sizing:border-box}
+.mg-drow{display:flex;align-items:center;gap:8px}
+.mg-drow .hr-fdate{flex:1}
+.mg-time{margin-top:4px}
+.mg-check{display:flex;align-items:center;gap:8px;margin-top:14px;font-size:13.5px;
+  font-weight:600;color:var(--ink);cursor:pointer}
+.mg-check input{width:18px;height:18px;accent-color:var(--red)}
+.mg-qgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.mg-qf{display:flex;flex-direction:column;gap:4px;font-size:12.5px;font-weight:600;color:var(--muted)}
+.mg-qin{font-family:inherit;font-size:14px;padding:8px 10px;border:1px solid var(--line);
+  border-radius:9px;background:var(--card);color:var(--ink)}
+.mg-qin:focus{outline:none;border-color:var(--red)}
+.mg-link{display:block;margin-top:10px;font-size:12.5px;color:var(--red);word-break:break-all}
 
 /* ── Skeleton ── */
 .skel{background:linear-gradient(90deg,#eef0f4 25%,#f6f7fa 50%,#eef0f4 75%);background-size:200% 100%;

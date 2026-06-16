@@ -41,6 +41,7 @@ var S = {
   otForm:{date:null,start:'',end:'',type:'1',reason:''},
   calLeave:new Date(), calOt:new Date(), histTab:'leave', hrHist:'all', hrHistData:null,   // hrHist=แท็บประวัติแผง HR
   hrSum:{mode:'period',year:null,month:null,from:'',to:''},   // ตัวกรองสรุปแผง HR
+  mgFilter:{mode:'period',year:null,month:null,from:'',to:''}, mgSearch:'', mgStatus:'all', mgData:null, mgUsers:null, mgRoles:null,  // จัดการการลา (เฟส 3)
   editLeaveId:null, editOtId:null, pendingEdit:null, pendingView:null,   // โหมดแก้ไข + deep-link view
   leaveCalMonth:null, leaveCalItems:[], leaveCalSel:null, leaveCalDept:'', leaveCalType:''   // ปฏิทินการลารวม (HR)
 };
@@ -209,7 +210,7 @@ function goTo(view){
 // เปิดเมนู admin ใน sidebar (desktop) ตามสิทธิ์ — มือถือ CSS ซ่อนเสมอ (ใช้ hub link เดิม)
 function setupNavRoles(){
   var p = S.profile || {}, ap = !!p.canApprove, ad = !!p.canAdmin;
-  var roles = {dashboard:ap, leavecal:ap, hr:ap, mgleave:ap, mgot:ap, mgpay:ad, emps:ad, settings:ad};
+  var roles = {dashboard:ap, leavecal:ap, hr:ap, mgleave:ad, mgot:ap, mgpay:ad, emps:ad, settings:ad};
   Object.keys(roles).forEach(function(v){
     var el=document.querySelector('.nav-btn[data-view="'+v+'"]'); if(el) el.classList.toggle('allow', roles[v]); });
   // section label โชว์เฉพาะกลุ่มที่มีปุ่ม visible (desktop)
@@ -278,7 +279,7 @@ function render(){
   else if (S.view==='hr'){ m.innerHTML = '<div class="card"><div class="skel" style="height:120px"></div></div>'; loadHr(); }
   else if (S.view==='leavecal'){ m.innerHTML = viewLeaveCal(); wireLeaveCal(); loadLeaveCal(); }
   else if (S.view==='dashboard'){ m.innerHTML = viewSoon('📊 แดชบอร์ด','วันนี้ใครลา/OT · สถิติเดือนนี้ · จำนวนพนักงาน/แผนก · เข้าใหม่-ลาออก'); }
-  else if (S.view==='mgleave'){ m.innerHTML = viewSoon('📋 จัดการการลา','ดูใบลาทั้งหมด+ค้นหา · แก้/ยกเลิก · ปรับโควต้า · export'); }
+  else if (S.view==='mgleave'){ m.innerHTML = viewMgleave(); wireMgleave(); loadMgleave(); }
   else if (S.view==='mgot'){ m.innerHTML = viewSoon('⏰ จัดการ OT','ดู OT ทั้งหมด · แก้/ยกเลิก · ยอดคำนวณ · export · ส่ง mail/LINE'); }
   else if (S.view==='mgpay'){ m.innerHTML = viewSoon('💰 จัดการ Payroll','dashboard · ยอดรายเดือน · สลิป · คำนวณ · ทะเบียน/ภงด.1ก · กท.20'); }
   else if (S.view==='emps'){ m.innerHTML = viewSoon('👥 พนักงาน','เพิ่ม/แก้/ดูรายชื่อ + ข้อมูล + กะ + โควต้า'); }
@@ -910,6 +911,24 @@ function confirmModal(opts){
   c.querySelector('[data-cfm-ok]').addEventListener('click', function(){ closeConfirm(); opts.onConfirm(); });
 }
 function closeConfirm(){ var c=document.getElementById('confirm'); if(c) c.classList.remove('show'); }
+// modal ฟอร์มทั่วไป (reuse .cfm) — opts:{title,emoji,accent,body,okLabel,onOk(c),onMount(c)}
+// onOk รับ element modal (อ่าน input เอง) · ต้องเรียก closeConfirm() เองหลังสำเร็จ
+function modalForm(opts){
+  var c=document.getElementById('confirm');
+  if(!c){ c=document.createElement('div'); c.id='confirm'; c.className='cfm'; document.body.appendChild(c); }
+  var ac = opts.accent==='ot' ? 'ot' : '';
+  c.innerHTML='<div class="cfm-box">'+
+    '<div class="cfm-head '+ac+'">'+(opts.emoji||'')+' '+esc(opts.title)+'</div>'+
+    '<div class="cfm-body cfm-scroll">'+opts.body+'</div>'+
+    '<div class="cfm-act">'+
+      '<button class="cfm-btn ghost" data-cfm-cancel>✕ ยกเลิก</button>'+
+      '<button class="cfm-btn go '+ac+'" data-cfm-ok>'+(opts.okLabel||'✅ บันทึก')+'</button>'+
+    '</div></div>';
+  c.classList.add('show');
+  c.querySelector('[data-cfm-cancel]').addEventListener('click', closeConfirm);
+  c.querySelector('[data-cfm-ok]').addEventListener('click', function(){ opts.onOk(c); });
+  if(opts.onMount) opts.onMount(c);
+}
 function baht(n){ return (Number(n)||0).toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2})+' ฿'; }
 function baht0(n){ return (Number(n)||0).toLocaleString('th-TH',{maximumFractionDigits:0})+' ฿'; }
 
@@ -1453,6 +1472,263 @@ function renderLeaveCalPanel(key){
   el.innerHTML=head+cards+foot;
 }
 
+// ════════════════════════════════════════════════════════════════
+//  VIEW: จัดการการลา (mgleave · PC HR Console เฟส 3 · ADMIN/OWNER)
+//  list+filter · ✏️ แก้ใบรออนุมัติ · 🚫 ยกเลิก(คืนโควต้า) · ➕ ยื่นแทน · 🎫 โควต้า · 📤 export
+// ════════════════════════════════════════════════════════════════
+// "dd/MM/yyyy(พ.ศ./ค.ศ.)" → "yyyy-MM-dd"(ค.ศ.) สำหรับ prefill input date
+function thaiToIso(s){ var p=String(s||'').split('/'); if(p.length<3) return ''; var d=+p[0],m=+p[1],y=+p[2]; if(y>2500)y-=543; if(!d||!m||!y) return ''; return y+'-'+('0'+m).slice(-2)+'-'+('0'+d).slice(-2); }
+
+function viewMgleave(){
+  if(!(S.profile&&S.profile.canAdmin)) return backBar()+emptyBox('🔒','เฉพาะผู้ดูแลระบบ (ADMIN/OWNER)');
+  return backBar()+
+    '<div class="card">'+
+      '<div class="card-title"><span class="ic"></span>จัดการการลา</div>'+
+      '<div class="hr-note ok2">🗂️ ดู/แก้/ยกเลิกใบลา · ยื่นแทนพนักงาน · ปรับโควต้า · export · ทุกการเปลี่ยนบันทึก audit + แจ้ง LINE</div>'+
+      mgFilterBar()+
+      '<div class="mg-tools">'+
+        '<input type="text" id="mgSearch" class="mg-srch" placeholder="🔎 ค้นชื่อ/รหัสพนักงาน…" value="'+esc(S.mgSearch||'')+'">'+
+        '<select id="mgStatus" class="hr-fsel">'+
+          [['all','ทุกสถานะ'],['pending','รออนุมัติ'],['approved','อนุมัติแล้ว'],['rejected','ไม่อนุมัติ'],['cancel','ยกเลิก']]
+            .map(function(o){return '<option value="'+o[0]+'"'+(S.mgStatus===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('')+
+        '</select>'+
+      '</div>'+
+      '<div class="mg-actions">'+
+        '<button class="mg-act add" id="mgAddBtn">➕ ยื่นลาแทนพนักงาน</button>'+
+        '<button class="mg-act quota" id="mgQuotaBtn">🎫 ปรับโควต้า</button>'+
+        '<button class="mg-act export" id="mgExportBtn">📤 Export</button>'+
+      '</div>'+
+    '</div>'+
+    '<div id="mgList"><div class="card"><div class="skel" style="height:120px"></div></div></div>';
+}
+function mgFilterBar(){
+  var f=S.mgFilter;
+  var modeSel='<select class="hr-fsel" id="mgMode">'+
+    [['period','รอบเดือนนี้ (26–25)'],['month','เลือกเดือน'],['year','เลือกปี'],['range','ช่วงวันที่'],['all','ทั้งหมด']]
+      .map(function(o){return '<option value="'+o[0]+'"'+(f.mode===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('')+'</select>';
+  var nowY=new Date().getFullYear()+543, curM=new Date().getMonth()+1;
+  var yrs=''; for(var y=nowY;y>=nowY-3;y--) yrs+='<option value="'+y+'"'+((f.year||nowY)===y?' selected':'')+'>'+y+'</option>';
+  var TH=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  var mons=''; for(var mo=1;mo<=12;mo++) mons+='<option value="'+mo+'"'+((f.month||curM)===mo?' selected':'')+'>'+TH[mo-1]+'</option>';
+  var inputs='';
+  if(f.mode==='month') inputs='<select class="hr-fsel" id="mgMonth">'+mons+'</select><select class="hr-fsel" id="mgYear">'+yrs+'</select>';
+  else if(f.mode==='year') inputs='<select class="hr-fsel" id="mgYear">'+yrs+'</select>';
+  else if(f.mode==='range') inputs='<input type="date" class="hr-fdate" id="mgFrom" value="'+esc(thaiToIso(f.from))+'"><span class="hr-fdash">–</span><input type="date" class="hr-fdate" id="mgTo" value="'+esc(thaiToIso(f.to))+'">';
+  return '<div class="hr-filter">🔎 '+modeSel+inputs+'<button class="hr-fbtn" id="mgGo">ดูข้อมูล</button></div>';
+}
+function wireMgleave(){
+  bindBack();
+  if(!(S.profile&&S.profile.canAdmin)) return;
+  wireMgFilter();
+  var s=document.getElementById('mgSearch'); if(s) s.addEventListener('input',function(){ S.mgSearch=s.value; paintMgList(); });
+  var st=document.getElementById('mgStatus'); if(st) st.addEventListener('change',function(){ S.mgStatus=st.value; paintMgList(); });
+  var add=document.getElementById('mgAddBtn'); if(add) add.addEventListener('click',openMgProxy);
+  var q=document.getElementById('mgQuotaBtn'); if(q) q.addEventListener('click',openMgQuota);
+  var ex=document.getElementById('mgExportBtn'); if(ex) ex.addEventListener('click',doMgExport);
+}
+function wireMgFilter(){
+  var mode=document.getElementById('mgMode');
+  if(mode) mode.addEventListener('change',function(){ S.mgFilter.mode=mode.value; var bar=document.querySelector('.hr-filter'); if(bar) bar.outerHTML=mgFilterBar(); wireMgFilter(); });
+  var go=document.getElementById('mgGo'); if(go) go.addEventListener('click',loadMgleave);
+}
+function loadMgleave(){
+  if(!(S.profile&&S.profile.canAdmin)) return;
+  var f=S.mgFilter;
+  var my=document.getElementById('mgYear'), mm=document.getElementById('mgMonth');
+  var fr=document.getElementById('mgFrom'), to=document.getElementById('mgTo');
+  if(my) f.year=+my.value; if(mm) f.month=+mm.value;
+  if(fr) f.from=isoToThai(fr.value); if(to) f.to=isoToThai(to.value);
+  if(f.mode==='range' && (!f.from||!f.to)) return toast('เลือกช่วงวันที่ให้ครบค่ะ','err');
+  var box=document.getElementById('mgList'); if(box) box.innerHTML='<div class="card"><div class="skel" style="height:120px"></div></div>';
+  api('mgLeaveList',{mode:f.mode,year:f.year,month:f.month,from:f.from,to:f.to}).then(function(r){
+    if(!r.ok){ if(box) box.innerHTML=emptyBox('🔒',r.error||'โหลดไม่ได้'); return; }
+    S.mgData=r; paintMgList();
+  }).catch(function(e){ if(box) box.innerHTML=emptyBox('😿',String(e.message||e)); });
+  if(!S.mgUsers) api('adminBootstrap',{}).then(function(r){ if(r.ok){ S.mgUsers=r.users; S.mgRoles=r.roles; } }).catch(function(){});
+}
+// จัดกลุ่มสถานะ (สำหรับ filter + ปุ่ม) — pending/approved/rejected/cancel
+function mgStatusGroup(st){
+  st=String(st||'');
+  if(st.indexOf('ยกเลิก')>=0) return 'cancel';
+  if(st.indexOf('ไม่อนุมัติ')>=0) return 'rejected';
+  if(st.indexOf('ส่งกลับ')>=0||st.indexOf('แก้ไข')>=0) return 'pending';
+  if(st.indexOf('รอ')>=0) return 'pending';
+  if(st.indexOf('อนุมัติ')>=0) return 'approved';
+  return 'pending';
+}
+function paintMgList(){
+  var box=document.getElementById('mgList'); if(!box||!S.mgData) return;
+  var q=(S.mgSearch||'').trim().toLowerCase(), sf=S.mgStatus||'all';
+  var list=S.mgData.leaves.filter(function(it){
+    if(sf!=='all' && mgStatusGroup(it.status)!==sf) return false;
+    if(q && String(it.name).toLowerCase().indexOf(q)<0 && String(it.empId).toLowerCase().indexOf(q)<0) return false;
+    return true;
+  });
+  var head='<div class="mg-head">📋 '+esc(S.mgData.label||'')+' · พบ '+list.length+' ใบ'+(S.mgData.count>500?' (แสดง 500 ล่าสุด)':'')+'</div>';
+  box.innerHTML='<div class="card">'+head+(!list.length?emptyBox('🍃','ไม่มีใบลาตามเงื่อนไข'):
+    '<div class="hr-hist">'+list.map(mgRow).join('')+'</div>')+'</div>';
+  box.querySelectorAll('[data-mgedit]').forEach(function(el){ el.addEventListener('click',function(){ openMgEdit(el.dataset.mgedit); }); });
+  box.querySelectorAll('[data-mgcancel]').forEach(function(el){ el.addEventListener('click',function(){ openMgCancel(el.dataset.mgcancel); }); });
+}
+function mgFindLeave(id){ return (S.mgData&&S.mgData.leaves||[]).filter(function(x){return x.id===id;})[0]; }
+function mgRow(h){
+  var grp=mgStatusGroup(h.status);
+  var dt=h.startDate+(h.endDate&&h.endDate!==h.startDate?' — '+h.endDate:'');
+  var acts='';
+  if(grp==='pending') acts='<button class="pend-btn redit" data-mgedit="'+esc(h.id)+'">✏️ แก้ไข</button><button class="pend-btn no" data-mgcancel="'+esc(h.id)+'">🚫 ยกเลิก</button>';
+  else if(grp==='approved') acts='<button class="pend-btn no" data-mgcancel="'+esc(h.id)+'">🚫 ยกเลิก</button>';
+  return '<div class="mg-item"><div class="hist">'+
+    '<div class="hist-ic">'+(TYPE_EMOJI[h.type]||'📋')+'</div>'+
+    '<div class="hist-main"><div class="hist-type">'+esc(h.name)+(h.empId?' <span class="mg-emp">'+esc(h.empId)+'</span>':'')+'</div>'+
+    '<div class="hist-meta"><span>'+esc(h.type)+'</span><span>·</span><span>📅 '+esc(dt)+'</span><span>·</span><span>⏱ '+esc(h.timeDisplay||h.days+' วัน')+'</span>'+
+      (h.dept?'<span>·</span><span>'+esc(h.dept)+'</span>':'')+'</div>'+
+      (h.reason?'<div class="mg-reason">📝 '+esc(h.reason)+'</div>':'')+apprLine(h)+'</div>'+
+    statusBadge(h.status)+'</div>'+
+    (acts?'<div class="mg-acts">'+acts+'</div>':'')+'</div>';
+}
+
+// ── ตัวช่วยฟอร์มลา (ใช้ร่วม แก้ไข + ยื่นแทน) ──
+function mgTypeOptions(sel){
+  var lt=S.leaveTypes||{}, out='';
+  ['sick','biz','vac','bday','special','unpaid'].forEach(function(k){ if(lt[k]) out+='<option value="'+k+'"'+(sel===k?' selected':'')+'>'+lt[k].emoji+' '+esc(lt[k].name)+'</option>'; });
+  return out;
+}
+function mgPeriodOptions(sel){
+  return [['full','เต็มวัน'],['morning','ครึ่งเช้า'],['afternoon','ครึ่งบ่าย'],['hours','ราย ชม.']]
+    .map(function(o){return '<option value="'+o[0]+'"'+(sel===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('');
+}
+function mgEmpOptions(sel){
+  var us=S.mgUsers||[], out='<option value="">— เลือกพนักงาน —</option>';
+  us.filter(function(u){return u.lineUserId;}).sort(function(a,b){return String(a.name||'').localeCompare(String(b.name||''),'th');})
+    .forEach(function(u){ out+='<option value="'+esc(u.lineUserId)+'"'+(sel===u.lineUserId?' selected':'')+'>'+esc(u.name)+(u.empId?' ('+esc(u.empId)+')':'')+'</option>'; });
+  return out;
+}
+function mgLeaveFormBody(o){
+  var emp = o.showEmp ? '<label class="field-lb">👤 พนักงาน</label><select id="mgfEmp" class="hr-fsel mg-full">'+mgEmpOptions(o.empSel)+'</select>' : '';
+  return emp+
+    '<label class="field-lb">📋 ประเภทการลา</label><select id="mgfType" class="hr-fsel mg-full">'+mgTypeOptions(o.type||'vac')+'</select>'+
+    '<label class="field-lb">📅 วันที่ลา</label><div class="mg-drow"><input type="date" class="hr-fdate" id="mgfFrom" value="'+esc(o.fromIso||'')+'"><span class="hr-fdash">–</span><input type="date" class="hr-fdate" id="mgfTo" value="'+esc(o.toIso||'')+'"></div>'+
+    '<label class="field-lb">🕐 ช่วงเวลา</label><select id="mgfPeriod" class="hr-fsel mg-full">'+mgPeriodOptions(o.period||'full')+'</select>'+
+    '<div id="mgfTime" class="mg-time"'+(o.period==='hours'?'':' style="display:none"')+'><label class="field-lb">⏰ เวลา (วันเดียว · สูงสุด 8 ชม.)</label><div class="mg-drow"><input type="time" class="hr-fdate" id="mgfSt" value="'+esc(o.stime||'')+'"><span class="hr-fdash">→</span><input type="time" class="hr-fdate" id="mgfEt" value="'+esc(o.etime||'')+'"></div></div>'+
+    '<label class="field-lb">📝 เหตุผล</label><textarea id="mgfReason" rows="2" placeholder="ระบุเหตุผล (ถ้ามี)…">'+esc(o.reason||'')+'</textarea>';
+}
+function mgWireFormPeriod(c){
+  var ps=c.querySelector('#mgfPeriod'), tm=c.querySelector('#mgfTime');
+  if(ps&&tm) ps.addEventListener('change',function(){ tm.style.display = ps.value==='hours'?'':'none'; });
+}
+function mgReadForm(c){
+  return { type:c.querySelector('#mgfType').value,
+    startDate:isoToThai(c.querySelector('#mgfFrom').value),
+    endDate:isoToThai(c.querySelector('#mgfTo').value||c.querySelector('#mgfFrom').value),
+    period:c.querySelector('#mgfPeriod').value,
+    startTime:(c.querySelector('#mgfSt')||{}).value||'',
+    endTime:(c.querySelector('#mgfEt')||{}).value||'',
+    reason:(c.querySelector('#mgfReason').value||'').trim() };
+}
+
+// 🚫 ยกเลิกใบลา
+function openMgCancel(id){
+  var h=mgFindLeave(id); if(!h) return;
+  var wasApproved=mgStatusGroup(h.status)==='approved';
+  modalForm({ title:'ยกเลิกใบลา', emoji:'🚫', accent:'leave', okLabel:'🚫 ยืนยันยกเลิก',
+    body:'<div class="cfm-row"><span class="cfm-k">พนักงาน</span><span class="cfm-v">'+esc(h.name)+'</span></div>'+
+      '<div class="cfm-row"><span class="cfm-k">ประเภท</span><span class="cfm-v">'+esc(h.type)+'</span></div>'+
+      '<div class="cfm-row"><span class="cfm-k">วันที่</span><span class="cfm-v">'+esc(h.startDate+(h.endDate&&h.endDate!==h.startDate?' — '+h.endDate:''))+'</span></div>'+
+      '<div class="cfm-row"><span class="cfm-k">จำนวน</span><span class="cfm-v">'+esc(h.timeDisplay||h.days+' วัน')+'</span></div>'+
+      (wasApproved?'<div class="hr-note ok2" style="margin:10px 0">♻️ ใบนี้อนุมัติแล้ว — ยกเลิกจะ<b>คืนสิทธิ์ลา '+h.days+' วัน</b>ให้พนักงานอัตโนมัติ</div>':'')+
+      '<label class="field-lb">📝 เหตุผลการยกเลิก (แจ้งพนักงานทาง LINE)</label>'+
+      '<textarea id="mgCxReason" rows="2" placeholder="เช่น พนักงานแจ้งยกเลิก / ลงผิด…"></textarea>',
+    onOk:function(c){
+      var reason=(c.querySelector('#mgCxReason').value||'').trim();
+      var btn=c.querySelector('[data-cfm-ok]'); if(btn){btn.disabled=true;btn.textContent='กำลังยกเลิก…';}
+      api('mgCancelLeave',{leaveId:id,reason:reason}).then(function(r){
+        if(!r.ok){ if(btn){btn.disabled=false;btn.textContent='🚫 ยืนยันยกเลิก';} return toast(r.error||'ยกเลิกไม่สำเร็จ','err'); }
+        closeConfirm(); toast('🚫 ยกเลิกใบลาแล้ว'+(r.restored?' · คืนสิทธิ์ '+r.restored+' วัน':''),'ok'); S.mgData=null; loadMgleave();
+      }).catch(function(e){ if(btn){btn.disabled=false;btn.textContent='🚫 ยืนยันยกเลิก';} toast(String(e.message||e),'err'); });
+    }
+  });
+}
+// ✏️ แก้ใบลา (รออนุมัติ)
+function openMgEdit(id){
+  var h=mgFindLeave(id); if(!h) return;
+  modalForm({ title:'แก้ไขใบลา', emoji:'✏️', accent:'leave', okLabel:'✅ บันทึก',
+    body:'<div class="hr-note ok2" style="margin-bottom:10px">✏️ '+esc(h.name)+' · '+esc(h.id)+' — บันทึกแล้วยังต้องอนุมัติอีกครั้ง</div>'+
+      mgLeaveFormBody({ type:h.typeKey||'vac', period:inferPeriod(h), fromIso:thaiToIso(h.startDate), toIso:thaiToIso(h.endDate), reason:h.reason }),
+    onMount:mgWireFormPeriod,
+    onOk:function(c){
+      var p=mgReadForm(c); if(!p.startDate) return toast('เลือกวันที่ลา','err'); p.leaveId=id;
+      var btn=c.querySelector('[data-cfm-ok]'); if(btn){btn.disabled=true;btn.textContent='กำลังบันทึก…';}
+      api('mgEditLeave',p).then(function(r){
+        if(!r.ok){ if(btn){btn.disabled=false;btn.textContent='✅ บันทึก';} return toast(r.error||'บันทึกไม่สำเร็จ','err'); }
+        closeConfirm(); toast('✏️ แก้ไขใบลาแล้ว · '+r.leaveId,'ok'); S.mgData=null; loadMgleave();
+      }).catch(function(e){ if(btn){btn.disabled=false;btn.textContent='✅ บันทึก';} toast(String(e.message||e),'err'); });
+    }
+  });
+}
+// ➕ ยื่นลาแทนพนักงาน
+function openMgProxy(){
+  if(!S.mgUsers) return toast('กำลังโหลดรายชื่อพนักงาน… ลองอีกครั้งค่ะ');
+  modalForm({ title:'ยื่นลาแทนพนักงาน', emoji:'➕', accent:'leave', okLabel:'➕ ยื่นใบลา',
+    body:mgLeaveFormBody({ showEmp:true, type:'vac', period:'full' })+
+      '<label class="mg-check"><input type="checkbox" id="mgfAuto"><span>✅ อนุมัติเลย (หักโควต้าทันที · ไม่ต้องรออนุมัติ)</span></label>',
+    onMount:mgWireFormPeriod,
+    onOk:function(c){
+      var emp=c.querySelector('#mgfEmp').value; if(!emp) return toast('เลือกพนักงานก่อนค่ะ','err');
+      var p=mgReadForm(c); if(!p.startDate) return toast('เลือกวันที่ลา','err');
+      p.targetUserId=emp; p.autoApprove=c.querySelector('#mgfAuto').checked?'1':'';
+      var btn=c.querySelector('[data-cfm-ok]'); if(btn){btn.disabled=true;btn.textContent='กำลังยื่น…';}
+      api('mgProxySubmit',p).then(function(r){
+        if(!r.ok){ if(btn){btn.disabled=false;btn.textContent='➕ ยื่นใบลา';} return toast(r.error||'ยื่นไม่สำเร็จ','err'); }
+        closeConfirm(); toast((r.approved?'✅ ยื่นแทน+อนุมัติแล้ว · ':'📝 ยื่นแทนแล้ว (รออนุมัติ) · ')+r.leaveId,'ok'); S.mgData=null; loadMgleave();
+      }).catch(function(e){ if(btn){btn.disabled=false;btn.textContent='➕ ยื่นใบลา';} toast(String(e.message||e),'err'); });
+    }
+  });
+}
+// 🎫 ปรับโควต้ารายคน
+function openMgQuota(){
+  if(!S.mgUsers) return toast('กำลังโหลดรายชื่อพนักงาน… ลองอีกครั้งค่ะ');
+  var qf=[['sick','🤒 ลาป่วย'],['biz','🏠 ลากิจ'],['vac','🌴 พักร้อน'],['bday','🎂 วันเกิด'],['special','💝 คนพิเศษ'],['unpaid','📄 ไม่รับค่าจ้าง']];
+  modalForm({ title:'ปรับโควต้าวันลา', emoji:'🎫', accent:'leave', okLabel:'💾 บันทึกโควต้า',
+    body:'<label class="field-lb">👤 พนักงาน</label><select id="mgqEmp" class="hr-fsel mg-full">'+mgEmpOptions('')+'</select>'+
+      '<div class="hr-note" style="margin:10px 0">กรอกเฉพาะช่องที่ต้องการเปลี่ยน (เว้นว่าง=ไม่แก้) · เป็นโควต้า "ทั้งปี"</div>'+
+      '<div class="mg-qgrid">'+qf.map(function(o){return '<label class="mg-qf"><span>'+o[1]+'</span><input type="number" min="0" step="0.5" class="mg-qin" data-q="'+o[0]+'" placeholder="—"></label>';}).join('')+'</div>',
+    onMount:function(c){
+      var sel=c.querySelector('#mgqEmp');
+      sel.addEventListener('change',function(){
+        var u=(S.mgUsers||[]).filter(function(x){return x.lineUserId===sel.value;})[0], q=(u&&u.quota)||{};
+        c.querySelectorAll('.mg-qin').forEach(function(inp){ var k=inp.dataset.q; inp.value=''; inp.placeholder=(q[k]!=null?('ปัจจุบัน '+q[k]):'—'); });
+      });
+    },
+    onOk:function(c){
+      var sel=c.querySelector('#mgqEmp'), u=(S.mgUsers||[]).filter(function(x){return x.lineUserId===sel.value;})[0];
+      if(!u) return toast('เลือกพนักงานก่อนค่ะ','err');
+      var quota={},n=0; c.querySelectorAll('.mg-qin').forEach(function(inp){ if(inp.value!==''){ quota[inp.dataset.q]=+inp.value; n++; } });
+      if(!n) return toast('ยังไม่ได้กรอกช่องไหนเลยค่ะ','err');
+      var btn=c.querySelector('[data-cfm-ok]'); if(btn){btn.disabled=true;btn.textContent='กำลังบันทึก…';}
+      api('setLeaveQuota',{empId:u.empId,quota:quota}).then(function(r){
+        if(!r.ok){ if(btn){btn.disabled=false;btn.textContent='💾 บันทึกโควต้า';} return toast(r.error||'บันทึกไม่สำเร็จ','err'); }
+        closeConfirm(); toast('🎫 ปรับโควต้า '+u.name+' แล้ว ('+r.changed+' รายการ)','ok');
+        S.mgUsers=null; api('adminBootstrap',{}).then(function(rr){ if(rr.ok) S.mgUsers=rr.users; });
+      }).catch(function(e){ if(btn){btn.disabled=false;btn.textContent='💾 บันทึกโควต้า';} toast(String(e.message||e),'err'); });
+    }
+  });
+}
+// 📤 Export → Google Sheet
+function doMgExport(){
+  var f=S.mgFilter;
+  toast('กำลังสร้างรายงาน… (อาจใช้เวลาสักครู่)');
+  api('mgExportLeave',{mode:f.mode,year:f.year,month:f.month,from:f.from,to:f.to}).then(function(r){
+    if(!r.ok) return toast(r.error||'export ไม่สำเร็จ','err');
+    modalForm({ title:'Export สำเร็จ', emoji:'📤', accent:'leave', okLabel:'↗ เปิดรายงาน',
+      body:'<div class="cfm-row"><span class="cfm-k">ช่วง</span><span class="cfm-v">'+esc(r.label||'')+'</span></div>'+
+        '<div class="cfm-row"><span class="cfm-k">จำนวน</span><span class="cfm-v">'+r.count+' ใบ</span></div>'+
+        '<div class="hr-note ok2" style="margin:10px 0">📄 ไฟล์ Google Sheet (ใครมีลิงก์ดูได้) — ⚠️ มีข้อมูลส่วนบุคคล อย่าแชร์นอกทีม HR</div>'+
+        '<a href="'+esc(r.url)+'" target="_blank" rel="noopener" class="mg-link">'+esc(r.url)+'</a>',
+      onOk:function(){ window.open(r.url,'_blank'); closeConfirm(); }
+    });
+  }).catch(function(e){ toast(String(e.message||e),'err'); });
+}
+
 // ════════════ VIEW: SETTINGS (admin · ADMIN/OWNER) ════════════
 function loadSettings(){
   api('adminBootstrap',{}).then(function(r){
@@ -1634,6 +1910,7 @@ function openInfoModal(uid){
 function refresh(){ api('bootstrap',{}).then(function(r){ if(r.ok){ apply(r); if(S.view==='home'||S.view==='profile') render(); } }).catch(function(){}); }
 function statusBadge(st){
   st = String(st||'');
+  if (st.indexOf('ยกเลิก')>=0) return '<span class="badge cancel">🚫 ยกเลิก</span>';
   if (st.indexOf('แก้ไข')>=0 || st.indexOf('ส่งกลับ')>=0) return '<span class="badge edit">✏️ ต้องแก้ไข</span>';
   if (st.indexOf('รอ')>=0) return '<span class="badge wait">⏳ รออนุมัติ</span>';   // "รอการอนุมัติ" — เช็คก่อน (มีคำว่า "อนุมัติ" ข้างใน)
   if (st.indexOf('ไม่อนุมัติ')>=0) return '<span class="badge no">❌ ไม่อนุมัติ</span>';
