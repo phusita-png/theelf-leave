@@ -41,7 +41,8 @@ var S = {
   otForm:{date:null,start:'',end:'',type:'1',reason:''},
   calLeave:new Date(), calOt:new Date(), histTab:'leave', hrHist:'all', hrHistData:null,   // hrHist=แท็บประวัติแผง HR
   hrSum:{mode:'period',year:null,month:null,from:'',to:''},   // ตัวกรองสรุปแผง HR
-  mgFilter:{mode:'period',year:null,month:null,from:'',to:''}, mgSearch:'', mgStatus:'all', mgData:null, mgUsers:null, mgRoles:null,  // จัดการการลา (เฟส 3)
+  mgTab:'report', mgFilter:{mode:'period',year:null,month:null,from:'',to:''}, mgSearch:'', mgStatus:'all', mgData:null, mgUsers:null, mgRoles:null,  // จัดการการลา (เฟส 3)
+  mgRptFilter:{mode:'period',year:null,month:null,from:'',to:''}, mgRptData:null,   // แท็บสรุปรายคน
   editLeaveId:null, editOtId:null, pendingEdit:null, pendingView:null,   // โหมดแก้ไข + deep-link view
   leaveCalMonth:null, leaveCalItems:[], leaveCalSel:null, leaveCalDept:'', leaveCalType:''   // ปฏิทินการลารวม (HR)
 };
@@ -1481,25 +1482,36 @@ function thaiToIso(s){ var p=String(s||'').split('/'); if(p.length<3) return '';
 
 function viewMgleave(){
   if(!(S.profile&&S.profile.canAdmin)) return backBar()+emptyBox('🔒','เฉพาะผู้ดูแลระบบ (ADMIN/OWNER)');
+  var tabs=[['report','📊 สรุปรายคน'],['list','📋 รายการใบลา'],['tools','⚙️ ตั้งค่า']];
   return backBar()+
-    '<div class="card">'+
-      '<div class="card-title"><span class="ic"></span>จัดการการลา</div>'+
-      '<div class="hr-note ok2">🗂️ ดู/แก้/ยกเลิกใบลา · ยื่นแทนพนักงาน · ปรับโควต้า · export · ทุกการเปลี่ยนบันทึก audit + แจ้ง LINE</div>'+
-      mgFilterBar()+
-      '<div class="mg-tools">'+
-        '<input type="text" id="mgSearch" class="mg-srch" placeholder="🔎 ค้นชื่อ/รหัสพนักงาน…" value="'+esc(S.mgSearch||'')+'">'+
-        '<select id="mgStatus" class="hr-fsel">'+
-          [['all','ทุกสถานะ'],['pending','รออนุมัติ'],['approved','อนุมัติแล้ว'],['rejected','ไม่อนุมัติ'],['cancel','ยกเลิก']]
-            .map(function(o){return '<option value="'+o[0]+'"'+(S.mgStatus===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('')+
-        '</select>'+
-      '</div>'+
-      '<div class="mg-actions">'+
-        '<button class="mg-act add" id="mgAddBtn">➕ ยื่นลาแทนพนักงาน</button>'+
-        '<button class="mg-act quota" id="mgQuotaBtn">🎫 ปรับโควต้า</button>'+
-        '<button class="mg-act export" id="mgExportBtn">📤 Export</button>'+
-      '</div>'+
+    '<div class="mg-tabs">'+tabs.map(function(t){return '<button class="mg-tab'+(S.mgTab===t[0]?' on':'')+'" data-mgtab="'+t[0]+'">'+t[1]+'</button>';}).join('')+'</div>'+
+    '<div id="mgTab"></div>';
+}
+// ── แท็บ 📋 รายการใบลา ──
+function mgListTabHtml(){
+  return '<div class="card">'+
+    '<div class="hr-note ok2">📋 ดู/แก้/ยกเลิกใบลารายใบ · คลิกแถวดูรายละเอียด</div>'+
+    mgFilterBar()+
+    '<div class="mg-tools">'+
+      '<input type="text" id="mgSearch" class="mg-srch" placeholder="🔎 ค้นชื่อ/รหัสพนักงาน…" value="'+esc(S.mgSearch||'')+'">'+
+      '<select id="mgStatus" class="hr-fsel">'+
+        [['all','ทุกสถานะ'],['pending','รออนุมัติ'],['approved','อนุมัติแล้ว'],['rejected','ไม่อนุมัติ'],['cancel','ยกเลิก']]
+          .map(function(o){return '<option value="'+o[0]+'"'+(S.mgStatus===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('')+
+      '</select>'+
+      '<button class="mg-act export" id="mgExportBtn">📤 Export</button>'+
     '</div>'+
-    '<div id="mgList"><div class="card"><div class="skel" style="height:120px"></div></div></div>';
+  '</div>'+
+  '<div id="mgList"><div class="card"><div class="skel" style="height:120px"></div></div></div>';
+}
+// ── แท็บ ⚙️ ตั้งค่า (ยื่นแทน · โควต้า) ──
+function mgToolsTabHtml(){
+  return '<div class="card">'+
+    '<div class="hr-note ok2">⚙️ เครื่องมือจัดการ — ทุกการกระทำบันทึก audit + แจ้ง LINE พนักงาน</div>'+
+    '<div class="mg-toolgrid">'+
+      '<button class="mg-tool add" id="mgAddBtn"><b>➕ ยื่นลาแทนพนักงาน</b><span>เลือกคน + กรอกใบลา · ติ๊ก "อนุมัติเลย" ได้</span></button>'+
+      '<button class="mg-tool quota" id="mgQuotaBtn"><b>🎫 ปรับโควต้าวันลา</b><span>แก้โควต้าทั้งปีรายคน 6 ประเภท</span></button>'+
+    '</div>'+
+  '</div>';
 }
 function mgFilterBar(){
   var f=S.mgFilter;
@@ -1519,16 +1531,32 @@ function mgFilterBar(){
 function wireMgleave(){
   bindBack();
   if(!(S.profile&&S.profile.canAdmin)) return;
+  document.querySelectorAll('[data-mgtab]').forEach(function(el){ el.addEventListener('click',function(){ switchMgTab(el.dataset.mgtab); }); });
+  switchMgTab(S.mgTab||'report');
+}
+function switchMgTab(tab){
+  S.mgTab=tab;
+  document.querySelectorAll('[data-mgtab]').forEach(function(el){ el.classList.toggle('on', el.dataset.mgtab===tab); });
+  var box=document.getElementById('mgTab'); if(!box) return;
+  if(tab==='list'){ box.innerHTML=mgListTabHtml(); wireMgListTab(); loadMgleave(); }
+  else if(tab==='tools'){ box.innerHTML=mgToolsTabHtml(); wireMgToolsTab(); ensureMgUsers(); }
+  else { box.innerHTML=mgReportTabHtml(); wireMgReportTab(); loadMgReport(); }
+}
+function ensureMgUsers(){ if(!S.mgUsers) api('adminBootstrap',{}).then(function(r){ if(r.ok){ S.mgUsers=r.users; S.mgRoles=r.roles; } }).catch(function(){}); }
+function wireMgListTab(){
   wireMgFilter();
   var s=document.getElementById('mgSearch'); if(s) s.addEventListener('input',function(){ S.mgSearch=s.value; paintMgList(); });
   var st=document.getElementById('mgStatus'); if(st) st.addEventListener('change',function(){ S.mgStatus=st.value; paintMgList(); });
+  var ex=document.getElementById('mgExportBtn'); if(ex) ex.addEventListener('click',doMgExport);
+  ensureMgUsers();
+}
+function wireMgToolsTab(){
   var add=document.getElementById('mgAddBtn'); if(add) add.addEventListener('click',openMgProxy);
   var q=document.getElementById('mgQuotaBtn'); if(q) q.addEventListener('click',openMgQuota);
-  var ex=document.getElementById('mgExportBtn'); if(ex) ex.addEventListener('click',doMgExport);
 }
 function wireMgFilter(){
   var mode=document.getElementById('mgMode');
-  if(mode) mode.addEventListener('change',function(){ S.mgFilter.mode=mode.value; var bar=document.querySelector('.hr-filter'); if(bar) bar.outerHTML=mgFilterBar(); wireMgFilter(); });
+  if(mode) mode.addEventListener('change',function(){ S.mgFilter.mode=mode.value; var bar=document.querySelector('#mgTab .hr-filter'); if(bar) bar.outerHTML=mgFilterBar(); wireMgFilter(); });
   var go=document.getElementById('mgGo'); if(go) go.addEventListener('click',loadMgleave);
 }
 function loadMgleave(){
@@ -1544,7 +1572,95 @@ function loadMgleave(){
     if(!r.ok){ if(box) box.innerHTML=emptyBox('🔒',r.error||'โหลดไม่ได้'); return; }
     S.mgData=r; paintMgList();
   }).catch(function(e){ if(box) box.innerHTML=emptyBox('😿',String(e.message||e)); });
-  if(!S.mgUsers) api('adminBootstrap',{}).then(function(r){ if(r.ok){ S.mgUsers=r.users; S.mgRoles=r.roles; } }).catch(function(){});
+}
+
+// ════════════ แท็บ 📊 สรุปวันลารายคน (matrix) ════════════
+var MG_RPT_TYPES=[['sick','🤒 ป่วย',true],['biz','📋 กิจ',true],['vac','🌴 พักร้อน',true],['bday','🎂 วันเกิด',true],['bdaysp','🎁 คนพิเศษ',true],['deduct','💸 ลาหักเงิน',false]];
+function mgNum(n){ n=Number(n)||0; return n%1===0?String(n):n.toFixed(2).replace(/0+$/,'').replace(/\.$/,''); }
+function mgRptFilterBar(){
+  var f=S.mgRptFilter;
+  var modeSel='<select class="hr-fsel" id="mgrMode">'+
+    [['period','รอบเดือนนี้ (26–25)'],['month','เลือกเดือน'],['year','เลือกปี'],['range','ช่วงวันที่']]
+      .map(function(o){return '<option value="'+o[0]+'"'+(f.mode===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('')+'</select>';
+  var nowY=new Date().getFullYear()+543, curM=new Date().getMonth()+1;
+  var yrs=''; for(var y=nowY;y>=nowY-3;y--) yrs+='<option value="'+y+'"'+((f.year||nowY)===y?' selected':'')+'>'+y+'</option>';
+  var TH=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  var mons=''; for(var mo=1;mo<=12;mo++) mons+='<option value="'+mo+'"'+((f.month||curM)===mo?' selected':'')+'>'+TH[mo-1]+'</option>';
+  var inputs='';
+  if(f.mode==='month') inputs='<select class="hr-fsel" id="mgrMonth">'+mons+'</select><select class="hr-fsel" id="mgrYear">'+yrs+'</select>';
+  else if(f.mode==='year') inputs='<select class="hr-fsel" id="mgrYear">'+yrs+'</select>';
+  else if(f.mode==='range') inputs='<input type="date" class="hr-fdate" id="mgrFrom" value="'+esc(thaiToIso(f.from))+'"><span class="hr-fdash">–</span><input type="date" class="hr-fdate" id="mgrTo" value="'+esc(thaiToIso(f.to))+'">';
+  return '<div class="hr-filter">🔎 '+modeSel+inputs+'<button class="hr-fbtn" id="mgrGo">ดูข้อมูล</button></div>';
+}
+function mgReportTabHtml(){
+  return '<div class="card">'+
+    '<div class="hr-note ok2">📊 สรุปวันลารายคน — เดือนนี้/ในช่วง · สะสมทั้งปี · คงเหลือ · 🔴 ไฮไลต์เกินสิทธิ์</div>'+
+    mgRptFilterBar()+
+    '<div class="mg-tools" style="justify-content:flex-end"><button class="mg-act export" id="mgRptExportBtn">📤 Export Sheet</button></div>'+
+    '<div id="mgReport"><div class="skel" style="height:160px"></div></div>'+
+  '</div>';
+}
+function wireMgReportTab(){
+  var ex=document.getElementById('mgRptExportBtn'); if(ex) ex.addEventListener('click',doMgReportExport);
+  wireMgrFilter();
+}
+function wireMgrFilter(){
+  var mode=document.getElementById('mgrMode');
+  if(mode) mode.addEventListener('change',function(){ S.mgRptFilter.mode=mode.value; var bar=document.querySelector('#mgTab .hr-filter'); if(bar) bar.outerHTML=mgRptFilterBar(); wireMgrFilter(); });
+  var go=document.getElementById('mgrGo'); if(go) go.addEventListener('click',loadMgReport);
+}
+function loadMgReport(){
+  if(!(S.profile&&S.profile.canAdmin)) return;
+  var f=S.mgRptFilter;
+  var my=document.getElementById('mgrYear'), mm=document.getElementById('mgrMonth');
+  var fr=document.getElementById('mgrFrom'), to=document.getElementById('mgrTo');
+  if(my) f.year=+my.value; if(mm) f.month=+mm.value;
+  if(fr) f.from=isoToThai(fr.value); if(to) f.to=isoToThai(to.value);
+  if(f.mode==='range' && (!f.from||!f.to)) return toast('เลือกช่วงวันที่ให้ครบค่ะ','err');
+  var box=document.getElementById('mgReport'); if(box) box.innerHTML='<div class="skel" style="height:160px"></div>';
+  api('mgLeaveReport',{mode:f.mode,year:f.year,month:f.month,from:f.from,to:f.to}).then(function(r){
+    if(!r.ok){ if(box) box.innerHTML=emptyBox('🔒',r.error||'โหลดไม่ได้'); return; }
+    S.mgRptData=r; paintMgReport();
+  }).catch(function(e){ if(box) box.innerHTML=emptyBox('😿',String(e.message||e)); });
+}
+function paintMgReport(){
+  var box=document.getElementById('mgReport'); if(!box||!S.mgRptData) return;
+  var d=S.mgRptData, ps=d.persons||[], firstLb=esc(d.rangeLabel||'เดือนนี้');
+  if(!ps.length){ box.innerHTML=emptyBox('🍃','ไม่มีข้อมูลในช่วงที่เลือก'); return; }
+  var h1='<tr><th rowspan="2" class="ce">#</th><th rowspan="2">รหัส</th><th rowspan="2" class="lft">ชื่อ-นามสกุล</th><th rowspan="2">ฝ่าย</th><th rowspan="2" class="ce">เริ่มงาน</th><th rowspan="2" class="ce">สาขา</th>';
+  var h2='<tr>';
+  MG_RPT_TYPES.forEach(function(t){
+    h1+='<th colspan="'+(t[2]?3:2)+'" class="grp ce">'+t[1]+'</th>';
+    h2+='<th class="sub ce">'+firstLb+'</th><th class="sub ce">สะสม</th>'+(t[2]?'<th class="sub ce">เหลือ</th>':'');
+  });
+  h1+='</tr>'; h2+='</tr>';
+  var rows=ps.map(function(p,i){
+    var tds='';
+    MG_RPT_TYPES.forEach(function(t){
+      var k=t[0], inr=Number(p.inRange[k])||0, ytd=Number(p.ytd[k])||0;
+      tds+='<td class="ce">'+(inr?'<b>'+mgNum(inr)+'</b>':'')+'</td><td class="ce">'+(ytd?mgNum(ytd):'')+'</td>';
+      if(t[2]){ var q=Number(p.quota[k])||0, rem=q-ytd, cls=rem<0?'neg':(q>0&&rem<=1?'low':''); tds+='<td class="ce '+cls+'">'+(q?mgNum(rem):'')+'</td>'; }
+    });
+    return '<tr'+(p.retired?' class="rtd"':'')+'><td class="ce">'+(i+1)+'</td><td class="mg-sub2">'+esc(p.empId)+'</td>'+
+      '<td class="lft"><b>'+esc(p.name)+'</b>'+(p.retired?' <span class="mg-sub2">(ลาออก)</span>':'')+'</td>'+
+      '<td>'+esc(p.dept||'-')+'</td><td class="mg-sub2 ce">'+esc(p.startWork||'-')+'</td><td class="ce">'+esc(p.branch||'-')+'</td>'+tds+'</tr>';
+  }).join('');
+  box.innerHTML='<div class="mg-head">📊 '+esc(d.label||'')+' · '+ps.length+' คน</div>'+
+    '<div class="mg-tbwrap"><table class="mg-table mg-rpt"><thead>'+h1+h2+'</thead><tbody>'+rows+'</tbody></table></div>';
+}
+function doMgReportExport(){
+  var f=S.mgRptFilter;
+  toast('กำลังสร้างรายงาน… (อาจใช้เวลาสักครู่)');
+  api('mgReportExport',{mode:f.mode,year:f.year,month:f.month,from:f.from,to:f.to}).then(function(r){
+    if(!r.ok) return toast(r.error||'export ไม่สำเร็จ','err');
+    modalForm({ title:'Export สำเร็จ', emoji:'📤', accent:'leave', okLabel:'↗ เปิดรายงาน',
+      body:'<div class="cfm-row"><span class="cfm-k">รายงาน</span><span class="cfm-v">'+esc(r.label||'')+'</span></div>'+
+        '<div class="cfm-row"><span class="cfm-k">พนักงาน</span><span class="cfm-v">'+r.count+' คน</span></div>'+
+        '<div class="hr-note ok2" style="margin:10px 0">📄 Google Sheet (ใครมีลิงก์ดูได้) — ⚠️ ข้อมูลส่วนบุคคล อย่าแชร์นอกทีม HR</div>'+
+        '<a href="'+esc(r.url)+'" target="_blank" rel="noopener" class="mg-link">'+esc(r.url)+'</a>',
+      onOk:function(){ window.open(r.url,'_blank'); closeConfirm(); }
+    });
+  }).catch(function(e){ toast(String(e.message||e),'err'); });
 }
 // จัดกลุ่มสถานะ (สำหรับ filter + ปุ่ม) — pending/approved/rejected/cancel
 function mgStatusGroup(st){
