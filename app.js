@@ -2135,7 +2135,40 @@ function otToolsTabHtml(){
       '<button class="mg-tool" id="otSendBtn"><b>📤 ส่งสรุป OT (Doc + LINE)</b><span>สร้างใบสรุปรายคน + ส่ง LINE + แชร์เอกสารตามอีเมล · กันส่งซ้ำ</span></button>'+
     '</div>'+
     '<div class="hr-note" style="margin-top:12px">🔄 ลำดับ: <b>คำนวณรอบ</b> ก่อน → ตรวจในชีต → <b>ส่งสรุป</b> · ⚠️ แก้/ยกเลิก OT หลังคำนวณ ต้องกดคำนวณรอบใหม่ + import payroll ใหม่</div>'+
+  '</div>'+
+  '<div id="otToolsResult"></div>';
+}
+function _otSt(s){ var m={sent:['#e8f5e9','#2e7d32','✅ ส่งแล้ว'],skipped:['#eceff1','#546e7a','⏭ ข้าม (ส่งแล้ว)'],noLine:['#fff3e0','#e65100','⚠️ ไม่มี LINE'],fail:['#ffebee','#c62828','❌ ล้มเหลว']};
+  var c=m[s]||m.fail; return '<span style="display:inline-block;padding:2px 8px;border-radius:8px;font-size:12px;font-weight:700;background:'+c[0]+';color:'+c[1]+'">'+c[2]+'</span>'; }
+function renderOtCalcResult(r){
+  var box=document.getElementById('otToolsResult'); if(!box) return;
+  var ps=r.persons||[];
+  var rows=ps.map(function(e,i){ return '<tr'+(e.dup?' style="background:#fff8e1"':'')+'><td class="ce">'+(i+1)+'</td><td class="lft"><b>'+esc(e.name)+'</b>'+(e.dup?' ⚠':'')+'</td><td class="lft">'+esc(e.dept||'-')+'</td>'+
+    '<td class="ce">'+e.count+'</td><td class="ce">'+mgNum(e.hours)+'</td><td class="ce">'+mgNum(e.h1)+'</td><td class="ce">'+mgNum(e.h15)+'</td><td class="ce">'+mgNum(e.h3)+'</td><td class="ce"><b>'+_otMoney(e.total)+'</b></td></tr>'; }).join('');
+  box.innerHTML='<div class="card">'+
+    '<div class="hr-note ok2">🧮 คำนวณรอบ <b>'+esc(r.label||'')+'</b> เสร็จ · '+r.empCount+' คน · '+r.recCount+' รายการ'+(r.dupCount?(' · <b style="color:#c0392b">⚠ ซ้ำ '+r.dupCount+' — ตรวจสอบ</b>'):'')+'</div>'+
+    '<div class="mg-head">🗂️ เขียนลงชีต "'+esc(r.sheetName||'')+'" (OT SS) · payroll ดึงต่อได้'+(r.sheetUrl?(' <a href="'+esc(r.sheetUrl)+'" target="_blank" rel="noopener">เปิดชีต ↗</a>'):'')+'</div>'+
+    '<div class="mg-tbwrap"><table class="mg-table mg-rpt"><thead><tr><th class="ce">#</th><th class="lft">ชื่อ</th><th class="lft">แผนก</th><th class="ce">ใบ</th><th class="ce">ชม.</th><th class="ce">1x</th><th class="ce">1.5x</th><th class="ce">3x</th><th class="ce">รวมเงิน</th></tr></thead><tbody>'+rows+
+    '<tr class="ot-tot"><td colspan="3" class="lft"><b>รวมทั้งหมด</b></td><td class="ce"><b>'+r.recCount+'</b></td><td class="ce"></td><td class="ce"></td><td class="ce"></td><td class="ce"></td><td class="ce"><b>'+_otMoney(r.grandTotal)+'</b></td></tr>'+
+    '</tbody></table></div>'+
+    '<div class="hr-note" style="margin-top:10px">✔️ ตรวจถูกต้อง → กด <b>📤 ส่งสรุป OT</b> ด้านบน เพื่อส่ง Doc + LINE ให้พนักงาน</div>'+
   '</div>';
+  if(box.scrollIntoView) box.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function renderOtSendResult(r){
+  var box=document.getElementById('otToolsResult'); if(!box) return;
+  var ds=r.details||[];
+  var rows=ds.map(function(e,i){ return '<tr><td class="ce">'+(i+1)+'</td><td class="lft"><b>'+esc(e.name)+'</b></td><td class="lft">'+esc(e.dept||'-')+'</td>'+
+    '<td class="ce">'+_otMoney(e.total)+'</td><td class="ce">'+_otSt(e.status)+'</td>'+
+    '<td class="ce">'+(e.docUrl?('<a href="'+esc(e.docUrl)+'" target="_blank" rel="noopener">📄 Doc</a>'):'-')+'</td>'+
+    '<td class="ce">'+(e.hasEmail?'📧':'<span class="muted2">—</span>')+'</td></tr>'; }).join('');
+  box.innerHTML='<div class="card">'+
+    '<div class="hr-note '+(r.fail?'':'ok2')+'">📤 ส่งสรุป <b>'+esc(r.label||'')+'</b> · ✅ ส่ง '+r.sent+' คน'+(r.skipped?(' · ⏭ ข้าม '+r.skipped):'')+(r.noLine?(' · ⚠️ ไม่มี LINE '+r.noLine):'')+(r.fail?(' · ❌ ล้มเหลว '+r.fail):'')+'</div>'+
+    '<div class="mg-tbwrap"><table class="mg-table mg-rpt"><thead><tr><th class="ce">#</th><th class="lft">ชื่อ</th><th class="lft">แผนก</th><th class="ce">ยอด OT</th><th class="ce">สถานะ</th><th class="ce">เอกสาร</th><th class="ce">อีเมล</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
+    (r.noLine?'<div class="hr-note" style="margin-top:10px">⚠️ "ไม่มี LINE" = พนักงานยังไม่ได้ผูก LINE → ให้ลงทะเบียนก่อน แล้วกดส่งซ้ำ (ติ๊ก force)</div>':'')+
+    (r.skipped?'<div class="hr-note" style="margin-top:8px">⏭ "ข้าม" = เคยส่งไปแล้ว · ถ้าต้องการส่งใหม่ ติ๊ก 🔁 force</div>':'')+
+  '</div>';
+  if(box.scrollIntoView) box.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 function wireOtToolsTab(){
   var a=document.getElementById('otAddBtn'); if(a) a.addEventListener('click',openOtProxy);
@@ -2168,7 +2201,7 @@ function openOtCalcRound(){
     onOk:function(c){ var mo=+c.querySelector('#mgotMon').value, yr=+c.querySelector('#mgotYr').value;
       var btn=c.querySelector('[data-cfm-ok]'); if(btn){btn.disabled=true;btn.textContent='⏳ กำลังคำนวณ…';}
       api('mgOtCalcRound',{month:mo,year:yr}).then(function(r){ if(!r.ok){ if(btn){btn.disabled=false;btn.textContent='🧮 คำนวณรอบ';} return toast(r.error||'คำนวณไม่สำเร็จ','err'); }
-        closeConfirm(); toast('🧮 คำนวณรอบ '+r.label+' แล้ว · '+r.empCount+' คน · '+r.recCount+' รายการ'+(r.dupCount?(' · ⚠ ซ้ำ '+r.dupCount):''),'ok');
+        closeConfirm(); renderOtCalcResult(r); toast('🧮 คำนวณรอบ '+r.label+' แล้ว · '+r.empCount+' คน','ok');
       }).catch(function(e){ if(btn){btn.disabled=false;btn.textContent='🧮 คำนวณรอบ';} toast(String(e.message||e),'err'); }); }
   });
 }
@@ -2181,8 +2214,7 @@ function openOtSendSummary(){
     onOk:function(c){ var mo=+c.querySelector('#mgotMon').value, yr=+c.querySelector('#mgotYr').value, force=c.querySelector('#mgotForce').checked?'1':'';
       var btn=c.querySelector('[data-cfm-ok]'); if(btn){btn.disabled=true;btn.textContent='⏳ กำลังส่ง…';}
       api('mgOtSendSummary',{month:mo,year:yr,force:force}).then(function(r){ if(!r.ok){ if(btn){btn.disabled=false;btn.textContent='📤 ส่งสรุป';} return toast(r.error||'ส่งไม่สำเร็จ','err'); }
-        closeConfirm(); var msg='📤 '+r.label+' · ส่ง '+r.sent+' คน'+(r.skipped?(' · ข้าม(ส่งแล้ว) '+r.skipped):'')+(r.noLine?(' · ไม่มี LINE '+r.noLine):'')+(r.fail?(' · ล้มเหลว '+r.fail):'');
-        toast(msg, r.fail?'err':'ok');
+        closeConfirm(); renderOtSendResult(r); toast('📤 ส่งสรุป '+r.label+' · ส่ง '+r.sent+' คน', r.fail?'err':'ok');
       }).catch(function(e){ if(btn){btn.disabled=false;btn.textContent='📤 ส่งสรุป';} toast(String(e.message||e),'err'); }); }
   });
 }
