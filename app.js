@@ -2131,14 +2131,15 @@ function otToolsTabHtml(){
     '<div class="hr-note ok2">⚙️ เครื่องมือจัดการ OT — บันทึก audit + แจ้ง LINE พนักงาน</div>'+
     '<div class="mg-toolgrid">'+
       '<button class="mg-tool add" id="otAddBtn"><b>➕ ยื่น OT แทนพนักงาน</b><span>เลือกคน + กรอกวันเวลา · ติ๊ก "อนุมัติเลย" ได้</span></button>'+
-      '<button class="mg-tool" id="otCalcBtn"><b>🧮 คำนวณรอบ OT</b><span>เลือกเดือน (รอบ 26–25) → เขียนชีต "การคำนวณ OT" ให้ payroll ดึงต่อ</span></button>'+
-      '<button class="mg-tool" id="otSendBtn"><b>📤 ส่งสรุป OT (Doc + LINE)</b><span>สร้างใบสรุปรายคน + ส่ง LINE + แชร์เอกสารตามอีเมล · กันส่งซ้ำ</span></button>'+
+      '<button class="mg-tool" id="otCalcBtn"><b>🧮 1. คำนวณรอบ OT</b><span>เลือกเดือน (รอบ 26–25) → เขียนชีต "การคำนวณ OT" ให้ payroll ดึงต่อ</span></button>'+
+      '<button class="mg-tool" id="otGenBtn"><b>📄 2. สร้างเอกสารสรุป</b><span>สร้างใบสรุป OT รายคน → เปิดตรวจก่อนส่ง · ยังไม่ส่ง LINE</span></button>'+
+      '<button class="mg-tool" id="otSendBtn"><b>📤 3. ส่ง LINE สรุป</b><span>หลังตรวจเอกสาร → ส่ง LINE + แชร์ตามอีเมล · กันส่งซ้ำ</span></button>'+
     '</div>'+
-    '<div class="hr-note" style="margin-top:12px">🔄 ลำดับ: <b>คำนวณรอบ</b> ก่อน → ตรวจในชีต → <b>ส่งสรุป</b> · ⚠️ แก้/ยกเลิก OT หลังคำนวณ ต้องกดคำนวณรอบใหม่ + import payroll ใหม่</div>'+
+    '<div class="hr-note" style="margin-top:12px">🔄 ลำดับปลอดภัย: <b>1.คำนวณรอบ</b> → <b>2.สร้างเอกสาร</b> (เปิดตรวจ) → <b>3.ส่ง LINE</b> · ⚠️ แก้/ยกเลิก OT หลังคำนวณ ต้องกดคำนวณรอบใหม่ + import payroll ใหม่</div>'+
   '</div>'+
   '<div id="otToolsResult"></div>';
 }
-function _otSt(s){ var m={sent:['#e8f5e9','#2e7d32','✅ ส่งแล้ว'],skipped:['#eceff1','#546e7a','⏭ ข้าม (ส่งแล้ว)'],noLine:['#fff3e0','#e65100','⚠️ ไม่มี LINE'],fail:['#ffebee','#c62828','❌ ล้มเหลว']};
+function _otSt(s){ var m={sent:['#e8f5e9','#2e7d32','✅ ส่งแล้ว'],skipped:['#eceff1','#546e7a','⏭ ข้าม (ส่งแล้ว)'],noLine:['#fff3e0','#e65100','⚠️ ไม่มี LINE'],noDoc:['#fff3e0','#e65100','📄 ยังไม่มีเอกสาร'],created:['#e3f2fd','#1565c0','🆕 สร้างใหม่'],existing:['#eceff1','#546e7a','✓ มีอยู่แล้ว'],fail:['#ffebee','#c62828','❌ ล้มเหลว']};
   var c=m[s]||m.fail; return '<span style="display:inline-block;padding:2px 8px;border-radius:8px;font-size:12px;font-weight:700;background:'+c[0]+';color:'+c[1]+'">'+c[2]+'</span>'; }
 function renderOtCalcResult(r){
   var box=document.getElementById('otToolsResult'); if(!box) return;
@@ -2163,9 +2164,10 @@ function renderOtSendResult(r){
     '<td class="ce">'+(e.docUrl?('<a href="'+esc(e.docUrl)+'" target="_blank" rel="noopener">📄 Doc</a>'):'-')+'</td>'+
     '<td class="ce">'+(e.hasEmail?'📧':'<span class="muted2">—</span>')+'</td></tr>'; }).join('');
   box.innerHTML='<div class="card">'+
-    '<div class="hr-note '+(r.fail?'':'ok2')+'">📤 ส่งสรุป <b>'+esc(r.label||'')+'</b> · ✅ ส่ง '+r.sent+' คน'+(r.skipped?(' · ⏭ ข้าม '+r.skipped):'')+(r.noLine?(' · ⚠️ ไม่มี LINE '+r.noLine):'')+(r.fail?(' · ❌ ล้มเหลว '+r.fail):'')+'</div>'+
+    '<div class="hr-note '+(r.fail?'':'ok2')+'">📤 ส่ง LINE <b>'+esc(r.label||'')+'</b> · ✅ ส่ง '+r.sent+' คน'+(r.skipped?(' · ⏭ ข้าม '+r.skipped):'')+(r.noDoc?(' · 📄 ยังไม่มีเอกสาร '+r.noDoc):'')+(r.noLine?(' · ⚠️ ไม่มี LINE '+r.noLine):'')+(r.fail?(' · ❌ ล้มเหลว '+r.fail):'')+'</div>'+
     '<div class="mg-tbwrap"><table class="mg-table mg-rpt"><thead><tr><th class="ce">#</th><th class="lft">ชื่อ</th><th class="lft">แผนก</th><th class="ce">ยอด OT</th><th class="ce">สถานะ</th><th class="ce">เอกสาร</th><th class="ce">อีเมล</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
-    (r.noLine?'<div class="hr-note" style="margin-top:10px">⚠️ "ไม่มี LINE" = พนักงานยังไม่ได้ผูก LINE → ให้ลงทะเบียนก่อน แล้วกดส่งซ้ำ (ติ๊ก force)</div>':'')+
+    (r.noDoc?'<div class="hr-note" style="margin-top:10px">📄 "ยังไม่มีเอกสาร" = กด "📄 2. สร้างเอกสาร" ก่อน แล้วค่อยส่ง LINE อีกครั้ง</div>':'')+
+    (r.noLine?'<div class="hr-note" style="margin-top:8px">⚠️ "ไม่มี LINE" = พนักงานยังไม่ได้ผูก LINE → ให้ลงทะเบียนก่อน แล้วกดส่งซ้ำ (ติ๊ก force)</div>':'')+
     (r.skipped?'<div class="hr-note" style="margin-top:8px">⏭ "ข้าม" = เคยส่งไปแล้ว · ถ้าต้องการส่งใหม่ ติ๊ก 🔁 force</div>':'')+
   '</div>';
   if(box.scrollIntoView) box.scrollIntoView({behavior:'smooth',block:'nearest'});
@@ -2173,6 +2175,7 @@ function renderOtSendResult(r){
 function wireOtToolsTab(){
   var a=document.getElementById('otAddBtn'); if(a) a.addEventListener('click',openOtProxy);
   var b=document.getElementById('otCalcBtn'); if(b) b.addEventListener('click',openOtCalcRound);
+  var gd=document.getElementById('otGenBtn'); if(gd) gd.addEventListener('click',openOtGenDocs);
   var s=document.getElementById('otSendBtn'); if(s) s.addEventListener('click',openOtSendSummary);
 }
 // เลือกเดือน-ปี (รอบ 26–25) + preview รอบ/ชื่อชีต
@@ -2205,9 +2208,35 @@ function openOtCalcRound(){
       }).catch(function(e){ if(btn){btn.disabled=false;btn.textContent='🧮 คำนวณรอบ';} toast(String(e.message||e),'err'); }); }
   });
 }
+function openOtGenDocs(){
+  modalForm({ title:'สร้างเอกสารสรุป OT', emoji:'📄', accent:'ot', okLabel:'📄 สร้างเอกสาร',
+    body:'<div class="hr-note ok2" style="margin-bottom:10px">สร้างใบสรุป OT รายคน (Google Doc) เพื่อ<b>เปิดตรวจก่อนส่ง</b> · ยังไม่ส่ง LINE · ต้องคำนวณรอบก่อน</div>'+_mgotYMSelect_()+
+      '<label class="mg-check" style="margin-top:10px"><input type="checkbox" id="mgotRegen"><span>🔁 สร้างใหม่ทับของเดิม (regen)</span></label>'+
+      '<div class="hr-note" style="margin-top:8px">⏳ ถ้าคนเยอะอาจใช้เวลาสักครู่ — รอจนขึ้นผลค่ะ</div>',
+    onMount:_mgotWirePrev,
+    onOk:function(c){ var mo=+c.querySelector('#mgotMon').value, yr=+c.querySelector('#mgotYr').value, regen=c.querySelector('#mgotRegen').checked?'1':'';
+      var btn=c.querySelector('[data-cfm-ok]'); if(btn){btn.disabled=true;btn.textContent='⏳ กำลังสร้าง…';}
+      api('mgOtGenDocs',{month:mo,year:yr,regen:regen}).then(function(r){ if(!r.ok){ if(btn){btn.disabled=false;btn.textContent='📄 สร้างเอกสาร';} return toast(r.error||'สร้างไม่สำเร็จ','err'); }
+        closeConfirm(); renderOtGenResult(r); toast('📄 สร้างเอกสาร '+r.label+' · '+(r.created+r.existing)+' ไฟล์','ok');
+      }).catch(function(e){ if(btn){btn.disabled=false;btn.textContent='📄 สร้างเอกสาร';} toast(String(e.message||e),'err'); }); }
+  });
+}
+function renderOtGenResult(r){
+  var box=document.getElementById('otToolsResult'); if(!box) return;
+  var ds=r.details||[];
+  var rows=ds.map(function(e,i){ return '<tr><td class="ce">'+(i+1)+'</td><td class="lft"><b>'+esc(e.name)+'</b></td><td class="lft">'+esc(e.dept||'-')+'</td>'+
+    '<td class="ce">'+_otMoney(e.total)+'</td><td class="ce">'+_otSt(e.status)+'</td>'+
+    '<td class="ce">'+(e.docUrl?('<a href="'+esc(e.docUrl)+'" target="_blank" rel="noopener">📄 เปิดตรวจ</a>'):'-')+'</td></tr>'; }).join('');
+  box.innerHTML='<div class="card">'+
+    '<div class="hr-note '+(r.fail?'':'ok2')+'">📄 สร้างเอกสาร <b>'+esc(r.label||'')+'</b> · 🆕 สร้างใหม่ '+r.created+' · ✓ มีอยู่ '+r.existing+(r.fail?(' · ❌ ล้มเหลว '+r.fail):'')+'</div>'+
+    '<div class="mg-head">👉 เปิดตรวจเอกสารให้เรียบร้อย แล้วกด <b>📤 3. ส่ง LINE</b> ด้านบน</div>'+
+    '<div class="mg-tbwrap"><table class="mg-table mg-rpt"><thead><tr><th class="ce">#</th><th class="lft">ชื่อ</th><th class="lft">แผนก</th><th class="ce">ยอด OT</th><th class="ce">สถานะ</th><th class="ce">เอกสาร</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
+  '</div>';
+  if(box.scrollIntoView) box.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
 function openOtSendSummary(){
-  modalForm({ title:'ส่งสรุป OT (Doc + LINE)', emoji:'📤', accent:'ot', okLabel:'📤 ส่งสรุป',
-    body:'<div class="hr-note ok2" style="margin-bottom:10px">สร้างใบสรุป OT รายคน + ส่ง LINE + แชร์เอกสารตามอีเมล · เฉพาะคนที่ <b>ยังไม่เคยส่ง</b> (กันส่งซ้ำ) · ต้องคำนวณรอบก่อน</div>'+_mgotYMSelect_()+
+  modalForm({ title:'ส่ง LINE สรุป OT', emoji:'📤', accent:'ot', okLabel:'📤 ส่ง LINE',
+    body:'<div class="hr-note ok2" style="margin-bottom:10px">ส่ง LINE + แชร์เอกสารตามอีเมล · เฉพาะคนที่<b>มีเอกสารแล้ว</b>และ<b>ยังไม่เคยส่ง</b> · ⚠️ ต้องกด "📄 สร้างเอกสาร" ก่อน</div>'+_mgotYMSelect_()+
       '<label class="mg-check" style="margin-top:10px"><input type="checkbox" id="mgotForce"><span>🔁 ส่งซ้ำคนที่ส่งไปแล้ว (force)</span></label>'+
       '<div class="hr-note" style="margin-top:8px">⏳ ถ้าคนเยอะอาจใช้เวลาสักครู่ — รอจนขึ้นผลค่ะ</div>',
     onMount:_mgotWirePrev,
