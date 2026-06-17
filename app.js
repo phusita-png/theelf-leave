@@ -2129,11 +2129,63 @@ function openOtProxy(){
 function otToolsTabHtml(){
   return '<div class="card">'+
     '<div class="hr-note ok2">⚙️ เครื่องมือจัดการ OT — บันทึก audit + แจ้ง LINE พนักงาน</div>'+
-    '<div class="mg-toolgrid"><button class="mg-tool add" id="otAddBtn"><b>➕ ยื่น OT แทนพนักงาน</b><span>เลือกคน + กรอกวันเวลา · ติ๊ก "อนุมัติเลย" ได้</span></button></div>'+
-    '<div class="hr-note" style="margin-top:12px">🧮 การสั่งคำนวณเงิน OT รอบ + ส่ง mail/LINE สรุป ยังทำผ่านเมนูในชีท (Apps Script) — เฟสถัดไปจะย้ายมาเว็บ</div>'+
+    '<div class="mg-toolgrid">'+
+      '<button class="mg-tool add" id="otAddBtn"><b>➕ ยื่น OT แทนพนักงาน</b><span>เลือกคน + กรอกวันเวลา · ติ๊ก "อนุมัติเลย" ได้</span></button>'+
+      '<button class="mg-tool" id="otCalcBtn"><b>🧮 คำนวณรอบ OT</b><span>เลือกเดือน (รอบ 26–25) → เขียนชีต "การคำนวณ OT" ให้ payroll ดึงต่อ</span></button>'+
+      '<button class="mg-tool" id="otSendBtn"><b>📤 ส่งสรุป OT (Doc + LINE)</b><span>สร้างใบสรุปรายคน + ส่ง LINE + แชร์เอกสารตามอีเมล · กันส่งซ้ำ</span></button>'+
+    '</div>'+
+    '<div class="hr-note" style="margin-top:12px">🔄 ลำดับ: <b>คำนวณรอบ</b> ก่อน → ตรวจในชีต → <b>ส่งสรุป</b> · ⚠️ แก้/ยกเลิก OT หลังคำนวณ ต้องกดคำนวณรอบใหม่ + import payroll ใหม่</div>'+
   '</div>';
 }
-function wireOtToolsTab(){ var a=document.getElementById('otAddBtn'); if(a) a.addEventListener('click',function(){ openOtProxy(); }); }
+function wireOtToolsTab(){
+  var a=document.getElementById('otAddBtn'); if(a) a.addEventListener('click',openOtProxy);
+  var b=document.getElementById('otCalcBtn'); if(b) b.addEventListener('click',openOtCalcRound);
+  var s=document.getElementById('otSendBtn'); if(s) s.addEventListener('click',openOtSendSummary);
+}
+// เลือกเดือน-ปี (รอบ 26–25) + preview รอบ/ชื่อชีต
+function _mgotYMSelect_(){
+  var TH=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  var nowY=new Date().getFullYear()+543, curM=new Date().getMonth()+1;
+  var mons=''; for(var mo=1;mo<=12;mo++) mons+='<option value="'+mo+'"'+(curM===mo?' selected':'')+'>'+TH[mo-1]+'</option>';
+  var yrs=''; for(var y=nowY;y>=nowY-3;y--) yrs+='<option value="'+y+'"'+(nowY===y?' selected':'')+'>'+y+'</option>';
+  return '<div class="cfm-row"><span class="cfm-k">เดือน (ปลายรอบ)</span><span class="cfm-v"><select class="hr-fsel" id="mgotMon">'+mons+'</select> <select class="hr-fsel" id="mgotYr">'+yrs+'</select></span></div>'+
+    '<div id="mgotPrev" class="hr-note" style="margin-top:8px"></div>';
+}
+function _mgotPrevCalc(mEnd, yrBE){
+  var yCE=yrBE-543, s=new Date(yCE,mEnd-2,26), e=new Date(yCE,mEnd-1,25), pad=function(n){return (n<10?'0':'')+n;};
+  var fmt=function(d){return pad(d.getDate())+'/'+pad(d.getMonth()+1)+'/'+(d.getFullYear()+543);};
+  return { label:fmt(s)+' – '+fmt(e), sheet:'การคำนวณ OT '+pad(mEnd)+'-'+yCE };
+}
+function _mgotWirePrev(c){
+  var upd=function(){ var mo=+c.querySelector('#mgotMon').value, yr=+c.querySelector('#mgotYr').value, pv=_mgotPrevCalc(mo,yr);
+    var el=c.querySelector('#mgotPrev'); if(el) el.innerHTML='📅 รอบ <b>'+pv.label+'</b> · 🗂️ ชีต: '+esc(pv.sheet); };
+  c.querySelector('#mgotMon').addEventListener('change',upd); c.querySelector('#mgotYr').addEventListener('change',upd); upd();
+}
+function openOtCalcRound(){
+  modalForm({ title:'คำนวณรอบ OT', emoji:'🧮', accent:'ot', okLabel:'🧮 คำนวณรอบ',
+    body:'<div class="hr-note ok2" style="margin-bottom:10px">คำนวณ OT ที่ "อนุมัติแล้ว" ในรอบ → เขียนชีต "การคำนวณ OT" (payroll ดึงต่อได้)</div>'+_mgotYMSelect_(),
+    onMount:_mgotWirePrev,
+    onOk:function(c){ var mo=+c.querySelector('#mgotMon').value, yr=+c.querySelector('#mgotYr').value;
+      var btn=c.querySelector('[data-cfm-ok]'); if(btn){btn.disabled=true;btn.textContent='⏳ กำลังคำนวณ…';}
+      api('mgOtCalcRound',{month:mo,year:yr}).then(function(r){ if(!r.ok){ if(btn){btn.disabled=false;btn.textContent='🧮 คำนวณรอบ';} return toast(r.error||'คำนวณไม่สำเร็จ','err'); }
+        closeConfirm(); toast('🧮 คำนวณรอบ '+r.label+' แล้ว · '+r.empCount+' คน · '+r.recCount+' รายการ'+(r.dupCount?(' · ⚠ ซ้ำ '+r.dupCount):''),'ok');
+      }).catch(function(e){ if(btn){btn.disabled=false;btn.textContent='🧮 คำนวณรอบ';} toast(String(e.message||e),'err'); }); }
+  });
+}
+function openOtSendSummary(){
+  modalForm({ title:'ส่งสรุป OT (Doc + LINE)', emoji:'📤', accent:'ot', okLabel:'📤 ส่งสรุป',
+    body:'<div class="hr-note ok2" style="margin-bottom:10px">สร้างใบสรุป OT รายคน + ส่ง LINE + แชร์เอกสารตามอีเมล · เฉพาะคนที่ <b>ยังไม่เคยส่ง</b> (กันส่งซ้ำ) · ต้องคำนวณรอบก่อน</div>'+_mgotYMSelect_()+
+      '<label class="mg-check" style="margin-top:10px"><input type="checkbox" id="mgotForce"><span>🔁 ส่งซ้ำคนที่ส่งไปแล้ว (force)</span></label>'+
+      '<div class="hr-note" style="margin-top:8px">⏳ ถ้าคนเยอะอาจใช้เวลาสักครู่ — รอจนขึ้นผลค่ะ</div>',
+    onMount:_mgotWirePrev,
+    onOk:function(c){ var mo=+c.querySelector('#mgotMon').value, yr=+c.querySelector('#mgotYr').value, force=c.querySelector('#mgotForce').checked?'1':'';
+      var btn=c.querySelector('[data-cfm-ok]'); if(btn){btn.disabled=true;btn.textContent='⏳ กำลังส่ง…';}
+      api('mgOtSendSummary',{month:mo,year:yr,force:force}).then(function(r){ if(!r.ok){ if(btn){btn.disabled=false;btn.textContent='📤 ส่งสรุป';} return toast(r.error||'ส่งไม่สำเร็จ','err'); }
+        closeConfirm(); var msg='📤 '+r.label+' · ส่ง '+r.sent+' คน'+(r.skipped?(' · ข้าม(ส่งแล้ว) '+r.skipped):'')+(r.noLine?(' · ไม่มี LINE '+r.noLine):'')+(r.fail?(' · ล้มเหลว '+r.fail):'');
+        toast(msg, r.fail?'err':'ok');
+      }).catch(function(e){ if(btn){btn.disabled=false;btn.textContent='📤 ส่งสรุป';} toast(String(e.message||e),'err'); }); }
+  });
+}
 // ── แท็บ 📊 สรุป OT (คำนวณสด) ──
 function otReportTabHtml(){
   return '<div class="card">'+
