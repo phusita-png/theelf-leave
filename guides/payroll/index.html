@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ลำดับปิดเงินเดือนรายเดือน | ดิเอลฟ์</title>
+<style>
+  :root{
+    --brand:#1f6f78; --brand-d:#134c52; --brand-l:#e4f1f1;
+    --gold:#c08a1e; --gold-l:#fbf2dd; --gold-d:#85600f;
+    --ink:#1f2e2e; --muted:#647573; --line:#dde8e7;
+    --warn:#b3541e; --warn-l:#fcefe4; --red:#c0392b; --red-l:#fdecec;
+    --blue:#2d6fa3; --blue-l:#e9f2f9; --ok:#1f7a5a; --ok-l:#e7f4ee;
+    --shadow:0 2px 12px rgba(31,111,120,.10);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","IBM Plex Sans Thai","Sarabun",sans-serif;
+    background:#f2f7f6; color:var(--ink); line-height:1.7; padding-bottom:44px;
+    -webkit-text-size-adjust:100%;
+  }
+  .wrap{max-width:880px; margin:0 auto; padding:0 16px}
+
+  header{
+    background:linear-gradient(135deg,var(--brand) 0%,var(--brand-d) 100%);
+    color:#fff; padding:34px 22px 28px; text-align:center;
+    border-radius:0 0 22px 22px; box-shadow:var(--shadow);
+  }
+  header .badge{
+    display:inline-block; background:rgba(255,255,255,.18);
+    font-size:12.5px; font-weight:600; padding:4px 14px; border-radius:20px; margin-bottom:11px;
+  }
+  header h1{font-size:25px; font-weight:800; line-height:1.3}
+  header p{font-size:14.5px; opacity:.93; margin-top:8px}
+
+  /* แผนภาพ 3 ไฟล์ */
+  .flow3{
+    background:#fff; border:1px solid var(--line); border-radius:16px;
+    padding:18px; margin-top:18px; box-shadow:var(--shadow);
+  }
+  .flow3 .ftitle{font-size:14px; color:var(--muted); font-weight:700; margin-bottom:14px; letter-spacing:.3px}
+  .chain{display:flex; align-items:stretch; gap:8px; flex-wrap:wrap; justify-content:center}
+  .fbox{
+    flex:1 1 180px; min-width:160px; border-radius:14px; padding:14px 14px;
+    text-align:center; border:1.5px solid var(--line); background:#fbfdfd;
+  }
+  .fbox.ot{border-color:#cfe3e4; background:#eef7f7}
+  .fbox.lv{border-color:#f1d9bb; background:#fdf5ea}
+  .fbox.pr{border-color:#c9dff0; background:#eef5fb}
+  .fbox .ico{font-size:30px; display:block; margin-bottom:6px}
+  .fbox .nm{font-weight:800; font-size:15px}
+  .fbox .ds{font-size:12.5px; color:var(--muted); margin-top:5px; line-height:1.5}
+  .fbox .tag{display:inline-block; margin-top:9px; font-size:11px; font-weight:800; padding:3px 9px; border-radius:14px}
+  .fbox.ot .tag{background:var(--brand); color:#fff}
+  .fbox.lv .tag{background:var(--gold); color:#fff}
+  .fbox.pr .tag{background:var(--blue); color:#fff}
+  .arr{display:flex; align-items:center; justify-content:center; font-size:22px; color:#9fc0bf; font-weight:800; flex:0 0 auto}
+  @media(max-width:560px){ .arr{transform:rotate(90deg); padding:2px 0} .fbox{flex-basis:100%} }
+
+  /* สารบัญ */
+  .toc{
+    background:#fff; border:1px solid var(--line); border-radius:16px;
+    padding:16px 18px; margin-top:16px; box-shadow:var(--shadow);
+  }
+  .toc h2{font-size:13.5px; color:var(--muted); font-weight:700; margin-bottom:10px; letter-spacing:.3px}
+  .toc ol{list-style:none; counter-reset:t; display:grid; gap:7px}
+  @media(min-width:620px){.toc ol{grid-template-columns:1fr 1fr}}
+  .toc li{counter-increment:t}
+  .toc a{
+    display:flex; align-items:center; gap:9px; text-decoration:none; color:var(--ink);
+    font-size:14px; font-weight:600; padding:7px 10px; border-radius:9px; transition:background .12s;
+  }
+  .toc a:hover{background:var(--brand-l)}
+  .toc a:before{
+    content:counter(t); flex:0 0 auto; width:23px; height:23px; border-radius:7px;
+    background:var(--brand-l); color:var(--brand-d); font-size:12.5px; font-weight:800;
+    display:flex; align-items:center; justify-content:center; border:1px solid #c2e0e0;
+  }
+
+  .card{
+    background:#fff; border:1px solid var(--line); border-radius:16px;
+    padding:20px; margin-top:16px; box-shadow:var(--shadow);
+  }
+  .card.star{border-color:#ecd49f; box-shadow:0 2px 16px rgba(192,138,30,.16)}
+  .sec-title{display:flex; align-items:center; gap:11px; font-size:18px; font-weight:800; color:var(--brand-d)}
+  .sec-title .n{
+    flex:0 0 auto; width:31px; height:31px; border-radius:50%;
+    background:var(--brand); color:#fff; font-size:15px; font-weight:800;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .card.star .sec-title .n{background:var(--gold)}
+  .card.star .sec-title{color:var(--gold-d)}
+  .card.ot .sec-title .n{background:var(--brand)}
+  .card.pr .sec-title .n{background:var(--blue)}
+  .card.pr .sec-title{color:#235880}
+  .sec-sub{color:var(--muted); font-size:14px; margin:5px 0 14px 42px}
+  @media(max-width:600px){.sec-sub{margin-left:0; margin-top:8px}}
+
+  p.lead{font-size:14.6px}
+  .menu-path{
+    background:var(--gold-l); border:1px solid #ecd49f; border-radius:12px;
+    padding:11px 14px; font-size:14px; margin:11px 0 4px; display:flex; flex-wrap:wrap; align-items:center; gap:6px;
+  }
+  .menu-path .step{font-weight:700; color:var(--gold-d)}
+  .menu-path .arrow{color:#bb9b48; font-weight:700}
+  .menu-path .file{font-weight:800; color:var(--brand-d); background:#fff; border:1px solid var(--line); padding:2px 9px; border-radius:8px; font-size:12.5px}
+
+  /* ก้าวใหญ่ */
+  .bigstep{display:flex; gap:13px; padding:14px 0; border-top:1px dashed var(--line)}
+  .bigstep:first-of-type{border-top:0}
+  .bigstep .bnum{
+    flex:0 0 auto; width:34px; height:34px; border-radius:10px;
+    background:var(--brand); color:#fff; font-weight:800; font-size:16px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .bigstep.opt .bnum{background:#9fb3b2}
+  .bigstep .bbody{flex:1 1 auto}
+  .bigstep .bh{font-size:15.5px; font-weight:800; color:var(--ink)}
+  .bigstep .bd{font-size:13.8px; color:#42524f; margin-top:4px}
+  .pill{display:inline-block; font-size:11px; font-weight:800; padding:2px 9px; border-radius:13px; margin-left:6px; vertical-align:2px}
+  .pill.must{background:var(--red-l); color:var(--red)}
+  .pill.opt{background:#eef1f0; color:var(--muted)}
+  .pill.auto{background:var(--ok-l); color:var(--ok)}
+
+  .note{border-radius:12px; padding:12px 14px; margin-top:13px; font-size:13.8px; display:flex; gap:10px; align-items:flex-start}
+  .note .ic{flex:0 0 auto; font-size:17px}
+  .note.tip{background:var(--ok-l); border:1px solid #c4e3d4}
+  .note.warn{background:var(--warn-l); border:1px solid #f1d3bb; color:#7a3b14}
+  .note.info{background:var(--blue-l); border:1px solid #c7ddee; color:#23496b}
+  .note.danger{background:var(--red-l); border:1px solid #f3c7c7; color:#7a2020}
+  .note.tip b{color:var(--ok)}
+
+  table{width:100%; border-collapse:collapse; margin-top:12px; font-size:13.6px}
+  th,td{border:1px solid var(--line); padding:9px 11px; text-align:left; vertical-align:top}
+  th{background:var(--brand-l); color:var(--brand-d); font-weight:700}
+  td .t{font-weight:700; color:var(--ink)}
+  .col-a{font-weight:700; color:var(--brand-d); white-space:nowrap}
+  code.k{background:var(--gold-l); color:var(--gold-d); padding:1px 8px; border-radius:6px; font-weight:700; font-size:13px; white-space:nowrap}
+
+  .seq{display:inline-flex; align-items:center; justify-content:center; min-width:24px; height:24px; padding:0 6px; border-radius:7px; background:var(--brand); color:#fff; font-weight:800; font-size:12.5px}
+  .seq.b{background:var(--blue)}
+
+  footer{text-align:center; color:var(--muted); font-size:12.5px; margin-top:26px}
+  footer .logo{font-weight:800; color:var(--brand-d)}
+
+  @media(max-width:600px){
+    .wrap{padding:0 12px}
+    header{padding:26px 18px 22px}
+    header h1{font-size:21px}
+    .card{padding:16px 15px; border-radius:14px}
+    .sec-title{font-size:16.5px}
+    .menu-path{font-size:13px}
+    table.resp{border:0; margin-top:10px}
+    table.resp thead{position:absolute; left:-9999px}
+    table.resp tr{display:block; border:1px solid var(--line); border-radius:12px; margin-bottom:12px; padding:6px 4px; background:#fff; box-shadow:0 1px 4px rgba(31,111,120,.06)}
+    table.resp td{display:block; border:0; padding:8px 14px; border-bottom:1px dashed var(--line)}
+    table.resp td:last-child{border-bottom:0}
+    table.resp td:before{content:attr(data-label); display:block; font-size:11px; font-weight:800; color:var(--muted); letter-spacing:.4px; margin-bottom:3px; text-transform:uppercase}
+  }
+  @media print{body{background:#fff} .card,header,.flow3{box-shadow:none}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="badge">💰 ระบบเงินเดือน · บจก.ดิเอลฟ์</div>
+    <h1>ลำดับปิดเงินเดือนรายเดือน</h1>
+    <p>กดอะไรก่อน–หลัง · ทำตามนี้ทีละขั้น เดือนนี้ก็เสร็จ</p>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- แผนภาพ 3 ไฟล์ -->
+  <div class="flow3">
+    <div class="ftitle">🗂️ ระบบแยกเป็น 3 ไฟล์ Google Sheet — ข้อมูลไหลจากซ้ายไปขวา</div>
+    <div class="chain">
+      <div class="fbox ot">
+        <span class="ico">⏰</span>
+        <div class="nm">ไฟล์ OT</div>
+        <div class="ds">คำนวณ OT รอบ 26–25</div>
+        <div class="tag">ทำก่อน</div>
+      </div>
+      <div class="arr">→</div>
+      <div class="fbox lv">
+        <span class="ico">🌴</span>
+        <div class="nm">ไฟล์ระบบลา</div>
+        <div class="ds">วันลาไม่รับเงิน<br>(ดึงอัตโนมัติ ไม่ต้องกด)</div>
+        <div class="tag">อัตโนมัติ</div>
+      </div>
+      <div class="arr">→</div>
+      <div class="fbox pr">
+        <span class="ico">💰</span>
+        <div class="nm">ไฟล์ Payroll</div>
+        <div class="ds">รวมทุกอย่าง → สลิป → ส่ง</div>
+        <div class="tag">ทำหลัง</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- สารบัญ -->
+  <div class="toc">
+    <h2>📋 ในคู่มือนี้</h2>
+    <ol>
+      <li><a href="#gold">กฎทอง 2 ข้อ (อ่านก่อน)</a></li>
+      <li><a href="#s1">ขั้นที่ 1 — ไฟล์ OT</a></li>
+      <li><a href="#s2">ขั้นที่ 2 — ไฟล์ Payroll</a></li>
+      <li><a href="#quick">ตารางลำดับฉบับย่อ</a></li>
+      <li><a href="#trap">กับดักที่ทำให้ "ทำงานแปลกๆ"</a></li>
+      <li><a href="#year">งานสิ้นปี (ทำปีละครั้ง)</a></li>
+    </ol>
+  </div>
+
+  <!-- กฎทอง -->
+  <div class="card star" id="gold">
+    <div class="sec-title"><span class="n">★</span> กฎทอง 2 ข้อ — อ่านก่อนเริ่ม</div>
+    <div class="sec-sub">จำ 2 ข้อนี้ไว้ ปัญหา 90% หายไปเลย</div>
+
+    <div class="bigstep">
+      <div class="bnum">1</div>
+      <div class="bbody">
+        <div class="bh">คลิก tab เดือนที่จะทำ "ก่อน" กดทุกปุ่ม</div>
+        <div class="bd">ระบบยึด <b>tab ทะเบียนที่เปิดค้างอยู่</b> เป็นเดือนเป้าหมาย — เปิดผิด tab = ลงข้อมูลผิดเดือนทันที</div>
+      </div>
+    </div>
+    <div class="bigstep">
+      <div class="bnum">2</div>
+      <div class="bbody">
+        <div class="bh">ทำ OT ในไฟล์ OT ให้เสร็จก่อนเสมอ</div>
+        <div class="bd">Payroll ต้อง "ดึง" ยอด OT จากไฟล์ OT — ถ้ายังไม่คำนวณ OT จะดึงไม่เจอ / ได้ 0</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ขั้นที่ 1 OT -->
+  <div class="card ot" id="s1">
+    <div class="sec-title"><span class="n">1</span> ขั้นที่ 1 — ไฟล์ OT</div>
+    <div class="sec-sub">เปิดไฟล์ระบบ OT · เมนูชื่อ "⏰ ระบบ OT"</div>
+
+    <div class="menu-path">
+      <span class="file">📂 ไฟล์ OT</span>
+      <span class="arrow">▸</span><span class="step">⏰ ระบบ OT</span>
+      <span class="arrow">▸</span><span class="step">คำนวณ OT รอบเดือน (26-25)</span>
+    </div>
+
+    <div class="bigstep">
+      <div class="bnum">1</div>
+      <div class="bbody">
+        <div class="bh">คำนวณ OT รอบเดือน (26-25) <span class="pill must">ต้องทำ</span></div>
+        <div class="bd">ระบบสร้างชีต <code class="k">การคำนวณ OT MM-YYYY</code> (ปี ค.ศ.) — นี่คือชีตที่ Payroll จะมาดึงต่อ</div>
+      </div>
+    </div>
+    <div class="bigstep opt">
+      <div class="bnum">2</div>
+      <div class="bbody">
+        <div class="bh">สร้างเอกสาร + ส่งสรุป OT ทาง LINE <span class="pill opt">ทำเมื่อต้องการ</span></div>
+        <div class="bd">📄 สร้างเอกสารใบสรุป OT รายคน → 💬 ส่งสรุป OT ทาง LINE — ไม่กระทบ payroll จะทำตอนนี้หรือทีหลังก็ได้</div>
+      </div>
+    </div>
+
+    <div class="note warn"><span class="ic">⚠️</span><div>ถ้าชื่อพนักงานสะกด<b>ไม่ตรงกัน</b>ระหว่างไฟล์ OT กับ Payroll → ตอนดึง OT ระบบจะรายงาน "หาคนไม่เจอ" ให้ → แก้ชื่อให้ตรงทั้ง 2 ไฟล์</div></div>
+  </div>
+
+  <!-- ขั้นที่ 2 Payroll -->
+  <div class="card pr" id="s2">
+    <div class="sec-title"><span class="n">2</span> ขั้นที่ 2 — ไฟล์ Payroll</div>
+    <div class="sec-sub">เปิดไฟล์ Payroll · เมนูชื่อ "💰 Payroll" — ทำเรียงลงมาตามนี้</div>
+
+    <div class="note info"><span class="ic">🖱️</span><div><b>ก่อนเริ่ม:</b> คลิก tab ทะเบียน<b>เดือนที่จะทำ</b>ให้ขึ้นค้างไว้ (กฎทองข้อ 1)</div></div>
+
+    <div class="bigstep">
+      <div class="bnum">1</div>
+      <div class="bbody">
+        <div class="bh"><span class="seq b">❶</span> สร้าง Sheet เดือนใหม่ <span class="pill opt">ถ้ายังไม่มี</span></div>
+        <div class="bd">ถ้ายังไม่มี tab ของเดือนนี้ → กดเพื่อก๊อปโครงจากเดือนก่อนมาตั้งต้น (ถ้ามี tab แล้วข้ามได้)</div>
+      </div>
+    </div>
+    <div class="bigstep">
+      <div class="bnum">2</div>
+      <div class="bbody">
+        <div class="bh"><span class="seq b">❷</span> ดึง OT จากระบบ OT <span class="pill must">ต้องทำ</span></div>
+        <div class="bd">ดึงยอด OT ที่คำนวณไว้ในขั้นที่ 1 เข้าทะเบียน (col J) — ระบบถามยืนยัน + รายงานคนที่จับคู่ไม่ได้</div>
+      </div>
+    </div>
+    <div class="bigstep">
+      <div class="bnum">3</div>
+      <div class="bbody">
+        <div class="bh">📂 Pro-rate ▸ ดึงวันลาไม่รับเงินจากระบบลา <span class="pill auto">ดึงอัตโนมัติ</span></div>
+        <div class="bd">ดึงวันลาเกินสิทธิ์/ลาไม่รับเงินจากระบบลามาเข้า col AI (ใช้หักเงิน)
+        <br><small style="color:var(--muted)">* ครั้งแรกของไฟล์ ต้องกด "⚙️ เพิ่มคอลัมน์ pro-rate" ก่อน 1 ครั้ง</small></div>
+      </div>
+    </div>
+    <div class="bigstep opt">
+      <div class="bnum">4</div>
+      <div class="bbody">
+        <div class="bh">📂 Pro-rate ▸ คำนวณเงินเดือนตามวัน / ปรับฐานกลางรอบ <span class="pill opt">เฉพาะมีเคส</span></div>
+        <div class="bd">ทำเฉพาะถ้ามี: คนเข้า–ออกกลางเดือน · ลาไม่รับเงิน · ปรับเงินเดือนกลางรอบ (มี wizard ให้)</div>
+      </div>
+    </div>
+    <div class="bigstep">
+      <div class="bnum">5</div>
+      <div class="bbody">
+        <div class="bh"><span class="seq b">❸</span> อัปเดต YTD สะสม <span class="pill must">ทำหลังสุด</span></div>
+        <div class="bd">ทำ <b>หลัง</b> OT + ลา + เงินเดือน นิ่งหมดแล้ว — ขั้นนี้คิดภาษี + ยอดสะสมทั้งปี</div>
+      </div>
+    </div>
+    <div class="bigstep">
+      <div class="bnum">6</div>
+      <div class="bbody">
+        <div class="bh"><span class="seq b">❹</span> สร้างสลิป PDF (ตรวจก่อนส่ง)</div>
+        <div class="bd">สร้างไฟล์สลิปไว้ตรวจ — เช็ก col J (OT) · col T (ภาษี) · col Z (สุทธิ) ให้ถูกก่อนส่งจริง</div>
+      </div>
+    </div>
+    <div class="bigstep">
+      <div class="bnum">7</div>
+      <div class="bbody">
+        <div class="bh"><span class="seq b">❺</span> ส่ง Email + LINE</div>
+        <div class="bd">ส่งสลิปจริงให้พนักงานทุกคน (Email + LINE) — ขั้นสุดท้าย</div>
+      </div>
+    </div>
+
+    <div class="note danger"><span class="ic">🔁</span><div><b>แก้อะไรหลังกด ❸ YTD แล้ว ต้องกด ❸ ใหม่!</b> — เช่น เผลอดึง OT ใหม่ / แก้เงินเดือน หลังกด YTD ไปแล้ว → ภาษีกับยอดสะสมจะเพี้ยน ต้องกด <b>❸ อัปเดต YTD</b> ซ้ำ (และเดือนถัด ๆ ไปด้วย เพราะ YTD สะสมต่อเนื่อง)</div></div>
+  </div>
+
+  <!-- ตารางย่อ -->
+  <div class="card" id="quick">
+    <div class="sec-title"><span class="n">≡</span> ตารางลำดับฉบับย่อ</div>
+    <div class="sec-sub">ปรินต์แปะไว้ข้างจอ เปิดดูทุกเดือน</div>
+    <table class="resp">
+      <thead><tr><th style="width:13%">ลำดับ</th><th style="width:24%">ไฟล์</th><th>กดอะไร</th></tr></thead>
+      <tbody>
+        <tr><td data-label="ลำดับ"><span class="seq">1</span></td><td data-label="ไฟล์" class="col-a">⏰ OT</td><td data-label="กดอะไร">คำนวณ OT รอบเดือน (26-25)</td></tr>
+        <tr><td data-label="ลำดับ"><span class="seq b">2</span></td><td data-label="ไฟล์" class="col-a">💰 Payroll</td><td data-label="กดอะไร">คลิก tab เดือน → ❶ สร้าง Sheet เดือนใหม่ <small>(ถ้ายังไม่มี)</small></td></tr>
+        <tr><td data-label="ลำดับ"><span class="seq b">3</span></td><td data-label="ไฟล์" class="col-a">💰 Payroll</td><td data-label="กดอะไร">❷ ดึง OT จากระบบ OT</td></tr>
+        <tr><td data-label="ลำดับ"><span class="seq b">4</span></td><td data-label="ไฟล์" class="col-a">💰 Payroll</td><td data-label="กดอะไร">Pro-rate ▸ ดึงวันลาไม่รับเงิน + คำนวณ pro-rate <small>(ถ้ามีเคส)</small></td></tr>
+        <tr><td data-label="ลำดับ"><span class="seq b">5</span></td><td data-label="ไฟล์" class="col-a">💰 Payroll</td><td data-label="กดอะไร">❸ อัปเดต YTD สะสม</td></tr>
+        <tr><td data-label="ลำดับ"><span class="seq b">6</span></td><td data-label="ไฟล์" class="col-a">💰 Payroll</td><td data-label="กดอะไร">❹ สร้างสลิป PDF → ตรวจ</td></tr>
+        <tr><td data-label="ลำดับ"><span class="seq b">7</span></td><td data-label="ไฟล์" class="col-a">💰 Payroll</td><td data-label="กดอะไร">❺ ส่ง Email + LINE</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- กับดัก -->
+  <div class="card" id="trap">
+    <div class="sec-title"><span class="n">!</span> กับดักที่ทำให้ "ทำงานแปลกๆ"</div>
+    <div class="sec-sub">เจออาการไหน เทียบตารางนี้ได้เลย</div>
+    <table class="resp">
+      <thead><tr><th style="width:42%">อาการ</th><th>สาเหตุ / วิธีแก้</th></tr></thead>
+      <tbody>
+        <tr><td data-label="อาการ" class="t">ดึง OT แล้วได้ 0 / ไม่พบชีท OT</td><td data-label="วิธีแก้">ยังไม่ได้ <b>คำนวณ OT ในไฟล์ OT</b> (ขั้นที่ 1) → กลับไปคำนวณก่อน</td></tr>
+        <tr><td data-label="อาการ" class="t">ภาษี / ยอดสุทธิเพี้ยน หลังแก้ตัวเลข</td><td data-label="วิธีแก้">แก้อะไรหลังกด YTD → <b>ต้องกด ❸ อัปเดต YTD ใหม่</b> (และเดือนถัด ๆ ไป)</td></tr>
+        <tr><td data-label="อาการ" class="t">OT ดึงเข้าไม่ครบบางคน</td><td data-label="วิธีแก้"><b>ชื่อสะกดไม่ตรง</b> 2 ไฟล์ → ดูชื่อที่ระบบรายงาน "หาคนไม่เจอ" แล้วแก้ให้ตรง</td></tr>
+        <tr><td data-label="อาการ" class="t">ลงข้อมูลผิดเดือน</td><td data-label="วิธีแก้"><b>คลิก tab เดือนผิด</b> → คลิก tab เดือนที่ถูกก่อนกดเมนูเสมอ (กฎทองข้อ 1)</td></tr>
+        <tr><td data-label="อาการ" class="t">ขึ้น "ยังไม่มีคอลัมน์ pro-rate"</td><td data-label="วิธีแก้">กด <b>⚙️ เพิ่มคอลัมน์ pro-rate</b> 1 ครั้งก่อน แล้วค่อยดึงวันลา/คำนวณ pro-rate</td></tr>
+        <tr><td data-label="อาการ" class="t">YTD บวกซ้อน / กดซ้ำกลัวเบิ้ล</td><td data-label="วิธีแก้">ระบบมีตัวกันบวกซ้ำในตัว — ถ้าจำเป็นจริงใช้เมนู <b>🔓 Reset YTD lock</b> ในกลุ่ม "ระบบ/ทดสอบ"</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- สิ้นปี -->
+  <div class="card" id="year">
+    <div class="sec-title"><span class="n">+</span> งานสิ้นปี (ทำปีละครั้ง)</div>
+    <div class="sec-sub">เมนู 💰 Payroll ▸ 📂 รายงานสิ้นปี</div>
+    <table class="resp">
+      <thead><tr><th style="width:40%">งาน</th><th>ทำอะไร</th></tr></thead>
+      <tbody>
+        <tr><td data-label="งาน" class="t">📦 ส่งออกทะเบียนจ่าย</td><td data-label="ทำอะไร">ออกไฟล์ Excel ทะเบียนจ่ายทั้งปี (3 sheets)</td></tr>
+        <tr><td data-label="งาน" class="t">📊 สร้าง ภ.ง.ด.1ก</td><td data-label="ทำอะไร">สรุปภาษีหัก ณ ที่จ่ายรายปี ยื่นสรรพากร</td></tr>
+      </tbody>
+    </table>
+    <div class="note tip"><span class="ic">🔐</span><div>เมนู <b>📂 พนักงาน/ทะเบียน</b> มีเครื่องมือดูแลข้อมูล: ดึงเลขบัตร · ดึง LineUserID · <b>ตรวจการผูก LINE↔พนักงาน</b> (กันสลิปหลุดข้ามคน) — ทำเมื่อมีพนักงานเข้าใหม่/เปลี่ยน LINE</div></div>
+  </div>
+
+  <footer>
+    <p><span class="logo">บจก.ดิเอลฟ์</span> · ระบบเงินเดือน — คู่มือลำดับการทำงาน</p>
+    <p>จัดทำเพื่อใช้ภายใน · มีปัญหาการใช้งาน ติดต่อทีมพัฒนาระบบ</p>
+  </footer>
+
+</div>
+</body>
+</html>
