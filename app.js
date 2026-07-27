@@ -23,14 +23,13 @@ var VIEW_HEAD = {
   mgleave: ['จัดการการลา','ดู · แก้ · โควต้า · export'],
   mgot:    ['จัดการ OT','ดู · แก้ · คำนวณ · ส่งสรุป'],
   mgpay:   ['จัดการ Payroll','dashboard · สลิป · กท.20'],
-  emps:    ['พนักงาน','เพิ่ม · แก้ · รายชื่อ'],
-  settings:['ตั้งค่าระบบ','บทบาท · ค่ากลางระบบ']
+  emps:    ['พนักงาน','เพิ่ม · บทบาท · โควต้า · ข้อมูล']
 };
 // ไอคอนเมนู (โชว์หน้า topbar desktop) — ตรงกับ nav-emo ใน index.html
 var VIEW_ICON = {
   home:'🏠', leave:'📅', ot:'⏰', payslip:'💰', history:'📋', profile:'🙂',
   documents:'📎', hr:'✅', leavecal:'🗓️', dashboard:'📊',
-  mgleave:'📋', mgot:'⏰', mgpay:'💰', emps:'👥', settings:'⚙️'
+  mgleave:'📋', mgot:'⏰', mgpay:'💰', emps:'👥'
 };
 
 var S = {
@@ -136,7 +135,7 @@ function bootstrap() {
     paintAvatar(); setupNavRoles(); render();
     if (S.pendingEdit) enterEditById(S.pendingEdit);   // deep-link → เปิดหน้าแก้เลย (ลา/OT)
     else if (S.pendingView === 'hr' && S.profile && S.profile.canApprove) goTo('hr');   // deep-link → เด้งแผง HR เลย
-    else if (S.pendingView === 'settings' && S.profile && S.profile.canAdmin) goTo('settings');
+    else if ((S.pendingView === 'emps' || S.pendingView === 'settings') && S.profile && S.profile.canAdmin) goTo('emps');
     else if (window.innerWidth >= 1024) goTo(S.profile && S.profile.canApprove ? 'hr' : 'leavecal');
   }).catch(function(e){ fail(String(e.message || e)); });
 }
@@ -206,6 +205,7 @@ function bindNav(){
   });
 }
 function goTo(view){
+  if (view === 'settings') view = 'emps';   // เมนู "ตั้งค่าระบบ" เดิม = หน้าพนักงาน → alias ไว้ให้ลิงก์เก่า/deep-link ยังใช้ได้
   S.view = view;
   document.querySelectorAll('.nav-btn').forEach(function(b){ b.classList.toggle('active', b.dataset.view===view); });
   render(); window.scrollTo(0,0);
@@ -213,7 +213,7 @@ function goTo(view){
 // เปิดเมนู admin ใน sidebar (desktop) ตามสิทธิ์ — มือถือ CSS ซ่อนเสมอ (ใช้ hub link เดิม)
 function setupNavRoles(){
   var p = S.profile || {}, ap = !!p.canApprove, ad = !!p.canAdmin;
-  var roles = {dashboard:ap, leavecal:ap, hr:ap, mgleave:ad, mgot:ad, mgpay:ad, emps:ad, settings:ad};
+  var roles = {dashboard:ap, leavecal:ap, hr:ap, mgleave:ad, mgot:ad, mgpay:ad, emps:ad};
   Object.keys(roles).forEach(function(v){
     var el=document.querySelector('.nav-btn[data-view="'+v+'"]'); if(el) el.classList.toggle('allow', roles[v]); });
   // section label โชว์เฉพาะกลุ่มที่มีปุ่ม visible (desktop)
@@ -285,8 +285,7 @@ function render(){
   else if (S.view==='mgleave'){ m.innerHTML = viewMgleave(); wireMgleave(); loadMgleave(); }
   else if (S.view==='mgot'){ m.innerHTML = viewMgot(); wireMgot(); }
   else if (S.view==='mgpay'){ m.innerHTML = viewSoon('💰 จัดการ Payroll','dashboard · ยอดรายเดือน · สลิป · คำนวณ · ทะเบียน/ภงด.1ก · กท.20'); }
-  else if (S.view==='emps'){ m.innerHTML = viewSoon('👥 พนักงาน','เพิ่ม/แก้/ดูรายชื่อ + ข้อมูล + กะ + โควต้า'); }
-  else if (S.view==='settings'){ m.innerHTML = '<div class="card"><div class="skel" style="height:120px"></div></div>'; loadSettings(); }
+  else if (S.view==='emps'){ m.innerHTML = '<div class="card"><div class="skel" style="height:120px"></div></div>'; loadSettings(); }
   else if (S.view==='history'){ m.innerHTML = viewHistory(); wireHistory(); }
   else if (S.view==='profile') m.innerHTML = viewProfile();
 }
@@ -330,7 +329,7 @@ function viewHome(){
 
   '<button class="hub-link" data-go="documents"><span>📎 เอกสารของฉัน</span><span class="chev">›</span></button>'+
   (p.canApprove ? '<button class="hub-link hr" data-go="hr"><span>📊 แผง HR · ภาพรวม + รออนุมัติ</span><span class="chev">›</span></button>' : '')+
-  (p.canAdmin ? '<button class="hub-link admin" data-go="settings"><span>⚙️ ตั้งค่าระบบ · บทบาท + โควต้า + พนักงาน</span><span class="chev">›</span></button>' : '')+
+  (p.canAdmin ? '<button class="hub-link admin" data-go="emps"><span>👥 พนักงาน · เพิ่ม + บทบาท + โควต้า</span><span class="chev">›</span></button>' : '')+
 
   '<div class="card"><div class="card-title"><span class="ic"></span>กิจกรรมล่าสุด</div>'+feed+'</div>';
 }
@@ -2433,7 +2432,7 @@ function _addEmpFormBody_(pfName, pfLast){
       '<div class="set-row"><label>📋 กิจ</label>'+num('q_biz',3)+'</div>'+
       '<div class="set-row"><label>🌴 พักร้อน</label>'+num('q_vac',0)+'</div>'+
     '</div>'+
-    '<div class="set-hint">ℹ️ ลาวันเกิด / คนพิเศษ / ไม่รับค่าจ้าง — ระบบใส่ค่ามาตรฐานให้ · ปรับทีหลังได้ที่หน้า ⚙️ ตั้งค่า</div>'+
+    '<div class="set-hint">ℹ️ ลาวันเกิด / คนพิเศษ / ไม่รับค่าจ้าง — ระบบใส่ค่ามาตรฐานให้ · ปรับทีหลังได้ที่ปุ่ม 🏖️ โควต้า ของแต่ละคน</div>'+
     '<div class="set-sec">payroll/OT (เติมทีหลังได้)</div>'+
     rc('ตำแหน่ง',inp('position'))+rc('Email',inp('email'))+
     '<div class="set-2col">'+rc('ธนาคาร',inp('bank'))+rc('เลขบัญชี',inp('bankAcc'))+'</div>'+
