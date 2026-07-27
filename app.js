@@ -23,13 +23,14 @@ var VIEW_HEAD = {
   mgleave: ['จัดการการลา','ดู · แก้ · โควต้า · export'],
   mgot:    ['จัดการ OT','ดู · แก้ · คำนวณ · ส่งสรุป'],
   mgpay:   ['จัดการ Payroll','dashboard · สลิป · กท.20'],
-  emps:    ['พนักงาน','เพิ่ม · บทบาท · โควต้า · ข้อมูล']
+  emps:    ['พนักงาน','เพิ่ม · บทบาท · โควต้า · ข้อมูล'],
+  unpaidreq:['ขอสิทธิ์ลาไม่รับค่าจ้าง','ส่งคำขอ → HR ให้สิทธิ์ → ยื่นใบลา']
 };
 // ไอคอนเมนู (โชว์หน้า topbar desktop) — ตรงกับ nav-emo ใน index.html
 var VIEW_ICON = {
   home:'🏠', leave:'📅', ot:'⏰', payslip:'💰', history:'📋', profile:'🙂',
   documents:'📎', hr:'✅', leavecal:'🗓️', dashboard:'📊',
-  mgleave:'📋', mgot:'⏰', mgpay:'💰', emps:'👥'
+  mgleave:'📋', mgot:'⏰', mgpay:'💰', emps:'👥', unpaidreq:'📄'
 };
 
 var S = {
@@ -143,6 +144,7 @@ function apply(r){
   S.profile=r.profile; S.balances=r.balances; S.holidays=r.holidays||[]; S.schedule=r.schedule||null;
   S.leaveTypes=r.leaveTypes; S.otTypes=r.otTypes||{}; S.otThisMonth=r.otThisMonth||{hours:0,count:0};
   S.recent=r.recent||[];
+  S.unpaidReq=r.unpaidReq||{pending:false,lastStatus:'',askDays:0};   // 📄 สถานะคำขอสิทธิ์ลาไม่รับค่าจ้าง (v.76)
 }
 function fail(msg, emo){
   document.getElementById('loader').innerHTML =
@@ -286,6 +288,7 @@ function render(){
   else if (S.view==='mgot'){ m.innerHTML = viewMgot(); wireMgot(); }
   else if (S.view==='mgpay'){ m.innerHTML = viewSoon('💰 จัดการ Payroll','dashboard · ยอดรายเดือน · สลิป · คำนวณ · ทะเบียน/ภงด.1ก · กท.20'); }
   else if (S.view==='emps'){ m.innerHTML = '<div class="card"><div class="skel" style="height:120px"></div></div>'; loadSettings(); }
+  else if (S.view==='unpaidreq'){ m.innerHTML = viewUnpaidReq(); wireUnpaidReq(); }
   else if (S.view==='history'){ m.innerHTML = viewHistory(); wireHistory(); }
   else if (S.view==='profile') m.innerHTML = viewProfile();
 }
@@ -328,6 +331,8 @@ function viewHome(){
   '</div>'+
 
   '<button class="hub-link" data-go="documents"><span>📎 เอกสารของฉัน</span><span class="chev">›</span></button>'+
+  '<button class="hub-link" data-go="unpaidreq"><span>📄 ขอสิทธิ์ลาไม่รับค่าจ้าง'+
+    ((S.unpaidReq&&S.unpaidReq.pending)?' · ⏳ รอ HR':'')+'</span><span class="chev">›</span></button>'+
   (p.canApprove ? '<button class="hub-link hr" data-go="hr"><span>📊 แผง HR · ภาพรวม + รออนุมัติ</span><span class="chev">›</span></button>' : '')+
   (p.canAdmin ? '<button class="hub-link admin" data-go="emps"><span>👥 พนักงาน · เพิ่ม + บทบาท + โควต้า</span><span class="chev">›</span></button>' : '')+
 
@@ -368,6 +373,9 @@ function wireLeave(){
 }
 function renderTypeGrid(){
   var lt = S.leaveTypes, keys = ['sick','biz','vac'];   // 3 ประเภทหลัก: ลาป่วย / ลากิจ / ลาพักร้อน (1 บรรทัด)
+  // 📄 ลาไม่รับค่าจ้าง (v.76): โชว์เมื่อ HR ให้สิทธิ์มาแล้วเท่านั้น (ขอผ่านหน้า "ขอสิทธิ์ลาไม่รับค่าจ้าง" ก่อน)
+  var upRem = (S.balances && S.balances.unpaid && S.balances.unpaid.remaining) || 0;
+  if (upRem > 0 && lt.unpaid) keys = keys.concat(['unpaid']);
   // โหมดแก้ไข: ถ้าใบเดิมเป็นประเภทอื่น (วันเกิด/คนพิเศษ/ไม่รับค่าจ้าง) ให้โชว์ปุ่มประเภทนั้นด้วย
   if (S.editLeaveId && keys.indexOf(S.leaveForm.type)<0 && lt[S.leaveForm.type]) keys = keys.concat([S.leaveForm.type]);
   var html = keys.map(function(k){
@@ -958,8 +966,8 @@ function loadHr(){
   api('hrDashboard',{}).then(function(r){
     var m=document.getElementById('main'); if(!m) return;
     if(!r.ok){ m.innerHTML = backBar()+emptyBox('🔒', r.error||'ไม่มีสิทธิ์'); bindBack(); return; }
-    m.innerHTML = backBar()+'<div id="pendRegSlot"></div>'+renderHr(r); bindBack(); wireHrPending(); wireHrHistTabs(); wireHrSumFilter();
-    loadPendingRegs(); loadHrHistory();
+    m.innerHTML = backBar()+'<div id="pendRegSlot"></div><div id="unpaidReqSlot"></div>'+renderHr(r); bindBack(); wireHrPending(); wireHrHistTabs(); wireHrSumFilter();
+    loadPendingRegs(); loadUnpaidReqs(); loadHrHistory();
   }).catch(function(e){ var m=document.getElementById('main'); if(m){ m.innerHTML=backBar()+emptyBox('😿',String(e.message||e)); bindBack(); } });
 }
 function wireHrHistTabs(){
@@ -2738,4 +2746,128 @@ function mockApi(action, params){
     else resolve({ok:true,profile:S.profile,balances:S.balances,holidays:S.holidays,schedule:S.schedule,leaveTypes:S.leaveTypes,
       otTypes:S.otTypes,otThisMonth:S.otThisMonth,recent:S.recent});
   },220); });
+}
+
+// ════════════ 📄 สิทธิ์ลาไม่รับค่าจ้าง (v.76) ════════════
+// พนักงาน "ขอสิทธิ์" ก่อน (บอกแค่จำนวนวัน+เหตุผล ยังไม่ระบุวัน) → HR คุยแล้วให้สิทธิ์
+// → ปุ่ม 📄 ในฟอร์มยื่นใบลาถึงจะโผล่ (renderTypeGrid เช็ค balances.unpaid.remaining)
+
+// ── ฝั่ง HR: การ์ดคำขอรออนุมัติ (แทรกบนแผง HR)
+function loadUnpaidReqs(){
+  api('unpaidReqList',{scope:'pending'}).then(function(r){
+    var slot=document.getElementById('unpaidReqSlot');
+    if(!slot || !r.ok) return;
+    if(!r.count){ slot.innerHTML=''; return; }
+    slot.innerHTML = renderUnpaidReqs(r.list);
+    wireUnpaidReqs();
+  }).catch(function(){});
+}
+function renderUnpaidReqs(list){
+  var rows = list.map(function(x){
+    var d = 'data-upid="'+esc(x.reqId)+'" data-upname="'+esc(x.name)+'" data-updays="'+esc(String(x.askDays))+'"';
+    return '<div class="pend"><div class="pend-top"><div class="hist-ic">📄</div><div class="hist-main">'+
+      '<div class="hist-type">'+esc(x.name)+' — ขอ '+esc(String(x.askDays))+' วัน</div>'+
+      '<div class="hist-meta">'+esc(x.empId||'-')+(x.dept?' · '+esc(x.dept):'')+' · '+esc(x.submittedAt)+'</div>'+
+      '<div class="hist-meta" style="margin-top:4px">📝 '+esc(x.reason||'-')+'</div></div></div>'+
+      '<div class="pend-act"><button class="pend-btn no" data-upno="1" '+d+'>❌ ไม่อนุมัติ</button>'+
+      '<button class="pend-btn ok" data-upok="1" '+d+'>✅ ให้สิทธิ์</button></div></div>'; }).join('');
+  return '<div class="card"><div class="card-title"><span class="ic"></span>📄 คำขอลาไม่รับค่าจ้าง ('+list.length+')</div>'+
+    '<div class="hr-note ok2">👇 คุยกับพนักงานให้ชัดก่อนให้สิทธิ์ · ให้กี่วันก็ได้ (ไม่ต้องเท่าที่ขอ) · ระบบเพิ่มโควตาให้อัตโนมัติแล้วแจ้งพนักงานทาง LINE</div>'+rows+'</div>';
+}
+function wireUnpaidReqs(){
+  document.querySelectorAll('[data-upok]').forEach(function(el){
+    el.addEventListener('click', function(){ openUnpaidGrant(el.dataset.upid, el.dataset.upname, el.dataset.updays); }); });
+  document.querySelectorAll('[data-upno]').forEach(function(el){
+    el.addEventListener('click', function(){ openUnpaidReject(el.dataset.upid, el.dataset.upname); }); });
+}
+function openUnpaidGrant(reqId, name, askDays){
+  modalForm({ title:'ให้สิทธิ์ลาไม่รับค่าจ้าง · '+name, emoji:'📄', okLabel:'✅ ให้สิทธิ์',
+    body:'<div class="set-row col"><label>จำนวนวันที่ให้สิทธิ์ (พนักงานขอ '+esc(askDays)+' วัน)</label>'+
+         '<input type="number" inputmode="decimal" min="0.5" step="0.5" data-f="days" value="'+esc(askDays)+'"></div>'+
+         '<div class="set-row col"><label>หมายเหตุ (ไม่บังคับ — พนักงานเห็นใน LINE)</label>'+
+         '<input type="text" data-f="note" placeholder="เช่น ให้ 2 วัน ตามที่คุยกันไว้"></div>'+
+         '<div class="set-hint">ℹ️ ระบบจะบวกโควตา "ลากิจไม่ได้รับค่าจ้าง" ให้ทันที · พนักงานต้องไปยื่นใบลาเลือกวันจริงอีกที แล้ว HR อนุมัติใบลาตามปกติ</div>',
+    onOk:function(c){
+      var days=(c.querySelector('[data-f="days"]')||{}).value;
+      var note=(c.querySelector('[data-f="note"]')||{}).value||'';
+      if(!days || Number(days)<=0) return toast('กรอกจำนวนวันก่อนค่ะ','err');
+      closeConfirm(); toast('กำลังให้สิทธิ์…');
+      api('unpaidReqDecide',{reqId:reqId, decision:'approve', days:days, note:note}).then(function(r){
+        if(!r.ok) return toast(r.error||'ทำรายการไม่สำเร็จ','err');
+        toast('✅ ให้สิทธิ์ '+name+' '+r.grant+' วันแล้ว (คงเหลือ '+r.remaining+')','ok'); loadHr();
+      }).catch(function(e){ toast(String(e.message||e),'err'); });
+    }});
+}
+function openUnpaidReject(reqId, name){
+  modalForm({ title:'ไม่อนุมัติคำขอ · '+name, emoji:'❌', okLabel:'❌ ไม่อนุมัติ',
+    body:'<div class="set-row col"><label>เหตุผล (พนักงานเห็นใน LINE)</label>'+
+         '<input type="text" data-f="note" placeholder="เช่น ให้ใช้สิทธิ์ลาพักร้อนก่อน"></div>',
+    onOk:function(c){
+      var note=(c.querySelector('[data-f="note"]')||{}).value||'';
+      closeConfirm(); toast('กำลังดำเนินการ…');
+      api('unpaidReqDecide',{reqId:reqId, decision:'reject', note:note}).then(function(r){
+        if(!r.ok) return toast(r.error||'ทำรายการไม่สำเร็จ','err');
+        toast('❌ ไม่อนุมัติคำขอของ '+name,'ok'); loadHr();
+      }).catch(function(e){ toast(String(e.message||e),'err'); });
+    }});
+}
+
+// ── ฝั่งพนักงาน: หน้าขอสิทธิ์ + ประวัติคำขอของตัวเอง
+function viewUnpaidReq(){
+  var st = S.profile && S.unpaidReq ? S.unpaidReq : (S.unpaidReq||{});
+  var rem = (S.balances && S.balances.unpaid && S.balances.unpaid.remaining!=null) ? S.balances.unpaid.remaining : 0;
+  var banner = st.pending
+    ? '<div class="hr-note">⏳ คำขอของคุณ ('+esc(String(st.askDays||''))+' วัน) กำลังรอ HR พิจารณา — ขอใหม่ได้เมื่อคำขอนี้ถูกดำเนินการแล้วค่ะ</div>'
+    : '';
+  var quotaLine = rem>0
+    ? '<div class="hr-note ok2">✅ ตอนนี้คุณมีสิทธิ์ลาไม่รับค่าจ้างคงเหลือ <b>'+esc(String(rem))+' วัน</b> — ไปที่ "ยื่นใบลา" แล้วเลือก 📄 ลาไม่รับค่าจ้าง ได้เลย</div>'
+    : '';
+  return '<div class="card">'+
+    '<div class="card-title"><span class="ic"></span>📄 ขอสิทธิ์ลาไม่รับค่าจ้าง</div>'+
+    quotaLine + banner +
+    '<div class="hr-note">ℹ️ ขั้นตอน: ① ส่งคำขอ (บอกจำนวนวัน + เหตุผล — <b>ยังไม่ต้องระบุวันที่ลา</b>) → ② HR คุยกับคุณแล้วให้สิทธิ์ → ③ คุณค่อยยื่นใบลา เลือกวันจริง → ④ HR อนุมัติใบลา</div>'+
+    (st.pending ? '' :
+      '<label class="field-lb">📆 จำนวนวันที่ต้องการขอ</label>'+
+      '<input type="number" id="upDays" inputmode="decimal" min="0.5" step="0.5" placeholder="เช่น 2">'+
+      '<label class="field-lb">📝 เหตุผล</label>'+
+      '<textarea id="upReason" rows="3" placeholder="เช่น ต้องกลับต่างจังหวัดดูแลคุณแม่ ใช้สิทธิ์ลาอื่นหมดแล้ว"></textarea>'+
+      '<div style="margin-top:12px"><button id="btnUpReq" class="btn btn-primary">ส่งคำขอ</button></div>')+
+    '</div><div id="upHist"><div class="card"><div class="skel" style="height:60px"></div></div></div>';
+}
+function wireUnpaidReq(){
+  var b=document.getElementById('btnUpReq');
+  if(b) b.addEventListener('click', submitUnpaidReq);
+  loadMyUnpaidReqs();
+}
+function submitUnpaidReq(){
+  var days=(document.getElementById('upDays')||{}).value;
+  var reason=((document.getElementById('upReason')||{}).value||'').trim();
+  if(!days || Number(days)<=0) return toast('กรอกจำนวนวันที่ต้องการขอค่ะ','err');
+  if(!reason) return toast('ระบุเหตุผลด้วยนะคะ','err');
+  confirmModal({ title:'ยืนยันส่งคำขอ', emoji:'📄', accent:'leave',
+    rows:[{k:'ประเภท',v:'ขอสิทธิ์ลาไม่รับค่าจ้าง'},{k:'จำนวนวันที่ขอ',v:days+' วัน'},{k:'เหตุผล',v:reason}],
+    onConfirm:function(){
+      toast('กำลังส่งคำขอ…');
+      api('unpaidReqSubmit',{days:days, reason:reason}).then(function(r){
+        if(!r.ok) return toast(r.error||'ส่งไม่สำเร็จ','err');
+        toast('✅ ส่งคำขอแล้ว รอ HR พิจารณาค่ะ','ok');
+        S.unpaidReq={pending:true, askDays:Number(days), lastStatus:'รอการอนุมัติ'};
+        goTo('unpaidreq');
+      }).catch(function(e){ toast(String(e.message||e),'err'); });
+    }});
+}
+function loadMyUnpaidReqs(){
+  api('unpaidReqList',{scope:'mine'}).then(function(r){
+    var el=document.getElementById('upHist'); if(!el) return;
+    if(!r.ok || !r.count){ el.innerHTML=''; return; }
+    var rows=r.list.map(function(x){
+      var badge = x.status==='อนุมัติแล้ว' ? '<span class="badge ok">✅ ให้สิทธิ์ '+esc(String(x.grantDays))+' วัน</span>'
+                : x.status==='ไม่อนุมัติ' ? '<span class="badge no">❌ ไม่อนุมัติ</span>'
+                : '<span class="badge wait">⏳ รอ HR</span>';
+      return '<div class="hist"><div class="hist-ic">📄</div><div class="hist-main">'+
+        '<div class="hist-type">ขอ '+esc(String(x.askDays))+' วัน '+badge+'</div>'+
+        '<div class="hist-meta">'+esc(x.submittedAt)+(x.hr?' · '+esc(x.hr):'')+'</div>'+
+        (x.note?'<div class="hist-meta">📝 '+esc(x.note)+'</div>':'')+'</div></div>'; }).join('');
+    el.innerHTML='<div class="card"><div class="card-title"><span class="ic"></span>ประวัติคำขอของฉัน</div>'+rows+'</div>';
+  }).catch(function(){});
 }
