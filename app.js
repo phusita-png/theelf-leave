@@ -2156,16 +2156,30 @@ function renderOtCalcResult(r){
   '</div>';
   if(box.scrollIntoView) box.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
+// แปลรหัส error จาก LINE API → บอกวิธีแก้ (ล้มเหลวทุกคน = ปัญหาระดับระบบ)
+function _otFailHint(ds){
+  var errs=[]; (ds||[]).forEach(function(e){ if(e.status==='fail'&&e.err&&errs.indexOf(e.err)<0) errs.push(e.err); });
+  if(!errs.length) return '';
+  var all=errs.join(' '), tip='';
+  if(all.indexOf('401')>=0)      tip='🔑 Access token หมดอายุ/ถูกออกใหม่ → อัปเดต <b>LINE_CHANNEL_ACCESS_TOKEN</b> ใน Script Properties (ทั้งไฟล์ลาและไฟล์ OT)';
+  else if(all.indexOf('429')>=0) tip='📵 โควตาข้อความ LINE เดือนนี้หมด → เช็คใน LINE OA Manager แล้วรอรอบเดือนใหม่ หรืออัปแพ็กเกจ';
+  else if(all.indexOf('403')>=0) tip='🚫 แผน LINE OA ไม่อนุญาต push message → เช็คแพ็กเกจใน LINE OA Manager';
+  else if(all.indexOf('400')>=0) tip='⚠️ ข้อความหรือผู้รับไม่ถูกต้อง — พนักงานบล็อกบอท/ยังไม่เพิ่มเพื่อน หรือลิงก์เอกสารผิดรูป';
+  return '<div class="hr-note" style="margin-top:10px;background:#ffebee;color:#c62828"><b>❌ สาเหตุที่ระบบตอบกลับ:</b><br>'+
+    errs.map(function(x){ return esc(x); }).join('<br>')+(tip?('<br><br>'+tip):'')+'</div>';
+}
 function renderOtSendResult(r){
   var box=document.getElementById('otToolsResult'); if(!box) return;
   var ds=r.details||[];
   var rows=ds.map(function(e,i){ return '<tr><td class="ce">'+(i+1)+'</td><td class="lft"><b>'+esc(e.name)+'</b></td><td class="lft">'+esc(e.dept||'-')+'</td>'+
-    '<td class="ce">'+_otMoney(e.total)+'</td><td class="ce">'+_otSt(e.status)+'</td>'+
+    '<td class="ce">'+_otMoney(e.total)+'</td><td class="ce">'+_otSt(e.status)+
+      (e.status==='fail'&&e.err?('<div style="font-size:11px;color:#c62828;margin-top:4px;word-break:break-word;text-align:left">'+esc(e.err)+'</div>'):'')+'</td>'+
     '<td class="ce">'+(e.docUrl?('<a href="'+esc(e.docUrl)+'" target="_blank" rel="noopener">📄 Doc</a>'):'-')+'</td>'+
     '<td class="ce">'+(e.hasEmail?'📧':'<span class="muted2">—</span>')+'</td></tr>'; }).join('');
   box.innerHTML='<div class="card">'+
     '<div class="hr-note '+(r.fail?'':'ok2')+'">📤 ส่ง LINE <b>'+esc(r.label||'')+'</b> · ✅ ส่ง '+r.sent+' คน'+(r.skipped?(' · ⏭ ข้าม '+r.skipped):'')+(r.noDoc?(' · 📄 ยังไม่มีเอกสาร '+r.noDoc):'')+(r.noLine?(' · ⚠️ ไม่มี LINE '+r.noLine):'')+(r.fail?(' · ❌ ล้มเหลว '+r.fail):'')+'</div>'+
     '<div class="mg-tbwrap"><table class="mg-table mg-rpt"><thead><tr><th class="ce">#</th><th class="lft">ชื่อ</th><th class="lft">แผนก</th><th class="ce">ยอด OT</th><th class="ce">สถานะ</th><th class="ce">เอกสาร</th><th class="ce">อีเมล</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
+    _otFailHint(ds)+
     (r.noDoc?'<div class="hr-note" style="margin-top:10px">📄 "ยังไม่มีเอกสาร" = กด "📄 2. สร้างเอกสาร" ก่อน แล้วค่อยส่ง LINE อีกครั้ง</div>':'')+
     (r.noLine?'<div class="hr-note" style="margin-top:8px">⚠️ "ไม่มี LINE" = พนักงานยังไม่ได้ผูก LINE → ให้ลงทะเบียนก่อน แล้วกดส่งซ้ำ (ติ๊ก force)</div>':'')+
     (r.skipped?'<div class="hr-note" style="margin-top:8px">⏭ "ข้าม" = เคยส่งไปแล้ว · ถ้าต้องการส่งใหม่ ติ๊ก 🔁 force</div>':'')+
@@ -2225,7 +2239,8 @@ function renderOtGenResult(r){
   var box=document.getElementById('otToolsResult'); if(!box) return;
   var ds=r.details||[];
   var rows=ds.map(function(e,i){ return '<tr><td class="ce">'+(i+1)+'</td><td class="lft"><b>'+esc(e.name)+'</b></td><td class="lft">'+esc(e.dept||'-')+'</td>'+
-    '<td class="ce">'+_otMoney(e.total)+'</td><td class="ce">'+_otSt(e.status)+'</td>'+
+    '<td class="ce">'+_otMoney(e.total)+'</td><td class="ce">'+_otSt(e.status)+
+      (e.status==='fail'&&e.err?('<div style="font-size:11px;color:#c62828;margin-top:4px;word-break:break-word;text-align:left">'+esc(e.err)+'</div>'):'')+'</td>'+
     '<td class="ce">'+(e.docUrl?('<a href="'+esc(e.docUrl)+'" target="_blank" rel="noopener">📄 เปิดตรวจ</a>'):'-')+'</td></tr>'; }).join('');
   box.innerHTML='<div class="card">'+
     '<div class="hr-note '+(r.fail?'':'ok2')+'">📄 สร้างเอกสาร <b>'+esc(r.label||'')+'</b> · 🆕 สร้างใหม่ '+r.created+' · ✓ มีอยู่ '+r.existing+(r.fail?(' · ❌ ล้มเหลว '+r.fail):'')+'</div>'+
