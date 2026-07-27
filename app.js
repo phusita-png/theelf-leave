@@ -2134,8 +2134,9 @@ function otToolsTabHtml(){
       '<button class="mg-tool" id="otCalcBtn"><b>🧮 1. คำนวณรอบ OT</b><span>เลือกเดือน (รอบ 26–25) → เขียนชีต "การคำนวณ OT" ให้ payroll ดึงต่อ</span></button>'+
       '<button class="mg-tool" id="otGenBtn"><b>📄 2. สร้างเอกสารสรุป</b><span>สร้างใบสรุป OT รายคน → เปิดตรวจก่อนส่ง · ยังไม่ส่ง LINE</span></button>'+
       '<button class="mg-tool" id="otSendBtn"><b>📤 3. ส่ง LINE สรุป</b><span>หลังตรวจเอกสาร → ส่ง LINE + แชร์ตามอีเมล · กันส่งซ้ำ</span></button>'+
+      '<button class="mg-tool" id="otStatusBtn"><b>📋 สถานะรอบนี้ (ดูย้อนหลัง)</b><span>ใครมีเอกสารแล้ว · ส่ง LINE ไปแล้วเมื่อไร · ใครยังค้าง</span></button>'+
     '</div>'+
-    '<div class="hr-note" style="margin-top:12px">🔄 ลำดับปลอดภัย: <b>1.คำนวณรอบ</b> → <b>2.สร้างเอกสาร</b> (เปิดตรวจ) → <b>3.ส่ง LINE</b> · ⚠️ แก้/ยกเลิก OT หลังคำนวณ ต้องกดคำนวณรอบใหม่ + import payroll ใหม่</div>'+
+    '<div class="hr-note" style="margin-top:12px">🔄 ลำดับปลอดภัย: <b>1.คำนวณรอบ</b> → <b>2.สร้างเอกสาร</b> (เปิดตรวจ) → <b>3.ส่ง LINE</b> · ⚠️ แก้/ยกเลิก OT หลังคำนวณ ต้องกดคำนวณรอบใหม่ + import payroll ใหม่ · 📋 ปิดหน้าไปแล้วกลับมาดูได้ที่ "สถานะรอบนี้"</div>'+
   '</div>'+
   '<div id="otToolsResult"></div>';
 }
@@ -2152,6 +2153,10 @@ function renderOtCalcResult(r){
     '<div class="mg-tbwrap"><table class="mg-table mg-rpt"><thead><tr><th class="ce">#</th><th class="lft">ชื่อ</th><th class="lft">แผนก</th><th class="ce">ใบ</th><th class="ce">ชม.</th><th class="ce">1x</th><th class="ce">1.5x</th><th class="ce">3x</th><th class="ce">รวมเงิน</th></tr></thead><tbody>'+rows+
     '<tr class="ot-tot"><td colspan="3" class="lft"><b>รวมทั้งหมด</b></td><td class="ce"><b>'+r.recCount+'</b></td><td class="ce"></td><td class="ce"></td><td class="ce"></td><td class="ce"></td><td class="ce"><b>'+_otMoney(r.grandTotal)+'</b></td></tr>'+
     '</tbody></table></div>'+
+    ((r.keptSent||r.keptDocs)?('<div class="hr-note" style="margin-top:10px">💾 คงข้อมูลเดิมไว้ให้แล้ว — ลิงก์เอกสาร <b>'+(r.keptDocs||0)+'</b> คน · สถานะ "ส่งแล้ว" <b>'+(r.keptSent||0)+'</b> คน (คำนวณใหม่ไม่ทำให้ระบบลืมว่าส่งใครไปแล้ว)</div>'):'')+
+    ((r.changedAfterSent&&r.changedAfterSent.length)?('<div class="hr-note" style="margin-top:8px;background:#fff8e1;color:#7f6000"><b>⚠️ ยอดเปลี่ยนหลังส่งสรุปไปแล้ว '+r.changedAfterSent.length+' คน</b><br>'+
+      r.changedAfterSent.map(function(c){ return '• '+esc(c.name)+': '+_otMoney(c.oldTotal)+' → <b>'+_otMoney(c.newTotal)+'</b>'; }).join('<br>')+
+      '<br><br>ถ้าต้องการส่งยอดใหม่ให้เฉพาะคนเหล่านี้ → <b>📄 สร้างเอกสาร</b> (ติ๊ก regen + ใส่ชื่อ) แล้ว <b>📤 ส่ง LINE</b> (ติ๊ก force + ใส่ชื่อเดิม)</div>'):'')+
     '<div class="hr-note" style="margin-top:10px">✔️ ตรวจถูกต้อง → กด <b>📤 ส่งสรุป OT</b> ด้านบน เพื่อส่ง Doc + LINE ให้พนักงาน</div>'+
   '</div>';
   if(box.scrollIntoView) box.scrollIntoView({behavior:'smooth',block:'nearest'});
@@ -2192,6 +2197,7 @@ function wireOtToolsTab(){
   var b=document.getElementById('otCalcBtn'); if(b) b.addEventListener('click',openOtCalcRound);
   var gd=document.getElementById('otGenBtn'); if(gd) gd.addEventListener('click',openOtGenDocs);
   var s=document.getElementById('otSendBtn'); if(s) s.addEventListener('click',openOtSendSummary);
+  var stt=document.getElementById('otStatusBtn'); if(stt) stt.addEventListener('click',openOtStatus);
 }
 // เลือกเดือน-ปี (รอบ 26–25) + preview รอบ/ชื่อชีต
 function _mgotYMSelect_(){
@@ -2275,6 +2281,59 @@ function openOtSendSummary(){
         closeConfirm(); renderOtSendResult(r); toast('📤 ส่งสรุป '+r.label+' · ส่ง '+r.sent+' คน', r.fail?'err':'ok');
       }).catch(function(e){ if(btn){btn.disabled=false;btn.textContent='📤 ส่งสรุป';} toast(String(e.message||e),'err'); }); }
   });
+}
+// 📋 สถานะรอบนี้ — เปิดดูย้อนหลังได้ตลอด (อ่านจากชีตจริง ไม่ใช่ผลค้างในหน้าจอ)
+function openOtStatus(){
+  modalForm({ title:'สถานะรอบ OT', emoji:'📋', accent:'ot', okLabel:'📋 ดูสถานะ',
+    body:'<div class="hr-note ok2" style="margin-bottom:10px">ดูว่ารอบนี้ <b>ใครมีเอกสารแล้ว · ใครส่ง LINE ไปแล้วเมื่อไร · ใครยังค้าง</b> — อ่านสดจากชีต ปิดหน้าไปแล้วกลับมาดูได้เสมอ</div>'+_mgotYMSelect_(),
+    onMount:_mgotWirePrev,
+    onOk:function(c){ var mo=+c.querySelector('#mgotMon').value, yr=+c.querySelector('#mgotYr').value;
+      var btn=c.querySelector('[data-cfm-ok]'); if(btn){btn.disabled=true;btn.textContent='⏳ กำลังอ่าน…';}
+      api('mgOtStatus',{month:mo,year:yr}).then(function(r){ if(!r.ok){ if(btn){btn.disabled=false;btn.textContent='📋 ดูสถานะ';} return toast(r.error||'อ่านไม่สำเร็จ','err'); }
+        closeConfirm(); renderOtStatus(r);
+      }).catch(function(e){ if(btn){btn.disabled=false;btn.textContent='📋 ดูสถานะ';} toast(String(e.message||e),'err'); }); }
+  });
+}
+function _otStatBadge(e){
+  if(e.changed) return '<span style="display:inline-block;padding:2px 8px;border-radius:8px;font-size:12px;font-weight:700;background:#fff8e1;color:#7f6000">⚠️ ยอดเปลี่ยนหลังส่ง</span>';
+  if(e.sent)    return '<span style="display:inline-block;padding:2px 8px;border-radius:8px;font-size:12px;font-weight:700;background:#e8f5e9;color:#2e7d32">✅ ส่งแล้ว</span>';
+  if(e.hasDoc)  return '<span style="display:inline-block;padding:2px 8px;border-radius:8px;font-size:12px;font-weight:700;background:#e3f2fd;color:#1565c0">📄 มีเอกสาร · ยังไม่ส่ง</span>';
+  return '<span style="display:inline-block;padding:2px 8px;border-radius:8px;font-size:12px;font-weight:700;background:#fff3e0;color:#e65100">⏳ ยังไม่สร้างเอกสาร</span>';
+}
+function _otLogLabel(a){
+  if(a.indexOf('CALC')>=0) return '🧮 คำนวณรอบ';
+  if(a.indexOf('GEN')>=0)  return '📄 สร้างเอกสาร';
+  return '📤 ส่ง LINE';
+}
+function renderOtStatus(r){
+  var box=document.getElementById('otToolsResult'); if(!box) return;
+  var logs=(r.logs||[]).map(function(l){ return '<tr><td class="ce" style="white-space:nowrap">'+esc(l.at||'')+'</td><td class="lft">'+_otLogLabel(l.action||'')+'</td><td class="lft">'+esc(l.actor||'-')+'</td><td class="lft" style="font-size:12px">'+esc(l.details||'')+'</td></tr>'; }).join('');
+  var logBox='<div class="mg-head" style="margin-top:14px">🕘 ประวัติการทำรายการรอบนี้ '+(r.logs&&r.logs.length?('· '+r.logs.length+' ครั้ง'):'')+'</div>'+
+    (logs? '<div class="mg-tbwrap"><table class="mg-table mg-rpt"><thead><tr><th class="ce">เวลา</th><th class="lft">ทำอะไร</th><th class="lft">ใครกด</th><th class="lft">รายละเอียด</th></tr></thead><tbody>'+logs+'</tbody></table></div>'
+         : '<div class="hr-note">ยังไม่มีประวัติผ่านเว็บสำหรับรอบนี้ (ถ้าทำผ่านเมนูในชีต จะไม่ถูกบันทึกที่นี่)</div>');
+
+  if(!r.exists){
+    box.innerHTML='<div class="card">'+
+      '<div class="hr-note">🗂️ ยังไม่มีชีต "<b>'+esc(r.sheetName||'')+'</b>" สำหรับรอบ '+esc(r.label||'')+' — กด <b>🧮 1. คำนวณรอบ OT</b> ก่อนค่ะ</div>'+logBox+'</div>';
+    if(box.scrollIntoView) box.scrollIntoView({behavior:'smooth',block:'nearest'});
+    return;
+  }
+  var t=r.totals||{}, ps=r.persons||[];
+  var rows=ps.map(function(e,i){ return '<tr'+(e.changed?' style="background:#fff8e1"':'')+'><td class="ce">'+(i+1)+'</td><td class="mg-sub2 ce">'+esc(e.empId)+'</td><td class="lft"><b>'+esc(e.name)+'</b></td><td class="lft">'+esc(e.dept||'-')+'</td>'+
+    '<td class="ce">'+e.count+'</td><td class="ce"><b>'+_otMoney(e.total)+'</b></td>'+
+    '<td class="ce">'+_otStatBadge(e)+(e.sentAt?('<div style="font-size:11px;color:#666;margin-top:3px">'+esc(e.sentAt)+'</div>'):'')+'</td>'+
+    '<td class="ce">'+(e.docUrl?('<a href="'+esc(e.docUrl)+'" target="_blank" rel="noopener">📄 เปิด</a>'):'<span class="muted2">—</span>')+'</td>'+
+    '<td class="ce">'+(e.hasLine?'💬':'<span class="muted2">—</span>')+' '+(e.hasEmail?'📧':'<span class="muted2">—</span>')+'</td></tr>'; }).join('');
+  box.innerHTML='<div class="card">'+
+    '<div class="hr-note ok2">📋 สถานะรอบ <b>'+esc(r.label||'')+'</b> · 👥 '+t.people+' คน · 📄 มีเอกสาร '+t.withDoc+' · ✅ ส่งแล้ว '+t.sent+' · ⏳ ยังไม่ส่ง '+t.pending+
+      (t.changed?(' · <b style="color:#c0392b">⚠️ ยอดเปลี่ยนหลังส่ง '+t.changed+'</b>'):'')+' · 💰 รวม '+_otMoney(t.grand)+'</div>'+
+    '<div class="mg-head">🗂️ ชีต "'+esc(r.sheetName||'')+'"'+(r.sheetUrl?(' <a href="'+esc(r.sheetUrl)+'" target="_blank" rel="noopener">เปิดชีต ↗</a>'):'')+' <span class="mg-legend">💬 = ผูก LINE แล้ว · 📧 = มีอีเมลรับเอกสาร</span></div>'+
+    '<div class="mg-tbwrap"><table class="mg-table mg-rpt"><thead><tr><th class="ce">#</th><th class="ce">รหัส</th><th class="lft">ชื่อ-นามสกุล</th><th class="lft">แผนก</th><th class="ce">ใบ</th><th class="ce">ยอด OT</th><th class="ce">สถานะ</th><th class="ce">เอกสาร</th><th class="ce">LINE/เมล</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
+    (t.changed?'<div class="hr-note" style="margin-top:10px;background:#fff8e1;color:#7f6000"><b>⚠️ ยอดเปลี่ยนหลังส่ง</b> = คนกลุ่มนี้ได้รับสรุปไปแล้ว แต่มีการคำนวณรอบใหม่ทีหลังจนยอดไม่ตรงกับที่ส่งไป → กด <b>📄 สร้างเอกสาร</b> (ติ๊ก regen + ใส่ชื่อเฉพาะคนนั้น) แล้ว <b>📤 ส่ง LINE</b> (ติ๊ก force + ใส่ชื่อเดิม)</div>':'')+
+    (t.pending?'<div class="hr-note" style="margin-top:8px">⏳ "ยังไม่ส่ง" '+t.pending+' คน — ตรวจเอกสารแล้วกด <b>📤 3. ส่ง LINE สรุป</b> ได้เลย (ระบบข้ามคนที่ส่งแล้วอัตโนมัติ)</div>':'')+
+    logBox+
+  '</div>';
+  if(box.scrollIntoView) box.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 // ── แท็บ 📊 สรุป OT (คำนวณสด) ──
 function otReportTabHtml(){
