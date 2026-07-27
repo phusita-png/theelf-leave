@@ -2177,7 +2177,8 @@ function renderOtSendResult(r){
     '<td class="ce">'+(e.docUrl?('<a href="'+esc(e.docUrl)+'" target="_blank" rel="noopener">📄 Doc</a>'):'-')+'</td>'+
     '<td class="ce">'+(e.hasEmail?'📧':'<span class="muted2">—</span>')+'</td></tr>'; }).join('');
   box.innerHTML='<div class="card">'+
-    '<div class="hr-note '+(r.fail?'':'ok2')+'">📤 ส่ง LINE <b>'+esc(r.label||'')+'</b> · ✅ ส่ง '+r.sent+' คน'+(r.skipped?(' · ⏭ ข้าม '+r.skipped):'')+(r.noDoc?(' · 📄 ยังไม่มีเอกสาร '+r.noDoc):'')+(r.noLine?(' · ⚠️ ไม่มี LINE '+r.noLine):'')+(r.fail?(' · ❌ ล้มเหลว '+r.fail):'')+'</div>'+
+    '<div class="hr-note '+(r.fail?'':'ok2')+'">📤 ส่ง LINE <b>'+esc(r.label||'')+'</b> · ✅ ส่ง '+r.sent+' คน'+(r.skipped?(' · ⏭ ข้าม '+r.skipped):'')+(r.noDoc?(' · 📄 ยังไม่มีเอกสาร '+r.noDoc):'')+(r.noLine?(' · ⚠️ ไม่มี LINE '+r.noLine):'')+(r.fail?(' · ❌ ล้มเหลว '+r.fail):'')+
+      (r.onlyMode?(' · 🎯 <b>ส่งเฉพาะที่เลือก</b> (ไม่แตะอีก '+(r.notSelected||0)+' คน)'):'')+'</div>'+
     '<div class="mg-tbwrap"><table class="mg-table mg-rpt"><thead><tr><th class="ce">#</th><th class="lft">ชื่อ</th><th class="lft">แผนก</th><th class="ce">ยอด OT</th><th class="ce">สถานะ</th><th class="ce">เอกสาร</th><th class="ce">อีเมล</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
     _otFailHint(ds)+
     (r.noDoc?'<div class="hr-note" style="margin-top:10px">📄 "ยังไม่มีเอกสาร" = กด "📄 2. สร้างเอกสาร" ก่อน แล้วค่อยส่ง LINE อีกครั้ง</div>':'')+
@@ -2222,15 +2223,25 @@ function openOtCalcRound(){
       }).catch(function(e){ if(btn){btn.disabled=false;btn.textContent='🧮 คำนวณรอบ';} toast(String(e.message||e),'err'); }); }
   });
 }
+// 🎯 ช่อง "ทำเฉพาะบางคน" — เว้นว่าง = ทุกคนตามเดิม · พิมพ์ชื่อบางส่วนหรือรหัสก็ได้ คั่นด้วย ,
+function _mgotOnlyInput_(id){
+  return '<div style="margin-top:10px">'+
+    '<label class="field-lb" for="'+id+'">🎯 ทำเฉพาะบางคน (ไม่ใส่ = ทุกคน)</label>'+
+    '<input class="mg-qin" id="'+id+'" type="text" style="width:100%" placeholder="เช่น กฤษดา  หรือ  E012, สมชาย" autocomplete="off">'+
+    '<div class="hr-note" style="margin-top:6px">ใส่ชื่อ (บางส่วนก็ได้) หรือรหัสพนักงาน · หลายคนคั่นด้วยจุลภาค — คนที่ไม่ได้เลือกจะไม่ถูกแตะเลย</div>'+
+  '</div>';
+}
 function openOtGenDocs(){
   modalForm({ title:'สร้างเอกสารสรุป OT', emoji:'📄', accent:'ot', okLabel:'📄 สร้างเอกสาร',
     body:'<div class="hr-note ok2" style="margin-bottom:10px">สร้างใบสรุป OT รายคน (Google Doc) เพื่อ<b>เปิดตรวจก่อนส่ง</b> · ยังไม่ส่ง LINE · ต้องคำนวณรอบก่อน</div>'+_mgotYMSelect_()+
       '<label class="mg-check" style="margin-top:10px"><input type="checkbox" id="mgotRegen"><span>🔁 สร้างใหม่ทับของเดิม (regen)</span></label>'+
+      _mgotOnlyInput_('mgotGenOnly')+
       '<div class="hr-note" style="margin-top:8px">⏳ ถ้าคนเยอะอาจใช้เวลาสักครู่ — รอจนขึ้นผลค่ะ</div>',
     onMount:_mgotWirePrev,
     onOk:function(c){ var mo=+c.querySelector('#mgotMon').value, yr=+c.querySelector('#mgotYr').value, regen=c.querySelector('#mgotRegen').checked?'1':'';
+      var only=(c.querySelector('#mgotGenOnly')||{}).value||'';
       var btn=c.querySelector('[data-cfm-ok]'); if(btn){btn.disabled=true;btn.textContent='⏳ กำลังสร้าง…';}
-      api('mgOtGenDocs',{month:mo,year:yr,regen:regen}).then(function(r){ if(!r.ok){ if(btn){btn.disabled=false;btn.textContent='📄 สร้างเอกสาร';} return toast(r.error||'สร้างไม่สำเร็จ','err'); }
+      api('mgOtGenDocs',{month:mo,year:yr,regen:regen,only:only}).then(function(r){ if(!r.ok){ if(btn){btn.disabled=false;btn.textContent='📄 สร้างเอกสาร';} return toast(r.error||'สร้างไม่สำเร็จ','err'); }
         closeConfirm(); renderOtGenResult(r); toast('📄 สร้างเอกสาร '+r.label+' · '+(r.created+r.existing)+' ไฟล์','ok');
       }).catch(function(e){ if(btn){btn.disabled=false;btn.textContent='📄 สร้างเอกสาร';} toast(String(e.message||e),'err'); }); }
   });
@@ -2243,7 +2254,8 @@ function renderOtGenResult(r){
       (e.status==='fail'&&e.err?('<div style="font-size:11px;color:#c62828;margin-top:4px;word-break:break-word;text-align:left">'+esc(e.err)+'</div>'):'')+'</td>'+
     '<td class="ce">'+(e.docUrl?('<a href="'+esc(e.docUrl)+'" target="_blank" rel="noopener">📄 เปิดตรวจ</a>'):'-')+'</td></tr>'; }).join('');
   box.innerHTML='<div class="card">'+
-    '<div class="hr-note '+(r.fail?'':'ok2')+'">📄 สร้างเอกสาร <b>'+esc(r.label||'')+'</b> · 🆕 สร้างใหม่ '+r.created+' · ✓ มีอยู่ '+r.existing+(r.fail?(' · ❌ ล้มเหลว '+r.fail):'')+'</div>'+
+    '<div class="hr-note '+(r.fail?'':'ok2')+'">📄 สร้างเอกสาร <b>'+esc(r.label||'')+'</b> · 🆕 สร้างใหม่ '+r.created+' · ✓ มีอยู่ '+r.existing+(r.fail?(' · ❌ ล้มเหลว '+r.fail):'')+
+      (r.onlyMode?(' · 🎯 <b>เฉพาะที่เลือก</b> (ไม่แตะอีก '+(r.notSelected||0)+' คน)'):'')+'</div>'+
     '<div class="mg-head">👉 เปิดตรวจเอกสารให้เรียบร้อย แล้วกด <b>📤 3. ส่ง LINE</b> ด้านบน</div>'+
     '<div class="mg-tbwrap"><table class="mg-table mg-rpt"><thead><tr><th class="ce">#</th><th class="lft">ชื่อ</th><th class="lft">แผนก</th><th class="ce">ยอด OT</th><th class="ce">สถานะ</th><th class="ce">เอกสาร</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
   '</div>';
@@ -2253,11 +2265,13 @@ function openOtSendSummary(){
   modalForm({ title:'ส่ง LINE สรุป OT', emoji:'📤', accent:'ot', okLabel:'📤 ส่ง LINE',
     body:'<div class="hr-note ok2" style="margin-bottom:10px">ส่ง LINE + แชร์เอกสารตามอีเมล · เฉพาะคนที่<b>มีเอกสารแล้ว</b>และ<b>ยังไม่เคยส่ง</b> · ⚠️ ต้องกด "📄 สร้างเอกสาร" ก่อน</div>'+_mgotYMSelect_()+
       '<label class="mg-check" style="margin-top:10px"><input type="checkbox" id="mgotForce"><span>🔁 ส่งซ้ำคนที่ส่งไปแล้ว (force)</span></label>'+
+      _mgotOnlyInput_('mgotSendOnly')+
       '<div class="hr-note" style="margin-top:8px">⏳ ถ้าคนเยอะอาจใช้เวลาสักครู่ — รอจนขึ้นผลค่ะ</div>',
     onMount:_mgotWirePrev,
     onOk:function(c){ var mo=+c.querySelector('#mgotMon').value, yr=+c.querySelector('#mgotYr').value, force=c.querySelector('#mgotForce').checked?'1':'';
+      var only=(c.querySelector('#mgotSendOnly')||{}).value||'';
       var btn=c.querySelector('[data-cfm-ok]'); if(btn){btn.disabled=true;btn.textContent='⏳ กำลังส่ง…';}
-      api('mgOtSendSummary',{month:mo,year:yr,force:force}).then(function(r){ if(!r.ok){ if(btn){btn.disabled=false;btn.textContent='📤 ส่งสรุป';} return toast(r.error||'ส่งไม่สำเร็จ','err'); }
+      api('mgOtSendSummary',{month:mo,year:yr,force:force,only:only}).then(function(r){ if(!r.ok){ if(btn){btn.disabled=false;btn.textContent='📤 ส่งสรุป';} return toast(r.error||'ส่งไม่สำเร็จ','err'); }
         closeConfirm(); renderOtSendResult(r); toast('📤 ส่งสรุป '+r.label+' · ส่ง '+r.sent+' คน', r.fail?'err':'ok');
       }).catch(function(e){ if(btn){btn.disabled=false;btn.textContent='📤 ส่งสรุป';} toast(String(e.message||e),'err'); }); }
   });
