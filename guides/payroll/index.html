@@ -306,13 +306,18 @@
     <div class="note danger"><span class="ic">⚠️</span><div><b>กดทุกเดือน "ก่อนจ่าย" เสมอ — แม้คิดว่าไม่มีใครลา</b>
       <br>เคยเกิดจริง: ลืมกดขั้นนี้ก่อนจ่าย → พนักงานที่<b>ลาไม่รับค่าจ้าง</b>ไม่ถูกหักเงิน → จ่ายเกินไปแล้ว ต้องตามเก็บคืนทีหลัง (ดูหัวข้อ "เก็บตกข้ามเดือน")
       <br>หลังดึงเสร็จ ลองดู col AI ว่ามีใครขึ้นตัวเลขบ้าง</div></div>
-    <div class="bigstep opt">
+    <div class="bigstep">
       <div class="bnum">4</div>
       <div class="bbody">
-        <div class="bh">📂 Pro-rate ▸ คำนวณเงินเดือนตามวัน / ปรับฐานกลางรอบ <span class="pill opt">เฉพาะมีเคส</span></div>
-        <div class="bd">ทำเฉพาะถ้ามี: คนเข้า–ออกกลางเดือน · ลาไม่รับเงิน · ปรับเงินเดือนกลางรอบ (มี wizard ให้)</div>
+        <div class="bh">📂 Pro-rate ▸ 💵 คำนวณเงินเดือนตามจำนวนวัน <span class="pill must">ถ้าขั้น 3 มีตัวเลข = ต้องทำ</span></div>
+        <div class="bd"><b>ขั้น 3 แค่เขียน "จำนวนวัน" ลง col AI — เงินยังไม่ถูกหัก</b> ขั้นนี้ต่างหากที่เอาไปหักจริง
+        <br>สูตร: <code>เงินเดือน (col I) = ฐาน ÷ 30 × (วันทำงาน col AH − ลาไม่รับเงิน col AI)</code>
+        <br>ระบบใส่ note ในเซลล์ให้ด้วยว่าคิดจากอะไร · แตะเฉพาะคนที่ไม่เต็มเดือน · ใช้กับคนเข้า–ออกกลางเดือนด้วย
+        <br><small style="color:var(--muted)">* ถ้ามีคนปรับเงินเดือนกลางรอบ ใช้ "🔧 ปรับฐานเงินเดือนกลางรอบ (wizard)" แทน</small></div>
       </div>
     </div>
+    <div class="note danger"><span class="ic">🚨</span><div><b>ดึงวันลา (ขั้น 3) → คำนวณเงิน (ขั้น 4) ต้องทำคู่กันเสมอ</b>
+      <br>ถ้าทำแค่ขั้น 3 แล้วข้ามขั้น 4 → col AI มีตัวเลขสวยงาม แต่ <b>เงินเดือนไม่ถูกหักเลย</b> — เป็นจุดที่พลาดกันบ่อยที่สุด</div></div>
     <div class="bigstep">
       <div class="bnum">5</div>
       <div class="bbody">
@@ -385,7 +390,8 @@
         <tr><td data-label="ลำดับ"><span class="seq">1</span></td><td data-label="ไฟล์" class="col-a">⏰ OT</td><td data-label="กดอะไร">คำนวณ OT รอบเดือน (26-25)</td></tr>
         <tr><td data-label="ลำดับ"><span class="seq b">2</span></td><td data-label="ไฟล์" class="col-a">💰 Payroll</td><td data-label="กดอะไร">คลิก tab เดือน → ❶ สร้าง Sheet เดือนใหม่ <small>(ถ้ายังไม่มี)</small></td></tr>
         <tr><td data-label="ลำดับ"><span class="seq b">3</span></td><td data-label="ไฟล์" class="col-a">💰 Payroll</td><td data-label="กดอะไร">❷ ดึง OT จากระบบ OT</td></tr>
-        <tr><td data-label="ลำดับ"><span class="seq b">4</span></td><td data-label="ไฟล์" class="col-a">💰 Payroll</td><td data-label="กดอะไร">Pro-rate ▸ ดึงวันลาไม่รับเงิน + คำนวณ pro-rate <small>(ถ้ามีเคส)</small></td></tr>
+        <tr><td data-label="ลำดับ"><span class="seq b">4</span></td><td data-label="ไฟล์" class="col-a">💰 Payroll</td><td data-label="กดอะไร">Pro-rate ▸ 💸 <b>ดึงวันลาไม่รับเงิน</b> <small>(เขียนวันลง col AI)</small></td></tr>
+        <tr><td data-label="ลำดับ"><span class="seq b">5</span></td><td data-label="ไฟล์" class="col-a">💰 Payroll</td><td data-label="กดอะไร">Pro-rate ▸ 💵 <b>คำนวณเงินเดือนตามจำนวนวัน</b> <small>(หักเงินจริง — ห้ามข้าม)</small></td></tr>
         <tr><td data-label="ลำดับ"><span class="seq b">5</span></td><td data-label="ไฟล์" class="col-a">💰 Payroll</td><td data-label="กดอะไร">❸ อัปเดต YTD สะสม</td></tr>
         <tr><td data-label="ลำดับ"><span class="seq b">6</span></td><td data-label="ไฟล์" class="col-a">💰 Payroll</td><td data-label="กดอะไร">❹ สร้างสลิป PDF → ตรวจ</td></tr>
         <tr><td data-label="ลำดับ"><span class="seq b">7</span></td><td data-label="ไฟล์" class="col-a">💰 Payroll</td><td data-label="กดอะไร">❺ ส่ง Email + LINE</td></tr>
@@ -406,6 +412,7 @@
         <tr><td data-label="อาการ" class="t">ลงข้อมูลผิดเดือน</td><td data-label="วิธีแก้"><b>คลิก tab เดือนผิด</b> → คลิก tab เดือนที่ถูกก่อนกดเมนูเสมอ (กฎทองข้อ 1)</td></tr>
         <tr><td data-label="อาการ" class="t">ขึ้น "ยังไม่มีคอลัมน์ pro-rate"</td><td data-label="วิธีแก้">กด <b>⚙️ เพิ่มคอลัมน์ pro-rate</b> 1 ครั้งก่อน แล้วค่อยดึงวันลา/คำนวณ pro-rate</td></tr>
         <tr><td data-label="อาการ" class="t">YTD บวกซ้อน / กดซ้ำกลัวเบิ้ล</td><td data-label="วิธีแก้">ระบบมีตัวกันบวกซ้ำในตัว — ถ้าจำเป็นจริงใช้เมนู <b>🔓 Reset YTD lock</b> ในกลุ่ม "ระบบ/ทดสอบ"</td></tr>
+        <tr><td data-label="อาการ" class="t">col AI มีตัวเลข แต่<b>เงินเดือนไม่เปลี่ยน</b></td><td data-label="วิธีแก้">ลืมกด <b>💵 คำนวณเงินเดือนตามจำนวนวัน</b> — ขั้นดึงวันลาแค่เขียนจำนวนวัน ไม่ได้หักเงินให้</td></tr>
         <tr><td data-label="อาการ" class="t">คนลาไม่รับเงินแต่<b>ไม่ถูกหัก</b></td><td data-label="วิธีแก้">ลืมกด <b>ดึงวันลาไม่รับเงิน</b> (ขั้นที่ 2 ลำดับ 4) · หรือใบลาตกรอบเดือนอื่น (รอบ 26–25 ยึด<b>วันเริ่มลา</b>) · ถ้าจ่ายไปแล้ว → ดู <b>"เก็บตกข้ามเดือน"</b></td></tr>
         <tr><td data-label="อาการ" class="t">เงินเดือนสูงแต่<b>ภาษี = 0</b></td><td data-label="วิธีแก้">เช็ก <b>col N "หักภาษี" = "ใช่"</b> ในชีตพนักงาน · หรือเงินได้สุทธิยังไม่ถึง 150,000 (ดูหัวข้อ "เข้าใจภาษี")</td></tr>
         <tr><td data-label="อาการ" class="t">เพิ่มรายได้แล้ว<b>ภาษีไม่ขยับ</b></td><td data-label="วิธีแก้">ปกติ ถ้าเงินได้สุทธิทั้งปียังไม่ถึง 150,000 (ขั้น 0%) · กด ❸ YTD ใหม่หลังเพิ่มรายได้ด้วย</td></tr>

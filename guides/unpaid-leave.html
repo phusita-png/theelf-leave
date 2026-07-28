@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ขอสิทธิ์ลาไม่รับค่าจ้าง | ระบบลา ดิเอลฟ์</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{--red:#cc1019;--red-deep:#8f0b12;--tint:#fdeeef;--ink:#241f20;--muted:#7a7275;
+        --line:#e9e3e4;--bg:#faf7f7;--green:#1E9E5A;--green-tint:#eef8f2;--amber:#B7791F;--amber-tint:#FEF6E7}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:'IBM Plex Sans Thai',sans-serif;line-height:1.65}
+  .wrap{max-width:880px;margin:0 auto;padding:28px 18px 64px}
+  header{background:linear-gradient(150deg,var(--red),var(--red-deep));color:#fff;border-radius:20px;padding:30px 28px;margin-bottom:26px}
+  header .kicker{font-size:12.5px;font-weight:600;opacity:.85;letter-spacing:.08em}
+  header h1{margin:6px 0 8px;font-size:27px;font-weight:700;line-height:1.25}
+  header p{margin:0;font-size:14.5px;opacity:.92}
+  .card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:22px 24px;margin-bottom:18px}
+  .card h2{margin:0 0 6px;font-size:19px;font-weight:700}
+  .card .sub{margin:0 0 16px;font-size:14px;color:var(--muted)}
+  .who{display:inline-block;font-size:11.5px;font-weight:700;padding:3px 10px;border-radius:20px;margin-bottom:10px}
+  .who.emp{background:var(--tint);color:var(--red-deep)}
+  .who.hr{background:var(--green-tint);color:var(--green)}
+  ol.steps{margin:0;padding-left:0;list-style:none;counter-reset:s}
+  ol.steps li{counter-increment:s;position:relative;padding:14px 0 14px 46px;border-bottom:1px dashed var(--line)}
+  ol.steps li:last-child{border-bottom:none;padding-bottom:0}
+  ol.steps li::before{content:counter(s);position:absolute;left:0;top:13px;width:30px;height:30px;border-radius:10px;
+    background:var(--red);color:#fff;font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center}
+  ol.steps.g li::before{background:var(--green)}
+  ol.steps b{font-weight:600}
+  .note{display:flex;gap:11px;border-radius:14px;padding:14px 16px;margin:16px 0 0;font-size:14px;line-height:1.6}
+  .note .ic{font-size:19px;flex-shrink:0}
+  .note.warn{background:var(--amber-tint);color:#7a5312}
+  .note.ok{background:var(--green-tint);color:#146c3f}
+  .note.info{background:var(--tint);color:var(--red-deep)}
+  table{width:100%;border-collapse:collapse;font-size:14px;margin-top:12px}
+  th,td{padding:11px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+  th{background:#f6f2f2;font-weight:600;font-size:13px;color:var(--muted)}
+  td.n{font-weight:700;white-space:nowrap}
+  .neg{color:var(--red-deep);font-weight:700}
+  footer{text-align:center;color:var(--muted);font-size:12.5px;margin-top:30px}
+  @media(max-width:600px){header h1{font-size:23px}.card{padding:19px 17px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="kicker">คู่มือระบบลา · บจก.ดิเอลฟ์</div>
+  <h1>📄 ขอสิทธิ์ลาไม่รับค่าจ้าง</h1>
+  <p>ลาโดยไม่รับค่าจ้าง ต้อง <b>ขออนุญาตก่อน</b> แล้วค่อยยื่นใบลา — 2 จังหวะ</p>
+</header>
+
+<div class="card">
+  <h2>ทำไมต้องขอก่อน</h2>
+  <p class="sub">เดิมพนักงานเลือกได้แค่ ลาป่วย / ลากิจ / ลาพักร้อน คนที่ตั้งใจลาแบบไม่รับเงินเลยกด "ลากิจ" มา ระบบไม่รู้เจตนา
+  กว่าจะรู้ก็ตอนลากิจเกินสิทธิ์แล้วโดนหักเงินย้อนหลัง</p>
+  <div class="note info"><span class="ic">💡</span><div><b>ลาไม่รับค่าจ้างไม่ใช่ "สิทธิ์" ที่มีอยู่แล้ว</b>
+    — เป็นการตกลงกับ HR เป็นครั้ง ๆ ไป ว่าจะลาได้กี่วันโดยยอมให้หักเงิน</div></div>
+</div>
+
+<div class="card">
+  <span class="who emp">สำหรับพนักงาน</span>
+  <h2>จังหวะที่ 1 — ส่งคำขอ</h2>
+  <p class="sub">บอกแค่จำนวนวัน + เหตุผล <b>ยังไม่ต้องระบุวันที่ลา</b></p>
+  <ol class="steps">
+    <li>เปิดเว็บ/แอป → <b>หน้าหลัก 🏠</b> → กดปุ่ม <b>📄 ขอสิทธิ์ลาไม่รับค่าจ้าง</b> (อยู่ใต้ "เอกสารของฉัน")</li>
+    <li>กรอก <b>จำนวนวันที่ต้องการขอ</b> และ <b>เหตุผล</b> → กด <b>ส่งคำขอ</b> → ยืนยัน</li>
+    <li>ระบบแจ้งเข้ากลุ่ม HR ทันที · หน้าจะขึ้น <b>⏳ รอ HR</b> (ส่งซ้ำไม่ได้จนกว่าคำขอนี้จะถูกพิจารณา)</li>
+    <li>รอ HR คุยด้วยและกดอนุมัติ → ได้ข้อความแจ้งทาง LINE ว่าได้สิทธิ์กี่วัน</li>
+  </ol>
+</div>
+
+<div class="card">
+  <span class="who hr">สำหรับ HR</span>
+  <h2>จังหวะที่ 2 — ให้สิทธิ์</h2>
+  <p class="sub">คุยกับพนักงานให้ชัดก่อน แล้วค่อยกดให้สิทธิ์</p>
+  <ol class="steps g">
+    <li>เข้าเมนู <b>✅ อนุมัติทั้งหมด</b> → การ์ด <b>📄 คำขอลาไม่รับค่าจ้าง</b> อยู่ด้านบน</li>
+    <li>กด <b>✅ ให้สิทธิ์</b> → ระบุ <b>จำนวนวันที่ให้</b> (ไม่ต้องเท่าที่ขอ — ขอ 5 ให้ 2 ก็ได้) + หมายเหตุถึงพนักงาน</li>
+    <li>ระบบแจ้งพนักงานทาง LINE + บันทึกลง audit อัตโนมัติ</li>
+    <li>ถ้าไม่อนุมัติ → กด <b>❌ ไม่อนุมัติ</b> พร้อมใส่เหตุผล</li>
+  </ol>
+  <div class="note warn"><span class="ic">⚠️</span><div>การให้สิทธิ์ <b>ไม่ใช่</b> การอนุมัติใบลา — เป็นแค่การเปิดทางให้พนักงานยื่นใบลาประเภทนี้ได้
+    <br>พนักงานต้องยื่นใบลาเลือกวันจริงอีกที แล้ว HR อนุมัติใบลาตามปกติ</div></div>
+</div>
+
+<div class="card">
+  <span class="who emp">สำหรับพนักงาน</span>
+  <h2>จังหวะที่ 3 — ยื่นใบลาจริง</h2>
+  <ol class="steps">
+    <li>ไปที่ <b>📅 ขอลา</b> → จะเห็นปุ่มประเภทที่ 4 <b>📄 ลาไม่รับค่าจ้าง</b> โผล่ขึ้นมา
+      <br><small style="color:#7a7275">(ปุ่มนี้โผล่เฉพาะคนที่ HR ให้สิทธิ์ไว้ และยังใช้ไม่ครบ)</small></li>
+    <li>เลือกวันที่ลา → ส่ง → HR อนุมัติใบลาตามขั้นตอนปกติ</li>
+  </ol>
+  <div class="note ok"><span class="ic">✅</span><div>ยื่นเกินจำนวนวันที่ได้รับอนุมัติไม่ได้ — ระบบกันไว้ให้ (ใบที่รออนุมัติก็นับกันสิทธิ์ไว้ด้วย)</div></div>
+</div>
+
+<div class="card">
+  <h2>ตัวเลขที่จะเห็นหลังลา</h2>
+  <p class="sub">ลาไม่รับค่าจ้าง <b>ไม่มีโควตา</b> — ยิ่งลา ตัวเลขยิ่งติดลบสะสมทั้งปี</p>
+  <table>
+    <thead><tr><th>ดูที่ไหน</th><th>เห็นอะไร</th></tr></thead>
+    <tbody>
+      <tr><td class="n">โปรไฟล์ในแอป</td><td>บล็อก "ใช้ไปแล้วปีนี้" → <b>📄 ลากิจไม่รับค่าจ้าง ใช้ 2 วัน</b></td></tr>
+      <tr><td class="n">ชีตวันลาคงเหลือ</td><td>ช่องลากิจไม่ได้รับค่าจ้าง = <span class="neg">−2</span> (ติดลบตามที่ลาจริง)</td></tr>
+      <tr><td class="n">รายงานการลารายเดือน</td><td>เข้าช่อง <b>ลาหักเงิน</b> ทั้งช่อง "เดือนนี้" และ "สะสม"</td></tr>
+      <tr><td class="n">เงินเดือน</td><td>ถูกหักตามสูตร <code>ฐาน ÷ 30 × จำนวนวันที่เหลือ</code></td></tr>
+    </tbody>
+  </table>
+  <div class="note info"><span class="ic">📌</span><div><b>ติดลบ = ปกติของประเภทนี้</b> ไม่ใช่ความผิดพลาด
+    · ต่างจากลาป่วย/ลากิจ/พักร้อน ที่ติดลบแปลว่า "ใช้เกินสิทธิ์"</div></div>
+</div>
+
+<div class="card">
+  <h2>คำถามที่พบบ่อย</h2>
+  <table>
+    <tbody>
+      <tr><td class="n">ไม่เห็นปุ่ม 📄 ในหน้ายื่นใบลา</td><td>ยังไม่ได้รับอนุมัติสิทธิ์ หรือใช้ครบแล้ว → ส่งคำขอใหม่ที่หน้าหลัก</td></tr>
+      <tr><td class="n">ขอซ้ำได้ไหม</td><td>ได้ แต่ต้องรอคำขอเดิมถูกพิจารณาก่อน (กันยื่นซ้อน) · ขอได้หลายครั้งต่อปี สิทธิ์สะสมกัน</td></tr>
+      <tr><td class="n">ลากิจเกินสิทธิ์ ต่างกันยังไง</td><td>ลากิจเกิน 3 วัน/ปี ระบบย้ายส่วนเกินไปเป็น "ลาหักเงิน" ให้อัตโนมัติ (ไม่ต้องขอ)
+        · ส่วนลาไม่รับค่าจ้างคือ <b>ตั้งใจแต่แรก</b> ต้องขออนุญาตก่อน</td></tr>
+      <tr><td class="n">ลาวันที่ 26–31 แล้วไม่ขึ้นรายงานเดือนนี้</td><td>ถูกต้องแล้ว — รอบตัดเงินเดือนคือ 26 ถึง 25 ลาหลังวันที่ 25 จะไปนับรอบเดือนถัดไป
+        (รายงานจะขึ้นหมายเหตุ "⏭️ รอรอบหน้า" ให้)</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<footer>ระบบลา &amp; OT · บจก.ดิเอลฟ์ · อัปเดต 28 ก.ค. 2569 (v.77)</footer>
+</div>
+</body>
+</html>
