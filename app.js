@@ -374,8 +374,8 @@ function wireLeave(){
 function renderTypeGrid(){
   var lt = S.leaveTypes, keys = ['sick','biz','vac'];   // 3 ประเภทหลัก: ลาป่วย / ลากิจ / ลาพักร้อน (1 บรรทัด)
   // 📄 ลาไม่รับค่าจ้าง (v.76): โชว์เมื่อ HR ให้สิทธิ์มาแล้วเท่านั้น (ขอผ่านหน้า "ขอสิทธิ์ลาไม่รับค่าจ้าง" ก่อน)
-  var upRem = (S.balances && S.balances.unpaid && S.balances.unpaid.remaining) || 0;
-  if (upRem > 0 && lt.unpaid) keys = keys.concat(['unpaid']);
+  var upLeft = (S.balances && S.balances.unpaid && S.balances.unpaid.grantLeft) || 0;
+  if (upLeft > 0 && lt.unpaid) keys = keys.concat(['unpaid']);   // v.77 ดูสิทธิ์ที่ HR อนุมัติไว้ (ไม่มีโควตาแล้ว)
   // โหมดแก้ไข: ถ้าใบเดิมเป็นประเภทอื่น (วันเกิด/คนพิเศษ/ไม่รับค่าจ้าง) ให้โชว์ปุ่มประเภทนั้นด้วย
   if (S.editLeaveId && keys.indexOf(S.leaveForm.type)<0 && lt[S.leaveForm.type]) keys = keys.concat([S.leaveForm.type]);
   var html = keys.map(function(k){
@@ -776,7 +776,7 @@ function pfUsedRows(){
     return (Number(x.used)>0) || (Number(x.quota)>0);
   }).map(function(k){
     var x=b[k], q=Number(x.quota)||0, u=Number(x.used)||0;
-    var over=(x.remaining!=null && Number(x.remaining)<0);
+    var over=(k!=='unpaid') && (x.remaining!=null && Number(x.remaining)<0);   // unpaid ติดลบเป็นปกติ ไม่ใช่ "เกินสิทธิ์"
     return '<div class="pf-row"><span class="k">'+(x.emoji||'')+' '+esc(x.name)+'</span>'+
       '<span class="v"'+(over?' style="color:var(--red-deep);font-weight:700"':'')+'>ใช้ '+num(u)+
       (q>0?' / '+num(q):'')+' วัน'+(over?' ⚠️ เกินสิทธิ์':'')+'</span></div>';
@@ -2833,7 +2833,7 @@ function openUnpaidReject(reqId, name){
 // ── ฝั่งพนักงาน: หน้าขอสิทธิ์ + ประวัติคำขอของตัวเอง
 function viewUnpaidReq(){
   var st = S.profile && S.unpaidReq ? S.unpaidReq : (S.unpaidReq||{});
-  var rem = (S.balances && S.balances.unpaid && S.balances.unpaid.remaining!=null) ? S.balances.unpaid.remaining : 0;
+  var rem = (S.balances && S.balances.unpaid && S.balances.unpaid.grantLeft!=null) ? S.balances.unpaid.grantLeft : 0;
   var banner = st.pending
     ? '<div class="hr-note">⏳ คำขอของคุณ ('+esc(String(st.askDays||''))+' วัน) กำลังรอ HR พิจารณา — ขอใหม่ได้เมื่อคำขอนี้ถูกดำเนินการแล้วค่ะ</div>'
     : '';
