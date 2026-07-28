@@ -754,7 +754,8 @@ function viewProfile(){
     '<div class="pf-stat">'+
       '<div class="pf-box a"><div class="pf-num">'+bal('vac')+'</div><div class="pf-lb">พักร้อน</div></div>'+
       '<div class="pf-box b"><div class="pf-num">'+bal('biz')+'</div><div class="pf-lb">ลากิจ</div></div>'+
-      '<div class="pf-box c"><div class="pf-num">'+bal('sick')+'</div><div class="pf-lb">ลาป่วย</div></div></div></div>'+
+      '<div class="pf-box c"><div class="pf-num">'+bal('sick')+'</div><div class="pf-lb">ลาป่วย</div></div></div>'+
+    pfUsedRows()+'</div>'+
 
   '<div class="card"><div class="card-title"><span class="ic"></span>ข้อมูลส่วนตัว</div>'+
     pfRow('ชื่อ-นามสกุล',p.name)+pfRow('รหัสพนักงาน',p.empId||'—')+pfRow('แผนก',p.dept||'—')+
@@ -765,6 +766,23 @@ function viewProfile(){
     '<span style="font-size:20px">🏢</span><div>The Elf · ระบบลา & OT<br>เชื่อมต่อ Google Sheets เดิม · อนุมัติผ่าน LINE ของ HR</div></div></div>';
 }
 function pfRow(k,v){ return '<div class="pf-row"><span class="k">'+esc(k)+'</span><span class="v">'+esc(v)+'</span></div>'; }
+// ใช้ไปแล้วปีนี้ — โชว์ทุกประเภทที่ "เคยใช้ หรือ มีสิทธิ์" (v.77)
+// เดิมหน้าโปรไฟล์มีแค่ 3 กล่อง พักร้อน/กิจ/ป่วย → คนที่ลาไม่รับค่าจ้าง/วันเกิด ไม่เห็นตัวเลขตัวเองเลย
+function pfUsedRows(){
+  var b=S.balances||{}, order=['sick','biz','vac','unpaid','bday','special'];
+  var num=function(v){ return v==null?'—':(Number.isInteger(v)?v:Number(v).toFixed(2).replace(/0+$/,'').replace(/\.$/,'')); };
+  var rows=order.filter(function(k){
+    var x=b[k]; if(!x) return false;
+    return (Number(x.used)>0) || (Number(x.quota)>0);
+  }).map(function(k){
+    var x=b[k], q=Number(x.quota)||0, u=Number(x.used)||0;
+    var over=(x.remaining!=null && Number(x.remaining)<0);
+    return '<div class="pf-row"><span class="k">'+(x.emoji||'')+' '+esc(x.name)+'</span>'+
+      '<span class="v"'+(over?' style="color:var(--red-deep);font-weight:700"':'')+'>ใช้ '+num(u)+
+      (q>0?' / '+num(q):'')+' วัน'+(over?' ⚠️ เกินสิทธิ์':'')+'</span></div>';
+  }).join('');
+  return rows ? '<div class="pf-used"><div class="pf-used-t">ใช้ไปแล้วปีนี้</div>'+rows+'</div>' : '';
+}
 
 // ════════════ VIEW: PAYSLIP ════════════
 function loadPayslip(){
