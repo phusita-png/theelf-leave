@@ -259,9 +259,24 @@ function renderSteps(st) {
     if (s.doneAt) detail = (detail ? detail + ' · ' : '') + s.doneAt;
     if (s.state === 'locked' && s.blockedBy) detail = 'ต้องทำ "' + labelOf(s.blockedBy) + '" ก่อน';
 
-    var btnLabel = s.state === 'done' ? 'ทำซ้ำ' : (s.key === 'audit' ? 'ตรวจ' : 'ทำขั้นนี้');
-    var btnCls   = s.state === 'done' ? 'step-btn ghost' : 'step-btn';
-    var dis      = s.state === 'locked' ? ' disabled' : '';
+    var dis = s.state === 'locked' ? ' disabled' : '';
+    var btn;
+
+    if (s.state === 'done') {
+      // ทำไปแล้ว → ปุ่มบอก "เสร็จสิ้น" · ชี้เมาส์ค่อยเผยว่ากดแล้วทำอะไรได้
+      //   (เดิมเขียน "ทำซ้ำ" — ฟังเหมือนต้องทำงานเดิมซ้ำโดยไม่จำเป็น)
+      var hoverLabel = s.key === 'audit' ? 'ตรวจใหม่' : 'แก้ไข';
+      btn = '<button class="step-btn ghost swap"' + dis +
+              ' title="' + hoverLabel + '" onclick="startStep(\'' + s.key + '\')">' +
+              '<span class="lbl-idle">เสร็จสิ้น</span>' +
+              '<span class="lbl-hover">' + hoverLabel + '</span>' +
+            '</button>';
+    } else {
+      btn = '<button class="step-btn"' + dis +
+              ' onclick="startStep(\'' + s.key + '\')">' +
+              (s.key === 'audit' ? 'ตรวจ' : 'ดำเนินการ') +
+            '</button>';
+    }
 
     return '<div class="' + cls + '">' +
              '<div class="step-num">' + (s.state === 'done' ? '✓' : (i + 1)) + '</div>' +
@@ -269,8 +284,7 @@ function renderSteps(st) {
                '<div class="step-label">' + esc(s.label) + chip + '</div>' +
                (detail ? '<div class="step-detail">' + esc(detail) + '</div>' : '') +
              '</div>' +
-             '<button class="' + btnCls + '"' + dis +
-               ' onclick="startStep(\'' + s.key + '\')">' + btnLabel + '</button>' +
+             btn +
            '</div>';
   }).join('');
 }

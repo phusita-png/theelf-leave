@@ -122,6 +122,17 @@ body {
 .step-btn.ghost { background: var(--lock-soft); color: var(--ink-2); }
 .step-btn.ghost:hover:not(:disabled) { background: #e6e6eb; }
 
+/* ปุ่มขั้นที่ทำแล้ว: ปกติบอกสถานะ "เสร็จสิ้น" · ชี้เมาส์/โฟกัสค่อยเผยว่ากดแล้วทำอะไร
+   min-width กันปุ่มกระตุกตอนสลับข้อความ (ความยาว 2 คำไม่เท่ากัน) */
+.step-btn.swap { min-width: 92px; text-align: center; }
+.step-btn.swap .lbl-hover { display: none; }
+.step-btn.swap:hover:not(:disabled) .lbl-idle,
+.step-btn.swap:focus-visible .lbl-idle { display: none; }
+.step-btn.swap:hover:not(:disabled) .lbl-hover,
+.step-btn.swap:focus-visible .lbl-hover { display: inline; }
+.step-btn.swap:hover:not(:disabled),
+.step-btn.swap:focus-visible { background: var(--red); color: #fff; }
+
 .step.is-done   .step-num { background: var(--ok-soft); color: var(--ok); }
 .step.is-warn   .step-num { background: var(--warn-soft); color: var(--warn); }
 .step.is-locked { opacity: .55; }
