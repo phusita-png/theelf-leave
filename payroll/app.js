@@ -38,6 +38,7 @@ var STEP_ACTION = {
   importStudentLoan: 'importStudentLoan',
   audit:             'auditMonth',
   updateYTD:         'updateYTD',
+  setPayDate:        'setPayDate',
   genPayslips:       'genPayslips',
   sendPayslips:      'sendPayslips',
 };
@@ -239,7 +240,8 @@ function skeleton(n) {
 // ════════════ วาดรายการ 9 ขั้น ════════════
 function renderSteps(st) {
   var done = S.steps.filter(function (s) { return s.done; }).length;
-  document.getElementById('stepsSub').textContent = done + '/9 ขั้น';
+  // นับจากจำนวนขั้นจริง ไม่ fix เลข — เพิ่ม/ลดขั้นแล้วตัวเลขต้องตามเอง
+  document.getElementById('stepsSub').textContent = done + '/' + S.steps.length + ' ขั้น';
 
   document.getElementById('stepList').innerHTML = S.steps.map(function (s, i) {
     var cls = 'step';
@@ -275,7 +277,7 @@ function renderSteps(st) {
     } else {
       btn = '<button class="step-btn"' + dis +
               ' onclick="startStep(\'' + s.key + '\')">' +
-              (s.key === 'audit' ? 'ตรวจ' : 'ดำเนินการ') +
+              (s.key === 'audit' ? 'ตรวจ' : s.key === 'setPayDate' ? 'ระบุวันที่' : 'ดำเนินการ') +
             '</button>';
     }
 
@@ -317,12 +319,10 @@ function renderTable(r) {
   S.curPayDateISO = r.payDateISO || '';
   var pdBox = document.getElementById('payDateBox');
   if (pdBox) {
-    pdBox.innerHTML =
-      '<span class="pd-label">วันที่จ่าย</span>' +
-      '<button class="date-btn' + (r.payDate ? '' : ' empty') + '" title="คลิกเพื่อตั้ง/แก้วันที่จ่าย"' +
-        ' onclick="askPayDate(' + r.month + ',' + r.yearBE + ')">' +
-        (r.payDate ? esc(r.payDate) : '+ ระบุวันที่จ่าย') +
-      '</button>';
+    // แสดงอย่างเดียว — การตั้งค่าอยู่ที่ขั้น "📅 กำหนดวันที่จ่าย" ในลำดับ (ทางซ้าย)
+    pdBox.innerHTML = r.payDate
+      ? '<span class="pd-label">วันที่จ่าย</span><b>' + esc(r.payDate) + '</b>'
+      : '<span class="pd-label">ยังไม่ได้กำหนดวันที่จ่าย</span>';
   }
 
   var head = ['ลำดับ', 'ชื่อ-สกุล', 'เงินเดือน', 'OT', 'รวมรายรับ', 'ปกส.', 'ภาษี', 'กยศ.', 'รวมหัก', 'สุทธิ', 'สลิป'];
@@ -384,6 +384,7 @@ function startStep(key) {
 
   if (key === 'audit')             return runAudit();
   if (key === 'importStudentLoan') return askStudentLoanData();
+  if (key === 'setPayDate')        return askPayDate(S.cur.month, S.cur.yearBE);
 
   preview(key, step);
 }
@@ -940,7 +941,8 @@ function mockResult(action, params) {
       ['importStudentLoan', '💳 ดึงยอด กยศ.', 'createMonth'],
       ['audit', '🔍 ตรวจทะเบียน 13 ข้อ', 'calcByDays'],
       ['updateYTD', '📊 อัปเดต YTD สะสม', 'audit'],
-      ['genPayslips', '📄 สร้างสลิป PDF', 'updateYTD'],
+      ['setPayDate', '📅 กำหนดวันที่จ่าย', 'updateYTD'],
+      ['genPayslips', '📄 สร้างสลิป PDF', 'setPayDate'],
       ['sendPayslips', '📧 ส่ง Email + LINE', 'genPayslips'],
     ];
     var byKey = {}, next = null;
