@@ -664,15 +664,21 @@ function renderYearTable(r) {
         pad2(m.month) + '/' + m.yearBE + '</button></td>' +
       '<td class="l">' + esc(m.from) + '</td>' +
       '<td class="l">' + esc(m.to) + '</td>' +
-      '<td class="l">' + (m.payDate ? esc(m.payDate) : '<span class="muted">— ยังไม่ระบุ</span>') + '</td>' +
+      // วันที่จ่ายคลิกแก้ได้ในตัว — ไม่ต้องมีปุ่มไอคอนแยกให้เดาความหมาย
+      '<td class="l">' +
+        '<button class="date-btn' + (m.payDate ? '' : ' empty') + '" title="คลิกเพื่อแก้วันที่จ่าย"' +
+          ' onclick="askPayDate(' + m.month + ',' + m.yearBE + ')">' +
+          (m.payDate ? esc(m.payDate) : '+ ระบุวันที่จ่าย') +
+        '</button>' +
+      '</td>' +
       '<td><b>' + money(m.net) + '</b></td>' +
       '<td>' + money(m.tax) + '</td>' +
       '<td>' + money(m.sso) + '</td>' +
       '<td>' + m.emp + '</td>' +
-      '<td class="l"><span class="row-act">' +
-        '<button class="icon-btn" title="ตั้งวันที่จ่าย" onclick="askPayDate(' + m.month + ',' + m.yearBE + ')">📅</button>' +
-        '<button class="icon-btn" title="ออกไฟล์ Excel ทะเบียนจ่าย" onclick="runExportRegister(' + m.month + ',' + m.yearBE + ')">📦</button>' +
-      '</span></td>' +
+      '<td class="l">' +
+        '<button class="icon-btn" onclick="runExportRegister(' + m.month + ',' + m.yearBE + ')">' +
+          'ส่งออกไฟล์ Excel</button>' +
+      '</td>' +
       '<td class="l"><span class="st ' + st + '">' + esc(m.status) + '</span></td>' +
     '</tr>';
   }).join('');

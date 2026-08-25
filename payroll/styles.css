@@ -279,6 +279,16 @@ textarea.paste:focus { outline: 2px solid var(--red); outline-offset: -1px; bord
   color: var(--red); cursor: pointer; text-decoration: underline;
 }
 .row-act { display: inline-flex; gap: 5px; }
+
+/* วันที่จ่าย — คลิกแก้ได้ในตัว · เส้นประบอกว่าแก้ได้ ไม่ใช่ข้อความตาย */
+.date-btn {
+  background: none; border: 0; padding: 2px 0; font: inherit; font-size: 12.5px;
+  color: var(--ink); cursor: pointer;
+  border-bottom: 1px dashed var(--ink-3);
+}
+.date-btn:hover { color: var(--red); border-bottom-color: var(--red); }
+.date-btn.empty { color: var(--ink-3); border-bottom-style: none; font-weight: 600; }
+.date-btn.empty:hover { color: var(--red); }
 .icon-btn {
   border: 0; border-radius: 7px; background: var(--lock-soft); color: var(--ink-2);
   cursor: pointer; padding: 4px 9px; font: inherit; font-size: 12.5px; font-weight: 600;
