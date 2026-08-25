@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>คู่มือ HR — ปิดเงินเดือนบนเว็บ | ดิเอลฟ์</title>
+<style>
+  :root{
+    --brand:#1f6f78; --brand-d:#134c52; --brand-l:#e4f1f1;
+    --gold:#c08a1e; --gold-l:#fbf2dd; --gold-d:#85600f;
+    --ink:#1f2e2e; --muted:#647573; --line:#dde8e7;
+    --warn:#b3541e; --warn-l:#fcefe4; --red:#c0392b; --red-l:#fdecec;
+    --blue:#2d6fa3; --blue-l:#e9f2f9; --ok:#1f7a5a; --ok-l:#e7f4ee;
+    --shadow:0 2px 12px rgba(31,111,120,.10);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","IBM Plex Sans Thai","Sarabun",sans-serif;
+    background:#f2f7f6; color:var(--ink); line-height:1.75; padding-bottom:50px;
+    -webkit-text-size-adjust:100%;
+  }
+  .wrap{max-width:880px; margin:0 auto; padding:0 16px}
+
+  header{
+    background:linear-gradient(135deg,var(--brand) 0%,var(--brand-d) 100%);
+    color:#fff; padding:34px 22px 28px; text-align:center;
+    border-radius:0 0 22px 22px; box-shadow:var(--shadow);
+  }
+  header .badge{
+    display:inline-block; background:rgba(255,255,255,.18);
+    padding:4px 14px; border-radius:99px; font-size:13px; margin-bottom:10px;
+  }
+  header h1{font-size:25px; line-height:1.35; font-weight:700}
+  header p{opacity:.9; font-size:14.5px; margin-top:8px}
+
+  .card{
+    background:#fff; border-radius:15px; padding:22px;
+    margin:20px 0; box-shadow:var(--shadow);
+  }
+  h2{
+    font-size:19px; color:var(--brand-d); margin-bottom:12px;
+    padding-bottom:9px; border-bottom:2px solid var(--brand-l);
+  }
+  h3{font-size:16px; color:var(--brand-d); margin:18px 0 7px}
+  p{margin-bottom:11px}
+  ul,ol{margin:0 0 11px 21px}
+  li{margin-bottom:6px}
+  b,strong{font-weight:700}
+  code{
+    background:var(--brand-l); padding:1px 6px; border-radius:5px;
+    font-family:ui-monospace,Consolas,monospace; font-size:13px;
+  }
+  a{color:var(--blue)}
+
+  .box{border-radius:11px; padding:14px 17px; margin:14px 0; font-size:14.5px}
+  .box.warn{background:var(--warn-l); border-left:4px solid var(--warn)}
+  .box.red {background:var(--red-l);  border-left:4px solid var(--red)}
+  .box.ok  {background:var(--ok-l);   border-left:4px solid var(--ok)}
+  .box.blue{background:var(--blue-l); border-left:4px solid var(--blue)}
+  .box.gold{background:var(--gold-l); border-left:4px solid var(--gold)}
+  .box b{display:block; margin-bottom:4px}
+
+  .step{
+    display:flex; gap:14px; padding:15px 0; border-bottom:1px solid var(--line);
+  }
+  .step:last-child{border-bottom:0}
+  .step .n{
+    flex:none; width:32px; height:32px; border-radius:50%;
+    background:var(--brand); color:#fff; display:grid; place-items:center;
+    font-weight:700; font-size:15px;
+  }
+  .step .t{font-weight:700; font-size:16px; margin-bottom:3px}
+  .step .d{font-size:14.5px; color:var(--muted)}
+  .step .d b{color:var(--ink)}
+
+  table{width:100%; border-collapse:collapse; margin:12px 0; font-size:14px}
+  th,td{padding:9px 11px; border:1px solid var(--line); text-align:left; vertical-align:top}
+  th{background:var(--brand-l); font-weight:700; color:var(--brand-d)}
+
+  .cta{
+    display:block; background:var(--brand); color:#fff; text-align:center;
+    padding:15px; border-radius:12px; text-decoration:none; font-weight:700;
+    font-size:16px; margin:18px 0;
+  }
+  footer{text-align:center; color:var(--muted); font-size:13px; margin-top:26px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="badge">สำหรับฝ่ายบุคคล</div>
+  <h1>ปิดเงินเดือนบนเว็บ</h1>
+  <p>บจก.ดิเอลฟ์ · ทำครบทุกขั้นโดยไม่ต้องแตะ Google Sheet</p>
+</header>
+
+<div class="wrap">
+
+  <div class="card">
+    <h2>เปิดหน้าจอยังไง</h2>
+    <a class="cta" href="../../payroll/">💰 เปิดระบบเงินเดือน</a>
+    <ul>
+      <li>ใช้บน <b>คอมพิวเตอร์</b> — หน้าจอนี้ออกแบบให้เห็นตารางเงินเดือนครบทุกคอลัมน์</li>
+      <li>ล็อกอินด้วย <b>LINE</b> บัญชีเดียวกับที่ใช้ระบบลา</li>
+      <li>เปิดได้เฉพาะคนที่มีสิทธิ์ <b>ผู้ดูแล / เจ้าของ</b> เท่านั้น</li>
+    </ul>
+    <div class="box red">
+      <b>เปิดแล้วขึ้นว่าไม่มีสิทธิ์?</b>
+      แจ้งผู้ดูแลระบบให้ตั้ง Role ให้ในชีต <code>LineUsers</code> ของระบบลา
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>ก่อนเริ่ม — ต้องทำ 2 อย่างนี้ก่อนเสมอ</h2>
+    <div class="box warn">
+      <b>⚠️ ทำ 2 ข้อนี้ให้เสร็จก่อนกดขั้นแรก</b>
+      ระบบเงินเดือนดึงตัวเลขมาจากอีก 2 ระบบ — ถ้าที่นั่นยังไม่ปิด ตัวเลขที่ดึงมาจะไม่ครบ
+      แล้วต้องไล่แก้ย้อนหลังทีละคน
+    </div>
+    <ol>
+      <li><b>ปิดรอบ OT</b> ในระบบ OT — กด “คำนวณ OT รอบเดือน” ให้เรียบร้อย</li>
+      <li><b>เคลียร์ใบลาค้าง</b> ในระบบลา — อนุมัติ/ไม่อนุมัติใบที่ยังค้างให้หมด</li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <h2>ลำดับ 9 ขั้น</h2>
+    <div class="box blue">
+      <b>ทำจากบนลงล่างเท่านั้น</b>
+      ขั้นถัดไปจะเปิดให้กดเมื่อขั้นก่อนหน้าเสร็จ · ขั้นที่ควรทำต่อจะถูก<b>ไฮไลต์สีแดง</b>ให้เอง
+    </div>
+
+    <div class="step"><div class="n">1</div><div><div class="t">📋 สร้างทะเบียนเดือนใหม่</div>
+      <div class="d">ก๊อปทะเบียนเดือนก่อนมาเป็นเดือนใหม่ + ดึงฐานเงินเดือนล่าสุดจากระบบ OT
+      + เพิ่มพนักงานใหม่ให้เอง<br>
+      <b>อ่านสรุปให้ครบ</b> — โดยเฉพาะบรรทัด “จับคู่ชื่อใน OT ไม่เจอ” (คนนั้นฐานเงินเดือนจะไม่อัปเดต)</div></div></div>
+
+    <div class="step"><div class="n">2</div><div><div class="t">🔗 ดึง OT</div>
+      <div class="d">ดึงยอด OT รวมรายคนจากระบบ OT · ถ้ามีชื่อ “หาคนไม่เจอ” แปลว่าสะกดชื่อไม่ตรงกัน ต้องแก้ให้ตรงก่อน</div></div></div>
+
+    <div class="step"><div class="n">3</div><div><div class="t">💸 ดึงวันลาไม่รับเงิน</div>
+      <div class="d">นับใบลาไม่รับค่าจ้าง + ลากิจส่วนที่เกินสิทธิ์ จากระบบลา</div></div></div>
+
+    <div class="step"><div class="n">4</div><div><div class="t">💵 คำนวณเงินเดือนตามวัน</div>
+      <div class="d"><b>ต้องทำหลังขั้น 3 เสมอ</b> — ขั้นนี้คือขั้นที่ “หักเงิน” จริง
+      ถ้าทำก่อนดึงวันลา เงินจะออกเต็มทั้งที่ควรถูกหัก และจะไม่มีอะไรเตือน</div></div></div>
+
+    <div class="step"><div class="n">5</div><div><div class="t">💳 ดึงยอด กยศ.</div>
+      <div class="d">เปิดไฟล์ที่ กยศ. ส่งมา → เลือกทั้งตาราง → Ctrl+C → วางในช่องบนหน้าเว็บ → Ctrl+V<br>
+      <b>ต้องทำใหม่ทุกเดือน</b> — ช่องนี้ถูกล้างทุกครั้งที่สร้างเดือนใหม่</div></div></div>
+
+    <div class="step"><div class="n">6</div><div><div class="t">🔍 ตรวจทะเบียน 13 ข้อ</div>
+      <div class="d">ตรวจอย่างเดียว ไม่แก้อะไร กดกี่ครั้งก็ได้<br>
+      🔴 = <b>ต้องแก้ก่อนจ่าย</b> · 🟡 = ควรดูให้แน่ใจ<br>
+      แก้ที่ Google Sheet แล้วกด “ตรวจใหม่” จนไม่เหลือ 🔴</div></div></div>
+
+    <div class="step"><div class="n">7</div><div><div class="t">📊 อัปเดต YTD สะสม</div>
+      <div class="d">ยอดสะสมทั้งปี (รายได้/ภาษี/ประกันสังคม) — ทำตอนตัวเลขนิ่งแล้วเท่านั้น<br>
+      ถ้าแก้ตัวเลขทีหลัง ต้องกดขั้นนี้ใหม่ (กดซ้ำได้ ไม่บวกทบ)</div></div></div>
+
+    <div class="step"><div class="n">8</div><div><div class="t">📄 สร้างสลิป PDF</div>
+      <div class="d">ยังไม่ส่งให้ใคร — สร้างไว้ให้ตรวจก่อน<br>
+      มีแถบความคืบหน้า ใช้เวลาสักพัก (ต้องเว้นจังหวะกัน Google บล็อก) <b>อย่าปิดหน้าจอ</b><br>
+      เสร็จแล้วกด “ดูสลิป” ในตารางเพื่อเปิดตรวจ</div></div></div>
+
+    <div class="step"><div class="n">9</div><div><div class="t">📧 ส่ง Email + LINE</div>
+      <div class="d">ส่งจริงให้พนักงาน — <b>ส่งแล้วเรียกคืนไม่ได้</b> ตรวจสลิปให้เรียบร้อยก่อน<br>
+      ถ้ามีคนส่งไม่สำเร็จ ระบบจะบอกชื่อ + สาเหตุตอนจบ</div></div></div>
+  </div>
+
+  <div class="card">
+    <h2>เรื่องที่ควรรู้</h2>
+
+    <h3>ทุกปุ่มถามก่อนเสมอ</h3>
+    <p>กดปุ่มไหนก็ตาม ระบบจะ<b>คำนวณให้ดูก่อนว่าจะเกิดอะไรขึ้น</b> — ยังไม่มีอะไรถูกแก้
+    จนกว่าจะกด <b>“ยืนยัน ทำเลย”</b> ถ้าเห็นแล้วไม่ใช่ กดปิดได้เลย ไม่มีอะไรเปลี่ยน</p>
+
+    <h3>กดซ้ำได้ ไม่พัง</h3>
+    <p>ทุกขั้นออกแบบให้กดซ้ำแล้วผลเหมือนเดิม (ไม่บวกทบ ไม่ส่งซ้ำ)
+    ถ้าไม่แน่ใจว่ากดไปหรือยัง กดใหม่ได้</p>
+
+    <h3>เน็ตหลุดตอนสร้าง/ส่งสลิป</h3>
+    <div class="box ok">
+      <b>ไม่ต้องเริ่มใหม่</b>
+      คนที่ทำไปแล้วไม่หาย — กดขั้นนั้นใหม่ ระบบจะทำต่อจากคนที่ค้างอยู่เอง
+    </div>
+
+    <h3>สลิปผิด ต้องทำใหม่</h3>
+    <p>แก้ตัวเลขใน Google Sheet → กลับมากดขั้น 7 (YTD) ใหม่ → แล้วสร้างสลิปใหม่<br>
+    ถ้าสลิปเดิมถูกสร้างไปแล้วต้องล้างสถานะก่อน — <b>แจ้งผู้ดูแลระบบ</b>ให้กด
+    “🔄 Reset สถานะ” ในเมนูชีตให้</p>
+
+    <h3>มีคนอื่นทำในชีตพร้อมกัน</h3>
+    <p>ระบบล็อกไม่ให้ 2 คนกดชนกันอยู่แล้ว ถ้าขึ้นว่า “ระบบกำลังถูกใช้งานโดยคนอื่น”
+    ให้รอสักครู่แล้วกดใหม่</p>
+  </div>
+
+  <div class="card">
+    <h2>ยังต้องใช้ Google Sheet ตอนไหนบ้าง</h2>
+    <p>หน้าเว็บทำแทนได้ครบทั้ง 9 ขั้น แต่ยังต้องเปิดชีตในกรณีเหล่านี้</p>
+    <table>
+      <tr><th>เรื่อง</th><th>ทำที่ไหน</th></tr>
+      <tr><td>เพิ่ม/แก้ข้อมูลพนักงาน (ชื่อ อีเมล บัญชี วันเริ่มงาน วันลาออก)</td><td>ชีต <b>พนักงาน</b></td></tr>
+      <tr><td>แก้ฐานเงินเดือน</td><td>ระบบ <b>OT</b> → ชีต “อัตราค่าจ้าง” (แก้ที่เดียว payroll ตามเอง)</td></tr>
+      <tr><td>กรอกเงินพิเศษรายเดือน (ค่าตำแหน่ง เบี้ยขยัน ค่าตกเบิก หักอื่นๆ)</td><td>ชีต <b>ทะเบียน</b> เดือนนั้น</td></tr>
+      <tr><td>แก้รายการที่ด่านตรวจฟ้อง 🔴</td><td>ชีต <b>ทะเบียน</b> เดือนนั้น</td></tr>
+      <tr><td>ปรับฐานเงินเดือนกลางรอบ</td><td>เมนูในชีต → 📂 Pro-rate → 🔧 ปรับฐานกลางรอบ</td></tr>
+      <tr><td>รายงานสิ้นปี (ภ.ง.ด.1ก / ทะเบียนจ่าย)</td><td>เมนูในชีต → 📂 รายงานสิ้นปี</td></tr>
+    </table>
+    <div class="box gold">
+      <b>📌 ทุกครั้งที่แก้ตัวเลขในชีต</b>
+      กลับมากด “🔍 ตรวจทะเบียน 13 ข้อ” บนเว็บอีกครั้ง แล้วทำขั้น 7–9 ใหม่
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>ปัญหาที่เจอบ่อย</h2>
+    <table>
+      <tr><th>อาการ</th><th>ทำยังไง</th></tr>
+      <tr><td>ขั้น 1 ขึ้นว่า “จับคู่ชื่อใน OT ไม่เจอ”</td>
+          <td>ชื่อในชีต “อัตราค่าจ้าง” ของระบบ OT สะกดไม่ตรงกับชีตพนักงาน แก้ให้ตรงกัน แล้วกดขั้น 1 ใหม่</td></tr>
+      <tr><td>ขั้น 2 ขึ้นว่าไม่พบชีตรอบ OT</td>
+          <td>ระบบ OT ยังไม่ได้คำนวณรอบนี้ — กลับไปกด “คำนวณ OT รอบเดือน” ก่อน</td></tr>
+      <tr><td>ด่านตรวจฟ้อง “มีลาไม่รับเงินแต่เงินเดือนยังเต็ม”</td>
+          <td>ลืมกดขั้น 4 หลังขั้น 3 — กดขั้น 4 แล้วตรวจใหม่</td></tr>
+      <tr><td>บางคนส่งอีเมลไม่ได้</td>
+          <td>อีเมลในชีตพนักงานผิดหรือว่าง — แก้แล้วให้ผู้ดูแลล้างสถานะคนนั้นให้ (LINE ยังส่งไปแล้วตามปกติ)</td></tr>
+      <tr><td>บางคนส่ง LINE ไม่ได้</td>
+          <td>พนักงานยังไม่ได้ผูก LINE กับระบบ — ให้ลงทะเบียนในระบบลาก่อน</td></tr>
+      <tr><td>ขึ้นว่าเซสชันหมดอายุ</td>
+          <td>ปกติ — ระบบจะพาล็อกอินใหม่ให้เอง ถ้าไม่หายให้ปิดแท็บแล้วเปิดใหม่</td></tr>
+    </table>
+  </div>
+
+  <footer>
+    บจก.ดิเอลฟ์ · จัดทำโดย Moodata<br>
+    มีคำถามหรือเจอปัญหาที่ไม่มีในคู่มือ ติดต่อผู้ดูแลระบบได้เลยค่ะ
+  </footer>
+
+</div>
+</body>
+</html>
