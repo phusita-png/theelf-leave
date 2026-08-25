@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#cc1019">
+  <title>The Elf · ระบบเงินเดือน</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css?v=1">
+</head>
+<body>
+
+  <!-- ░░ LOADING ░░ -->
+  <div id="loader" class="loader">
+    <div class="loader-mark">💰</div>
+    <div class="loader-bar"><i></i></div>
+    <div class="loader-text" id="loaderText">กำลังโหลด…</div>
+  </div>
+
+  <!-- ░░ ERROR เต็มจอ ░░ -->
+  <div id="fail" class="fail hidden">
+    <div class="big" id="failIcon">😿</div>
+    <h2 id="failTitle">เปิดระบบไม่ได้</h2>
+    <p id="failMsg"></p>
+  </div>
+
+  <!-- ░░ APP ░░ -->
+  <div id="app" class="hidden">
+
+    <header class="hd">
+      <div>
+        <div class="hd-title">💰 ระบบเงินเดือน</div>
+        <div class="hd-sub" id="hdCompany">บจก.ดิเอลฟ์</div>
+      </div>
+      <div class="hd-spacer"></div>
+      <select id="monthSel" class="hd-month" title="เลือกเดือน"></select>
+      <span class="hd-role" id="roleBadge">—</span>
+    </header>
+
+    <div class="wrap">
+
+      <div class="pre">
+        <span>⚠️</span>
+        <div>
+          <b>ก่อนเริ่มปิดเดือน</b> — ต้องทำ 2 อย่างนี้ในระบบอื่นให้เสร็จก่อน
+          ไม่งั้นตัวเลขที่ดึงมาจะไม่ครบ<br>
+          ① ปิดรอบ OT ในระบบ OT (กด “คำนวณ OT รอบเดือน”) &nbsp;·&nbsp;
+          ② เคลียร์ใบลาที่ยังค้างอนุมัติในระบบลา
+        </div>
+      </div>
+
+      <div class="cols">
+
+        <!-- ซ้าย: 9 ขั้น -->
+        <div class="card">
+          <div class="card-hd">
+            <h2>ลำดับปิดเงินเดือน</h2>
+            <span class="sub" id="stepsSub"></span>
+          </div>
+          <div class="card-bd" id="stepList"></div>
+        </div>
+
+        <!-- ขวา: ตารางทะเบียน -->
+        <div class="card">
+          <div class="card-hd">
+            <h2>ทะเบียนจ่าย</h2>
+            <span class="sub" id="tableSub"></span>
+          </div>
+          <div class="tbl-scroll" id="tableWrap"></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ░░ MODAL ░░ -->
+  <div id="mask" class="mask hidden">
+    <div class="modal">
+      <div class="modal-hd">
+        <h3 id="mTitle">—</h3>
+        <div class="sub" id="mSub"></div>
+      </div>
+      <div class="modal-bd" id="mBody"></div>
+      <div class="modal-ft" id="mFoot"></div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <script src="config.js?v=1"></script>
+  <script src="app.js?v=1"></script>
+</body>
+</html>

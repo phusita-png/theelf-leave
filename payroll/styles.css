@@ -1,0 +1,244 @@
+/* ================================================================
+   styles.css — ระบบเงินเดือน (หน้าเว็บ HR) · desktop-first
+   ธีมแดงเดียวกับระบบลา · จอเล็กยังอ่านได้แต่เน้นทำงานบนคอม
+   ================================================================ */
+
+:root {
+  --red:      #cc1019;
+  --red-dk:   #a30d14;
+  --red-soft: #fdeced;
+  --ink:      #1c1c1e;
+  --ink-2:    #545458;
+  --ink-3:    #8a8a8e;
+  --line:     #e5e5ea;
+  --bg:       #f2f2f7;
+  --card:     #ffffff;
+  --ok:       #1e8e3e;
+  --ok-soft:  #e6f4ea;
+  --warn:     #b26a00;
+  --warn-soft:#fff4e0;
+  --lock:     #8a8a8e;
+  --lock-soft:#f2f2f7;
+  --radius:   14px;
+  --shadow:   0 1px 3px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.04);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'IBM Plex Sans Thai', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+.hidden { display: none !important; }
+
+/* ── Loader ─────────────────────────────────────────────── */
+.loader {
+  position: fixed; inset: 0; z-index: 100;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 18px; background: var(--bg);
+}
+.loader-mark { font-size: 44px; }
+.loader-bar { width: 180px; height: 4px; border-radius: 4px; background: var(--line); overflow: hidden; }
+.loader-bar i { display: block; width: 40%; height: 100%; background: var(--red); border-radius: 4px;
+  animation: slide 1.1s ease-in-out infinite; }
+@keyframes slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(350%); } }
+.loader-text { color: var(--ink-2); font-size: 14px; }
+
+/* ── Header ─────────────────────────────────────────────── */
+.hd {
+  background: var(--red); color: #fff;
+  padding: 14px 22px;
+  display: flex; align-items: center; gap: 16px;
+  position: sticky; top: 0; z-index: 20;
+}
+.hd-title { font-size: 18px; font-weight: 700; line-height: 1.2; }
+.hd-sub { font-size: 12.5px; opacity: .85; }
+.hd-spacer { flex: 1; }
+.hd-month {
+  background: rgba(255,255,255,.16); color: #fff;
+  border: 1px solid rgba(255,255,255,.3); border-radius: 9px;
+  padding: 7px 12px; font: inherit; font-size: 14.5px; font-weight: 600;
+  cursor: pointer;
+}
+.hd-month option { color: var(--ink); }
+.hd-role {
+  background: rgba(255,255,255,.16); border-radius: 99px;
+  padding: 5px 13px; font-size: 12.5px; font-weight: 600;
+}
+
+/* ── Layout ─────────────────────────────────────────────── */
+.wrap { max-width: 1560px; margin: 0 auto; padding: 22px; }
+.cols { display: grid; grid-template-columns: minmax(390px, 4fr) 8fr; gap: 22px; align-items: start; }
+@media (max-width: 1180px) { .cols { grid-template-columns: 1fr; } }
+
+.card {
+  background: var(--card); border-radius: var(--radius);
+  box-shadow: var(--shadow); overflow: hidden;
+}
+.card-hd {
+  padding: 14px 18px; border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; gap: 10px;
+}
+.card-hd h2 { font-size: 15.5px; font-weight: 700; }
+.card-hd .sub { font-size: 12.5px; color: var(--ink-3); font-weight: 400; }
+.card-bd { padding: 6px 0; }
+
+/* ── แถบเตือนก่อนเริ่ม ──────────────────────────────────── */
+.pre {
+  background: var(--warn-soft); border: 1px solid #f0dcb4;
+  border-radius: var(--radius); padding: 13px 18px; margin-bottom: 18px;
+  font-size: 13.5px; color: #7a4a00; display: flex; gap: 11px; align-items: flex-start;
+}
+.pre b { font-weight: 700; }
+
+/* ── รายการ 9 ขั้น ──────────────────────────────────────── */
+.step {
+  display: flex; align-items: center; gap: 13px;
+  padding: 13px 18px; border-bottom: 1px solid var(--line);
+}
+.step:last-child { border-bottom: 0; }
+.step-num {
+  width: 27px; height: 27px; flex: none; border-radius: 50%;
+  display: grid; place-items: center;
+  font-size: 12.5px; font-weight: 700;
+  background: var(--lock-soft); color: var(--ink-3);
+}
+.step-main { flex: 1; min-width: 0; }
+.step-label { font-size: 14.5px; font-weight: 600; }
+.step-detail { font-size: 12.5px; color: var(--ink-3); margin-top: 1px; }
+.step-btn {
+  flex: none; border: 0; border-radius: 9px; cursor: pointer;
+  padding: 8px 15px; font: inherit; font-size: 13.5px; font-weight: 600;
+  background: var(--red); color: #fff;
+  transition: background .12s;
+}
+.step-btn:hover:not(:disabled) { background: var(--red-dk); }
+.step-btn:disabled { background: var(--lock-soft); color: var(--ink-3); cursor: not-allowed; }
+.step-btn.ghost { background: var(--lock-soft); color: var(--ink-2); }
+.step-btn.ghost:hover:not(:disabled) { background: #e6e6eb; }
+
+.step.is-done   .step-num { background: var(--ok-soft); color: var(--ok); }
+.step.is-warn   .step-num { background: var(--warn-soft); color: var(--warn); }
+.step.is-locked { opacity: .55; }
+.step.is-next   { background: #fffdf7; }
+.step.is-next .step-label { color: var(--red); }
+
+.step-chip {
+  display: inline-block; font-size: 11.5px; font-weight: 600;
+  padding: 1px 8px; border-radius: 99px; margin-left: 7px; vertical-align: 1px;
+}
+.chip-done { background: var(--ok-soft); color: var(--ok); }
+.chip-warn { background: var(--warn-soft); color: var(--warn); }
+.chip-lock { background: var(--lock-soft); color: var(--lock); }
+
+/* ── ตารางทะเบียน ───────────────────────────────────────── */
+.tbl-scroll { overflow-x: auto; }
+table.reg { width: 100%; border-collapse: collapse; font-size: 12.5px; white-space: nowrap; }
+table.reg th, table.reg td { padding: 8px 9px; text-align: right; border-bottom: 1px solid var(--line); }
+table.reg th {
+  background: #fafafc; font-size: 12px; font-weight: 600; color: var(--ink-2);
+  position: sticky; top: 0; z-index: 1;
+}
+table.reg td.l, table.reg th.l { text-align: left; }
+table.reg tbody tr:hover { background: #fafafc; }
+table.reg tfoot td { font-weight: 700; background: #fafafc; border-top: 2px solid var(--line); border-bottom: 0; }
+.muted { color: var(--ink-3); }
+.neg { color: var(--red); }
+.pill { font-size: 11.5px; padding: 1px 7px; border-radius: 99px; background: var(--lock-soft); color: var(--ink-2); }
+.pill.ok { background: var(--ok-soft); color: var(--ok); }
+.pill.wait { background: var(--warn-soft); color: var(--warn); }
+
+.empty { padding: 42px 20px; text-align: center; color: var(--ink-3); font-size: 14px; }
+.empty .big { font-size: 34px; display: block; margin-bottom: 8px; }
+
+/* ── Modal ──────────────────────────────────────────────── */
+.mask {
+  position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,.42);
+  display: flex; align-items: center; justify-content: center; padding: 22px;
+}
+.modal {
+  background: #fff; border-radius: 16px; width: 100%; max-width: 660px;
+  max-height: 88vh; display: flex; flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0,0,0,.25);
+}
+.modal-hd { padding: 17px 22px; border-bottom: 1px solid var(--line); }
+.modal-hd h3 { font-size: 16.5px; font-weight: 700; }
+.modal-hd .sub { font-size: 12.5px; color: var(--ink-3); margin-top: 2px; }
+.modal-bd { padding: 18px 22px; overflow-y: auto; flex: 1; }
+.modal-ft {
+  padding: 14px 22px; border-top: 1px solid var(--line);
+  display: flex; gap: 10px; justify-content: flex-end;
+}
+.btn {
+  border: 0; border-radius: 9px; cursor: pointer;
+  padding: 9px 20px; font: inherit; font-size: 14px; font-weight: 600;
+}
+.btn-primary { background: var(--red); color: #fff; }
+.btn-primary:hover:not(:disabled) { background: var(--red-dk); }
+.btn-primary:disabled { background: #e0a0a4; cursor: not-allowed; }
+.btn-ghost { background: var(--lock-soft); color: var(--ink-2); }
+.btn-ghost:hover { background: #e6e6eb; }
+
+pre.report {
+  white-space: pre-wrap; word-break: break-word;
+  font-family: inherit; font-size: 13.5px; line-height: 1.65; color: var(--ink);
+  background: #fafafc; border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px;
+}
+
+/* ── ผลด่านตรวจ ─────────────────────────────────────────── */
+.audit-sum { display: flex; gap: 10px; margin-bottom: 15px; }
+.audit-box { flex: 1; border-radius: 11px; padding: 12px 15px; text-align: center; }
+.audit-box .n { font-size: 23px; font-weight: 700; line-height: 1.15; }
+.audit-box .t { font-size: 12.5px; }
+.audit-box.red   { background: var(--red-soft); color: var(--red-dk); }
+.audit-box.yell  { background: var(--warn-soft); color: var(--warn); }
+.audit-box.green { background: var(--ok-soft); color: var(--ok); }
+
+.finding {
+  border-left: 3px solid; border-radius: 8px;
+  padding: 10px 13px; margin-bottom: 8px; font-size: 13.5px; line-height: 1.55;
+}
+.finding.red  { border-color: var(--red); background: var(--red-soft); }
+.finding.yell { border-color: #e0a530; background: var(--warn-soft); }
+
+/* ── Progress ───────────────────────────────────────────── */
+.prog { margin-top: 15px; }
+.prog-bar { height: 8px; border-radius: 8px; background: var(--line); overflow: hidden; }
+.prog-bar i { display: block; height: 100%; background: var(--red); border-radius: 8px; transition: width .3s; }
+.prog-text { font-size: 13px; color: var(--ink-2); margin-top: 8px; text-align: center; }
+
+/* ── ช่องวางข้อมูล กยศ. ─────────────────────────────────── */
+.paste-help { font-size: 13.5px; color: var(--ink-2); margin-bottom: 11px; line-height: 1.6; }
+textarea.paste {
+  width: 100%; min-height: 190px; resize: vertical;
+  font-family: ui-monospace, 'SF Mono', Consolas, monospace; font-size: 12.5px; line-height: 1.5;
+  border: 1px solid var(--line); border-radius: 10px; padding: 12px;
+}
+textarea.paste:focus { outline: 2px solid var(--red); outline-offset: -1px; border-color: transparent; }
+
+/* ── Toast ──────────────────────────────────────────────── */
+#toast {
+  position: fixed; left: 50%; bottom: 34px; transform: translateX(-50%) translateY(20px);
+  background: #1c1c1e; color: #fff; padding: 11px 20px; border-radius: 10px;
+  font-size: 14px; z-index: 90; opacity: 0; pointer-events: none;
+  transition: opacity .2s, transform .2s; max-width: 88vw; text-align: center;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ── หน้าจอ error เต็มจอ ────────────────────────────────── */
+.fail { padding: 70px 24px; text-align: center; }
+.fail .big { font-size: 50px; }
+.fail h2 { font-size: 18px; margin: 14px 0 8px; }
+.fail p { color: var(--ink-2); font-size: 14px; max-width: 460px; margin: 0 auto; line-height: 1.7; }
+
+@media (max-width: 700px) {
+  .wrap { padding: 14px; }
+  .hd { padding: 12px 15px; gap: 10px; }
+  .hd-title { font-size: 16px; }
+  .step { padding: 12px 14px; gap: 10px; }
+}
