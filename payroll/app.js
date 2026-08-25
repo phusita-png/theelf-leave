@@ -22,6 +22,10 @@ var S = {
   rows: [],
   totals: null,
   busy: false,
+  tab: 'close',
+  repYear: null,
+  repYears: [],
+  repMonths: [],
 };
 
 // ── ขั้นที่ต้องวางข้อมูลก่อน / อ่านอย่างเดียว ──────────────────
@@ -582,6 +586,234 @@ function cellValue(cell) {
   return v;
 }
 
+// ════════════ แท็บ ════════════
+function goTab(tab) {
+  S.tab = tab;
+  var isReports = tab === 'reports';
+  document.getElementById('viewClose').classList.toggle('hidden', isReports);
+  document.getElementById('viewReports').classList.toggle('hidden', !isReports);
+  document.getElementById('tabClose').classList.toggle('is-on', !isReports);
+  document.getElementById('tabReports').classList.toggle('is-on', isReports);
+  // เลือกเดือนใช้เฉพาะหน้าปิดเดือน — หน้ารายงานเลือกเป็น "ปี" แทน
+  document.getElementById('monthSel').classList.toggle('hidden', isReports);
+  if (isReports) loadReports();
+}
+
+// ════════════ รายงานย้อนหลัง ════════════
+function loadReports() {
+  var year = S.repYear || (S.cur && S.cur.yearBE) || new Date().getFullYear() + 543;
+  document.getElementById('yearWrap').innerHTML  = '<div class="empty">กำลังโหลด…</div>';
+  document.getElementById('filesWrap').innerHTML = '<div class="empty">กำลังโหลด…</div>';
+
+  Promise.all([api('yearSummary', { yearBE: year }), api('reportFiles', { yearBE: year })])
+    .then(function (res) {
+      var sum = res[0], files = res[1];
+      if (!sum.ok) return toast(sum.error || 'โหลดรายงานไม่สำเร็จ');
+
+      S.repYear   = sum.yearBE;
+      S.repYears  = sum.years || [];
+      S.repMonths = sum.months || [];
+      buildYearOptions();
+      renderYearTable(sum);
+      if (files.ok) renderFiles(files);
+      else document.getElementById('filesWrap').innerHTML = '<div class="empty">โหลดรายการไฟล์ไม่สำเร็จ</div>';
+    })
+    .catch(function (e) { toast(String(e && e.message || e)); });
+}
+
+function buildYearOptions() {
+  var sel = document.getElementById('yearSel');
+  var years = (S.repYears || []).slice();
+  if (years.indexOf(S.repYear) < 0) years.unshift(S.repYear);
+  sel.innerHTML = years.map(function (y) {
+    return '<option value="' + y + '">ปี ' + y + '</option>';
+  }).join('');
+  sel.value = S.repYear;
+  sel.onchange = function () { S.repYear = parseInt(sel.value, 10); loadReports(); };
+}
+
+function renderYearTable(r) {
+  document.getElementById('yearSub').textContent =
+    r.months.length ? r.months.length + ' เดือน' : '';
+
+  var wrap = document.getElementById('yearWrap');
+  if (!r.months.length) {
+    wrap.innerHTML = '<div class="empty"><span class="big">📅</span>ยังไม่มีทะเบียนของปี ' + r.yearBE + '</div>';
+    return;
+  }
+
+  var body = r.months.map(function (m, i) {
+    var st = m.status === 'จ่ายแล้ว' ? 'paid' : (m.status === 'ส่งบางส่วน' ? 'partial' : 'none');
+    return '<tr>' +
+      '<td class="l muted">' + (i + 1) + '</td>' +
+      '<td class="l"><button class="linklike" onclick="openMonth(' + m.month + ',' + m.yearBE + ')">' +
+        pad2(m.month) + '/' + m.yearBE + '</button></td>' +
+      '<td class="l">' + esc(m.from) + '</td>' +
+      '<td class="l">' + esc(m.to) + '</td>' +
+      '<td class="l">' + (m.payDate ? esc(m.payDate) : '<span class="muted">— ยังไม่ระบุ</span>') + '</td>' +
+      '<td><b>' + money(m.net) + '</b></td>' +
+      '<td>' + money(m.tax) + '</td>' +
+      '<td>' + money(m.sso) + '</td>' +
+      '<td>' + m.emp + '</td>' +
+      '<td class="l"><span class="row-act">' +
+        '<button class="icon-btn" title="ตั้งวันที่จ่าย" onclick="askPayDate(' + m.month + ',' + m.yearBE + ')">📅</button>' +
+        '<button class="icon-btn" title="ออกไฟล์ Excel ทะเบียนจ่าย" onclick="runExportRegister(' + m.month + ',' + m.yearBE + ')">📦</button>' +
+      '</span></td>' +
+      '<td class="l"><span class="st ' + st + '">' + esc(m.status) + '</span></td>' +
+    '</tr>';
+  }).join('');
+
+  var t = r.totals || {};
+  wrap.innerHTML =
+    '<table class="reg"><thead><tr>' +
+      '<th class="l">ลำดับ</th><th class="l">เดือน</th><th class="l">ตั้งแต่</th><th class="l">ถึงวันที่</th>' +
+      '<th class="l">วันที่จ่าย</th><th>จ่ายสุทธิ</th><th>ภาษี</th><th>ปกส.</th><th>พนักงาน</th>' +
+      '<th class="l">จัดการ</th><th class="l">สถานะ</th>' +
+    '</tr></thead><tbody>' + body + '</tbody>' +
+    '<tfoot><tr>' +
+      '<td class="l" colspan="5">รวมทั้งปี ' + r.yearBE + '</td>' +
+      '<td>' + money(t.net) + '</td>' +
+      '<td>' + money(t.tax) + '</td>' +
+      '<td>' + money(t.sso) + '</td>' +
+      '<td colspan="3"></td>' +
+    '</tr></tfoot></table>';
+}
+
+function renderFiles(r) {
+  document.getElementById('filesSub').textContent = r.count ? r.count + ' ไฟล์' : '';
+  var wrap = document.getElementById('filesWrap');
+
+  if (!r.count) {
+    wrap.innerHTML = '<div class="empty"><span class="big">📁</span>' +
+      'ยังไม่เคยออกไฟล์รายงานของปีนี้<br>' +
+      'กดปุ่ม 📦 ในตารางข้างบนเพื่อออกทะเบียนจ่ายรายเดือน</div>';
+    return;
+  }
+
+  wrap.innerHTML =
+    '<table class="reg"><thead><tr>' +
+      '<th class="l">วันที่ออก</th><th class="l">ประเภท</th><th class="l">เดือน</th>' +
+      '<th class="l">ชื่อไฟล์</th><th class="l">ผู้ออก</th><th class="l"></th>' +
+    '</tr></thead><tbody>' +
+    r.files.map(function (f) {
+      return '<tr>' +
+        '<td class="l">' + esc(f.at) + '</td>' +
+        '<td class="l">' + esc(f.type) + '</td>' +
+        '<td class="l">' + (f.month ? pad2(f.month) + '/' + f.yearBE : 'ทั้งปี ' + (f.yearBE || '')) + '</td>' +
+        '<td class="l">' + esc(f.name) + '</td>' +
+        '<td class="l muted">' + esc(f.by) + '</td>' +
+        '<td class="l">' + (f.url
+          ? '<a class="pill ok" href="' + esc(f.url) + '" target="_blank" rel="noopener">เปิดไฟล์</a>'
+          : '<span class="muted">—</span>') + '</td>' +
+      '</tr>';
+    }).join('') +
+    '</tbody></table>';
+}
+
+/** คลิกเดือนในตารางรายงาน → สลับไปหน้าปิดเดือนของเดือนนั้น */
+function openMonth(month, yearBE) {
+  S.cur = { month: month, yearBE: yearBE };
+  var sel = document.getElementById('monthSel');
+  var v = month + '-' + yearBE;
+  if (!Array.prototype.some.call(sel.options, function (o) { return o.value === v; })) {
+    var op = document.createElement('option');
+    op.value = v; op.textContent = pad2(month) + '/' + yearBE;
+    sel.appendChild(op);
+  }
+  sel.value = v;
+  goTab('close');
+  loadMonth();
+}
+
+// ── 📅 ตั้งวันที่จ่ายจริง ────────────────────────────────────
+function askPayDate(month, yearBE) {
+  var cur = (S.repMonths || []).filter(function (m) { return m.month === month; })[0];
+  openModal('📅 วันที่จ่ายจริง — ' + pad2(month) + '/' + yearBE,
+    'ระบบคำนวณเองไม่ได้ (แต่ละเดือนโอนไม่ตรงกัน)',
+    '<div class="paste-help">ใส่วันที่ที่โอนเงินให้พนักงานจริง — ใช้อ้างอิงตอนตรวจสอบย้อนหลัง<br>' +
+    'เว้นว่างแล้วกดบันทึก = ล้างค่า</div>' +
+    '<input type="date" id="payDateInput" class="sel" style="font-size:15px;padding:9px 12px"' +
+      (cur && cur.payDateISO ? ' value="' + esc(cur.payDateISO) + '"' : '') + '>' +
+    // ⚠️ ช่องเลือกวันที่ของเบราว์เซอร์เป็น ค.ศ. แต่ทั้งระบบแสดง พ.ศ. → โชว์ผลแปลงให้เห็นทันที
+    '<div class="paste-help" id="payDatePreview" style="margin:10px 0 0"></div>',
+    btn('ยกเลิก', 'btn-ghost', 'closeModal()') +
+    btn('บันทึก', 'btn-primary', 'submitPayDate(' + month + ',' + yearBE + ')'));
+
+  setTimeout(function () {
+    var el = document.getElementById('payDateInput');
+    if (!el) return;
+    el.focus();
+    el.addEventListener('input', paintPayDatePreview);
+    paintPayDatePreview();
+  }, 60);
+}
+
+/** แปลง ค.ศ. ในช่อง input → พ.ศ. ให้ HR เห็นว่ากำลังจะบันทึกวันไหน */
+function paintPayDatePreview() {
+  var el = document.getElementById('payDateInput');
+  var out = document.getElementById('payDatePreview');
+  if (!el || !out) return;
+  var m = String(el.value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  out.innerHTML = m
+    ? 'จะบันทึกเป็น <b>' + m[3] + '/' + m[2] + '/' + (parseInt(m[1], 10) + 543) + '</b> (พ.ศ.)'
+    : '<span class="muted">ยังไม่ได้เลือกวันที่ — กดบันทึกตอนนี้ = ล้างค่าเดิม</span>';
+}
+
+function submitPayDate(month, yearBE) {
+  var v = (document.getElementById('payDateInput') || {}).value || '';
+  S.busy = true;
+  api('setPayDate', { month: month, yearBE: yearBE, payDate: v, mode: 'commit' })
+    .then(function (r) {
+      S.busy = false;
+      if (!r.ok) return showError('ตั้งวันที่จ่าย', r.error);
+      closeModal();
+      toast(r.summary || 'บันทึกแล้ว');
+      loadReports();
+    })
+    .catch(function (e) { S.busy = false; showError('ตั้งวันที่จ่าย', String(e && e.message || e)); });
+}
+
+// ── 📦 ออกไฟล์ Excel ทะเบียนจ่ายรายเดือน ────────────────────
+function runExportRegister(month, yearBE) {
+  exportFlow('📦 ส่งออกทะเบียนจ่าย ' + pad2(month) + '/' + yearBE,
+    'exportRegister', { month: month, yearBE: yearBE });
+}
+
+// ── 📊 ออก ภ.ง.ด.1ก รายปี ───────────────────────────────────
+function runExportPND1K() {
+  exportFlow('📊 ภ.ง.ด.1ก ปี ' + S.repYear, 'exportPND1K', { yearBE: S.repYear });
+}
+
+/** ออกไฟล์รายงาน: ดูก่อน → ยืนยัน → สร้างจริง → จดลงทะเบียนไฟล์ */
+function exportFlow(title, action, params) {
+  openModal(title, 'กำลังตรวจสอบ…', '<div class="empty">กำลังเตรียม…</div>', '');
+
+  api(action, params).then(function (r) {
+    if (!r.ok) return showError(title, r.error);
+    setModal(title, 'ตรวจสอบก่อน — ยังไม่ได้สร้างไฟล์',
+      '<pre class="report">' + esc(r.report || r.summary) + '</pre>',
+      btn('ปิด', 'btn-ghost', 'closeModal()') +
+      btn('สร้างไฟล์', 'btn-primary',
+          'doExport(\'' + esc(title) + '\',\'' + action + '\',' + JSON.stringify(params).replace(/"/g, '&quot;') + ')'));
+  }).catch(function (e) { showError(title, String(e && e.message || e)); });
+}
+
+function doExport(title, action, params) {
+  S.busy = true;
+  setModal(title, 'กำลังสร้างไฟล์…', '<div class="empty">กำลังสร้าง… อย่าปิดหน้านี้นะคะ</div>', '');
+
+  var p = Object.assign({ mode: 'commit' }, params);
+  api(action, p).then(function (r) {
+    S.busy = false;
+    if (!r.ok) return showError(title, r.error);
+    setModal(title, '✅ สร้างไฟล์แล้ว',
+      '<pre class="report">' + esc(r.report || r.summary) + '</pre>' +
+      (r.xlsxUrl ? '<div style="margin-top:13px"><a class="btn btn-primary" style="text-decoration:none;display:inline-block"' +
+                   ' href="' + esc(r.xlsxUrl) + '" target="_blank" rel="noopener">📊 เปิดไฟล์ Excel</a></div>' : ''),
+      btn('เสร็จสิ้น', 'btn-primary', 'closeModal(); loadReports();'));
+  }).catch(function (e) { S.busy = false; showError(title, String(e && e.message || e)); });
+}
+
 // ════════════ MODAL ════════════
 function openModal(title, sub, body, foot) {
   document.getElementById('mTitle').textContent = title;
@@ -722,6 +954,40 @@ function mockResult(action, params) {
       yellow: ['#1 สมชาย ใจดี: ภาษี 420.00 ต่างจากที่คำนวณได้ ~455.00 (ฐาน 26,250.00) — ถ้ามีลดหย่อนพิเศษก็ข้ามได้'],
       info: [], passed: false,
       report: '(พรีวิว)', summary: '🔴 1 · 🟡 1 (4 คน)' };
+  }
+
+  if (action === 'yearSummary') {
+    var yr = parseInt((params && params.yearBE) || 2569, 10);
+    var mk = function (mo, sent, payDate) {
+      var net = 62000 + mo * 830;
+      return { month: mo, yearBE: yr, sheetName: 'ทะเบียน ' + pad2(mo) + '-' + yr,
+        periodText: '26/' + pad2(mo - 1 || 12) + ' − 25/' + pad2(mo),
+        from: '26/' + pad2(mo - 1 || 12) + '/' + yr, to: '25/' + pad2(mo) + '/' + yr,
+        payDate: payDate || '', payDateISO: payDate ? (yr - 543) + '-' + pad2(mo) + '-28' : '',
+        emp: 4, income: net + 3400, deduct: 3400, net: net,
+        tax: 400 + mo * 5, sso: 3105, ot: 2050,
+        slipMade: sent ? 0 : 4, sent: sent ? 4 : 0,
+        status: sent ? 'จ่ายแล้ว' : 'ยังไม่ส่ง' };
+    };
+    var ms = [mk(5, true, '31/05/' + yr), mk(6, true, '30/06/' + yr),
+              mk(7, true, '31/07/' + yr), mk(8, false, '')];
+    var tt = { emp: 4, income: 0, deduct: 0, net: 0, tax: 0, sso: 0, ot: 0 };
+    ms.forEach(function (m) {
+      tt.income += m.income; tt.deduct += m.deduct; tt.net += m.net;
+      tt.tax += m.tax; tt.sso += m.sso; tt.ot += m.ot;
+    });
+    return { ok: true, yearBE: yr, months: ms, totals: tt, years: [2569, 2568] };
+  }
+
+  if (action === 'reportFiles') {
+    return { ok: true, yearBE: params && params.yearBE, count: 3, files: [
+      { at: '01/08/2569', type: 'ทะเบียนจ่าย', month: 7, yearBE: 2569,
+        name: 'ทะเบียนจ่าย_07-2569.xlsx', url: '#', by: 'phusita@moodata.me' },
+      { at: '01/07/2569', type: 'ทะเบียนจ่าย', month: 6, yearBE: 2569,
+        name: 'ทะเบียนจ่าย_06-2569.xlsx', url: '#', by: 'phusita@moodata.me' },
+      { at: '15/01/2569', type: 'ภ.ง.ด.1ก', month: null, yearBE: 2568,
+        name: 'ภงด.1ก_2568.xlsx', url: '#', by: 'phusita@moodata.me' },
+    ] };
   }
 
   var noop = { ok: true, dryRun: params && params.mode !== 'commit',

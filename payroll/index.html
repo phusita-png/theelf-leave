@@ -34,12 +34,17 @@
         <div class="hd-title">💰 ระบบเงินเดือน</div>
         <div class="hd-sub" id="hdCompany">บจก.ดิเอลฟ์</div>
       </div>
+      <nav class="hd-tabs">
+        <button class="hd-tab is-on" id="tabClose"   onclick="goTab('close')">ปิดเดือน</button>
+        <button class="hd-tab"       id="tabReports" onclick="goTab('reports')">รายงานย้อนหลัง</button>
+      </nav>
       <div class="hd-spacer"></div>
       <select id="monthSel" class="hd-month" title="เลือกเดือน"></select>
       <span class="hd-role" id="roleBadge">—</span>
     </header>
 
-    <div class="wrap">
+    <!-- ══ มุมมอง: ปิดเดือน ══ -->
+    <div class="wrap" id="viewClose">
 
       <div class="pre">
         <span>⚠️</span>
@@ -72,6 +77,30 @@
         </div>
 
       </div>
+    </div>
+
+    <!-- ══ มุมมอง: รายงานย้อนหลัง ══ -->
+    <div class="wrap hidden" id="viewReports">
+
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-hd">
+          <h2>รายงานย้อนหลัง</h2>
+          <span class="sub" id="yearSub"></span>
+          <div class="hd-spacer"></div>
+          <select id="yearSel" class="sel" title="เลือกปี"></select>
+          <button class="btn btn-ghost sm" onclick="runExportPND1K()">📊 ภ.ง.ด.1ก รายปี</button>
+        </div>
+        <div class="tbl-scroll" id="yearWrap"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-hd">
+          <h2>ไฟล์รายงานที่ออกไปแล้ว</h2>
+          <span class="sub" id="filesSub"></span>
+        </div>
+        <div class="tbl-scroll" id="filesWrap"></div>
+      </div>
+
     </div>
   </div>
 
