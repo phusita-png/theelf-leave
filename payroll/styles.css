@@ -280,6 +280,10 @@ textarea.paste:focus { outline: 2px solid var(--red); outline-offset: -1px; bord
 }
 .row-act { display: inline-flex; gap: 5px; }
 
+/* วันที่จ่ายบนหัวการ์ดทะเบียนจ่าย (หน้าปิดเดือน) */
+.pd-box { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.pd-label { color: var(--ink-3); }
+
 /* วันที่จ่าย — คลิกแก้ได้ในตัว · เส้นประบอกว่าแก้ได้ ไม่ใช่ข้อความตาย */
 .date-btn {
   background: none; border: 0; padding: 2px 0; font: inherit; font-size: 12.5px;

@@ -26,6 +26,7 @@ var S = {
   repYear: null,
   repYears: [],
   repMonths: [],
+  curPayDateISO: '',
 };
 
 // ── ขั้นที่ต้องวางข้อมูลก่อน / อ่านอย่างเดียว ──────────────────
@@ -301,6 +302,8 @@ function renderTable(r) {
 
   if (!r.exists) {
     sub.textContent = '';
+    var pdEmpty = document.getElementById('payDateBox');
+    if (pdEmpty) pdEmpty.innerHTML = '';
     wrap.innerHTML = '<div class="empty"><span class="big">📋</span>' +
       'ยังไม่มีทะเบียนเดือน ' + pad2(S.cur.month) + '/' + S.cur.yearBE + '<br>' +
       'กด “สร้างทะเบียนเดือนใหม่” ทางซ้ายเพื่อเริ่มค่ะ</div>';
@@ -308,6 +311,19 @@ function renderTable(r) {
   }
 
   sub.textContent = r.sheetName + ' · ' + r.count + ' คน';
+
+  // วันที่จ่ายอยู่ตรงนี้ (ไม่ใช่หน้ารายงาน) — เป็นส่วนหนึ่งของการทำทะเบียนจ่าย
+  // และกระทบวันที่บนสลิปเงินเดือน จึงต้องตั้งก่อนสร้างสลิป
+  S.curPayDateISO = r.payDateISO || '';
+  var pdBox = document.getElementById('payDateBox');
+  if (pdBox) {
+    pdBox.innerHTML =
+      '<span class="pd-label">วันที่จ่าย</span>' +
+      '<button class="date-btn' + (r.payDate ? '' : ' empty') + '" title="คลิกเพื่อตั้ง/แก้วันที่จ่าย"' +
+        ' onclick="askPayDate(' + r.month + ',' + r.yearBE + ')">' +
+        (r.payDate ? esc(r.payDate) : '+ ระบุวันที่จ่าย') +
+      '</button>';
+  }
 
   var head = ['ลำดับ', 'ชื่อ-สกุล', 'เงินเดือน', 'OT', 'รวมรายรับ', 'ปกส.', 'ภาษี', 'กยศ.', 'รวมหัก', 'สุทธิ', 'สลิป'];
   var body = S.rows.map(function (x) {
@@ -664,13 +680,9 @@ function renderYearTable(r) {
         pad2(m.month) + '/' + m.yearBE + '</button></td>' +
       '<td class="l">' + esc(m.from) + '</td>' +
       '<td class="l">' + esc(m.to) + '</td>' +
-      // วันที่จ่ายคลิกแก้ได้ในตัว — ไม่ต้องมีปุ่มไอคอนแยกให้เดาความหมาย
-      '<td class="l">' +
-        '<button class="date-btn' + (m.payDate ? '' : ' empty') + '" title="คลิกเพื่อแก้วันที่จ่าย"' +
-          ' onclick="askPayDate(' + m.month + ',' + m.yearBE + ')">' +
-          (m.payDate ? esc(m.payDate) : '+ ระบุวันที่จ่าย') +
-        '</button>' +
-      '</td>' +
+      // ⚠️ อ่านอย่างเดียว — วันที่จ่ายกระทบสลิปเงินเดือน ต้องตั้งตอนทำทะเบียนจ่าย
+      //    (หน้าปิดเดือน) ไม่ใช่มาแก้ทีหลังในหน้ารายงาน
+      '<td class="l">' + (m.payDate ? esc(m.payDate) : '<span class="muted">— ยังไม่ระบุ</span>') + '</td>' +
       '<td><b>' + money(m.net) + '</b></td>' +
       '<td>' + money(m.tax) + '</td>' +
       '<td>' + money(m.sso) + '</td>' +
@@ -747,13 +759,13 @@ function openMonth(month, yearBE) {
 
 // ── 📅 ตั้งวันที่จ่ายจริง ────────────────────────────────────
 function askPayDate(month, yearBE) {
-  var cur = (S.repMonths || []).filter(function (m) { return m.month === month; })[0];
+  var iso = S.curPayDateISO || '';
   openModal('📅 วันที่จ่ายจริง — ' + pad2(month) + '/' + yearBE,
-    'ระบบคำนวณเองไม่ได้ (แต่ละเดือนโอนไม่ตรงกัน)',
-    '<div class="paste-help">ใส่วันที่ที่โอนเงินให้พนักงานจริง — ใช้อ้างอิงตอนตรวจสอบย้อนหลัง<br>' +
+    'ตั้งก่อนสร้างสลิป — วันที่นี้กระทบสลิปเงินเดือน',
+    '<div class="paste-help">ใส่วันที่ที่โอนเงินให้พนักงานจริง<br>' +
     'เว้นว่างแล้วกดบันทึก = ล้างค่า</div>' +
     '<input type="date" id="payDateInput" class="sel" style="font-size:15px;padding:9px 12px"' +
-      (cur && cur.payDateISO ? ' value="' + esc(cur.payDateISO) + '"' : '') + '>' +
+      (iso ? ' value="' + esc(iso) + '"' : '') + '>' +
     // ⚠️ ช่องเลือกวันที่ของเบราว์เซอร์เป็น ค.ศ. แต่ทั้งระบบแสดง พ.ศ. → โชว์ผลแปลงให้เห็นทันที
     '<div class="paste-help" id="payDatePreview" style="margin:10px 0 0"></div>',
     btn('ยกเลิก', 'btn-ghost', 'closeModal()') +
@@ -788,7 +800,7 @@ function submitPayDate(month, yearBE) {
       if (!r.ok) return showError('ตั้งวันที่จ่าย', r.error);
       closeModal();
       toast(r.summary || 'บันทึกแล้ว');
-      loadReports();
+      if (S.tab === 'reports') loadReports(); else loadMonth();
     })
     .catch(function (e) { S.busy = false; showError('ตั้งวันที่จ่าย', String(e && e.message || e)); });
 }
@@ -964,7 +976,8 @@ function mockResult(action, params) {
       t.ot += r.ot; t.tax += r.tax; t.sso += r.sso;
     });
     return { ok: true, exists: true, sheetName: 'ทะเบียน 08-2569',
-             month: 8, yearBE: 2569, rows: rows, totals: t, count: rows.length };
+             month: 8, yearBE: 2569, payDate: '', payDateISO: '',
+             rows: rows, totals: t, count: rows.length };
   }
 
   if (action === 'auditMonth') {
