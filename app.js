@@ -1603,7 +1603,7 @@ function switchMgTab(tab){
   document.querySelectorAll('[data-mgtab]').forEach(function(el){ el.classList.toggle('on', el.dataset.mgtab===tab); });
   var box=document.getElementById('mgTab'); if(!box) return;
   if(tab==='list'){ box.innerHTML=mgListTabHtml(); wireMgListTab(); loadMgleave(); }
-  else if(tab==='files'){ box.innerHTML=rptFilesTabHtml('leave'); wireRptFiles('leave'); loadRptFiles('leave'); }
+  else if(tab==='files'){ box.innerHTML=rptFilesTabHtml('leave'); wireRptFiles('leave'); loadRptMonths('leave'); loadRptFiles('leave'); }
   else if(tab==='tools'){ box.innerHTML=mgToolsTabHtml(); wireMgToolsTab(); ensureMgUsers(); }
   else { box.innerHTML=mgReportTabHtml(); wireMgReportTab(); loadMgReport(); }
 }
@@ -2007,7 +2007,7 @@ function switchOtTab(tab){
   document.querySelectorAll('[data-ottab]').forEach(function(el){ el.classList.toggle('on', el.dataset.ottab===tab); });
   var box=document.getElementById('otTab'); if(!box) return;
   if(tab==='list'){ box.innerHTML=otListTabHtml(); wireOtListTab(); loadOtList(); }
-  else if(tab==='files'){ box.innerHTML=rptFilesTabHtml('ot'); wireRptFiles('ot'); loadRptFiles('ot'); }
+  else if(tab==='files'){ box.innerHTML=rptFilesTabHtml('ot'); wireRptFiles('ot'); loadRptMonths('ot'); loadRptFiles('ot'); }
   else if(tab==='tools'){ box.innerHTML=otToolsTabHtml(); wireOtToolsTab(); ensureMgUsers(); }
   else { box.innerHTML=otReportTabHtml(); wireOtReportTab(); loadOtReport(); }
 }
@@ -2735,7 +2735,11 @@ var RPT_NOTE = { leave:'📚 ไฟล์รายงานการลาที
 function rptFilesTabHtml(group){
   return '<div class="card">'+
     '<div class="hr-note ok2">'+RPT_NOTE[group]+' — กดเปิดซ้ำได้ ไม่ต้องหาใน Drive</div>'+
-    '<div class="rpt-bar"><button class="rpt-refill" id="rptBackfill">🔄 ดึงรายงานเก่าเข้าทะเบียน</button></div>'+
+    '<div class="rpt-sec">📄 รายงานรายเดือน (แท็บในชีต)</div>'+
+    '<div id="rptMonths"><div class="skel" style="height:70px"></div></div>'+
+    '<div class="rpt-sec">📦 ไฟล์ที่เคยกด Export'+
+      '<button class="rpt-refill" id="rptBackfill">🔄 ดึงรายงานเก่าเข้าทะเบียน</button>'+
+    '</div>'+
     '<div id="rptFiles"><div class="skel" style="height:120px"></div></div>'+
   '</div>';
 }
@@ -2769,6 +2773,24 @@ function doRptBackfill(group){
 function wireRptFiles(group){
   var b=document.getElementById('rptBackfill');
   if(b) b.addEventListener('click',function(){ doRptBackfill(group); });
+}
+
+/** รายงานรายเดือนที่เป็นแท็บในชีตอยู่แล้ว (มีมาก่อนมีทะเบียน) */
+function loadRptMonths(group){
+  api('mgMonthlyReports',{group:group}).then(function(r){
+    var box=document.getElementById('rptMonths'); if(!box) return;
+    if(!r.ok) return box.innerHTML=emptyBox('😿', r.error||'โหลดไม่สำเร็จ');
+    if(!(r.months||[]).length)
+      return box.innerHTML=emptyBox('📄','ยังไม่มีแท็บรายงานรายเดือนในชีต');
+    box.innerHTML='<div class="rpt-months">'+r.months.map(function(m){
+      return '<a class="rpt-mo" href="'+esc(m.url)+'" target="_blank" rel="noopener">'+
+        '<span class="rpt-mo-t">'+esc(m.label)+'</span>'+
+        '<span class="rpt-mo-s">'+esc(m.name)+' · '+m.rows+' แถว</span>'+
+      '</a>';
+    }).join('')+'</div>';
+  }).catch(function(e){
+    var box=document.getElementById('rptMonths'); if(box) box.innerHTML=emptyBox('🔌', String(e.message||e));
+  });
 }
 
 function loadRptFiles(group){
@@ -2888,6 +2910,13 @@ function mockApi(action, params){
       {name:'นโยบายวันลา ปี 2569',url:'#',category:'นโยบาย',scope:'ทั้งบริษัท'},
       {name:'ฟอร์มเบิกค่ารักษาพยาบาล',url:'#',category:'แบบฟอร์ม',scope:'ทั้งบริษัท'}]});
     else if(action==='mgOtList') resolve({ok:true,label:'รอบเดือนนี้ (26–25)',count:MOCK_OT_LIST.length,ot:MOCK_OT_LIST});
+    else if(action==='mgMonthlyReports') resolve({ok:true,group:(params&&params.group)||'leave',months:
+      ((params&&params.group)==='ot'
+        ? [{month:8,yearBE:2569,label:'ส.ค. 2569',name:'การคำนวณ OT 08-2026',rows:48,url:'#'},
+           {month:7,yearBE:2569,label:'ก.ค. 2569',name:'การคำนวณ OT 07-2026',rows:41,url:'#'}]
+        : [{month:7,yearBE:2569,label:'ก.ค. 2569',name:'รายงาน 07-2569',rows:22,url:'#'},
+           {month:6,yearBE:2569,label:'มิ.ย. 2569',name:'รายงาน 06-2569',rows:22,url:'#'},
+           {month:5,yearBE:2569,label:'พ.ค. 2569',name:'รายงาน 05-2569',rows:22,url:'#'}])});
     else if(action==='mgReportBackfill') resolve(params&&params.mode==='commit'
       ? {ok:true,added:3,found:3,report:'เพิ่มเข้าทะเบียนแล้ว 3 ไฟล์'}
       : {ok:true,dryRun:true,found:3,report:'พบรายงานเก่าที่ยังไม่อยู่ในทะเบียน 3 ไฟล์\n\n  • รายการ OT 2 ไฟล์\n  • สรุปการลารายคน 1 ไฟล์\n\nกดยืนยันเพื่อเพิ่มเข้าทะเบียน (ไม่แตะไฟล์ต้นฉบับ)'});
