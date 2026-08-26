@@ -452,6 +452,7 @@ function askPeriodLock() {
   };
 
   openModal('🔒 ปิดรอบ ' + period, 'ปิดแล้วจะแก้ใบลา/OT ของรอบนี้ไม่ได้',
+    '<div id="pay-lockDriftBox" class="drift checking">⏳ กำลังตรวจว่าชีตคำนวณ OT ตรงกับใบจริง…</div>' +
     '<div class="paste-help">ติ๊ก = ปิด · เอาติ๊กออก = ปลดล็อก<br>' +
     'ปิดก่อนคำนวณเงินเดือน กันมีคนแก้ใบย้อนหลังหลังจากคิดเงินไปแล้ว<br>' +
     '<b>ปลดล็อกทีหลังได้</b> ถ้าเจอที่ต้องแก้ (ระบบบันทึกไว้ว่าใครปิด/ปลดเมื่อไหร่)</div>' +
@@ -459,6 +460,31 @@ function askPeriodLock() {
     row('pay-lockOt', 'OT', ot),
     btn('ปิด', 'btn-ghost', 'closeModal()') +
     btn('บันทึก', 'btn-primary', 'submitPeriodLock()'));
+
+  checkCalcDrift();
+}
+
+/**
+ * ตรวจว่าชีต "การคำนวณ OT MM-YYYY" ตรงกับใบ OT จริงไหม
+ *
+ * payroll ดึงยอด OT จาก **ชีต** ไม่ใช่จากยอดสดบนหน้าเว็บ
+ * ถ้าปิดรอบตอนที่ 2 ที่ยังไม่ตรง = จ่ายตามยอดเก่าโดยไม่มีใครรู้
+ * เตือนอย่างเดียว ไม่บล็อก — บางทีพี่ตั้งใจปิดก่อนแล้วค่อยคำนวณ
+ */
+function checkCalcDrift() {
+  if (!(HOST && HOST.leaveApi)) return;
+  HOST.leaveApi('mgOtCalcDrift', { month: S.cur.month, yearBE: S.cur.yearBE })
+    .then(function (r) {
+      var box = $('lockDriftBox'); if (!box) return;       // ปิดกล่องไปแล้ว
+      if (!r || !r.ok) { box.className = 'drift'; box.textContent = 'ตรวจชีตคำนวณไม่ได้ — ' + ((r && r.error) || ''); return; }
+      box.className = 'drift ' + (r.inSync ? 'ok' : 'warn');
+      box.innerHTML = (r.inSync ? '✅ ' : '⚠️ ') + esc(r.summary).replace(/\n/g, '<br>') +
+        (r.inSync ? '' : '<div class="drift-sub">ชีต ' + r.sheetCount + ' ใบ · ใบจริงตอนนี้ ' + r.liveCount + ' ใบ</div>');
+    })
+    .catch(function () {
+      var box = $('lockDriftBox');
+      if (box) { box.className = 'drift'; box.textContent = 'ตรวจชีตคำนวณไม่ได้ (ข้ามได้)'; }
+    });
 }
 
 function nameOfKind(j) { return j.kind === 'ot' ? 'OT' : 'การลา'; }
@@ -1392,6 +1418,7 @@ return {
   loadReports: loadReports,
   toggleCols: toggleCols,
   askPeriodLock: askPeriodLock,
+  checkCalcDrift: checkCalcDrift,
   submitPeriodLock: submitPeriodLock,
   closeModal: closeModal,
 };

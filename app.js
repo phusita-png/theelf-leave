@@ -2922,6 +2922,9 @@ function mockApi(action, params){
       {name:'นโยบายวันลา ปี 2569',url:'#',category:'นโยบาย',scope:'ทั้งบริษัท'},
       {name:'ฟอร์มเบิกค่ารักษาพยาบาล',url:'#',category:'แบบฟอร์ม',scope:'ทั้งบริษัท'}]});
     else if(action==='mgOtList') resolve({ok:true,label:'รอบเดือนนี้ (26–25)',count:MOCK_OT_LIST.length,ot:MOCK_OT_LIST});
+    else if(action==='mgOtCalcDrift') resolve({ok:true,hasSheet:true,sheetName:'การคำนวณ OT 08-2026',
+      inSync:false,diffCount:2,sheetCount:48,liveCount:49,added:['OT-A'],changed:['OT-B (0.5 → 1.5 ชม.)'],removed:[],
+      summary:'มีใบที่เปลี่ยนหลังกดคำนวณ — ใบใหม่/เพิ่งอนุมัติ 1 ใบ · แก้ชั่วโมง 1 ใบ\nต้องกด “คำนวณ OT รอบเดือน” ใหม่ก่อนปิดรอบ ไม่งั้น payroll จะดึงยอดเก่าไปจ่าย'});
     else if(action==='mgPeriodLocks') resolve({ok:true,period:'08-2569',leave:MOCK_LOCKS.leave,ot:MOCK_LOCKS.ot});
     else if(action==='mgSetPeriodLock'){
       var _k=(params&&params.kind)||'ot', _on=String((params&&params.locked)||'')==='1';
