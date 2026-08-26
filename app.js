@@ -595,6 +595,7 @@ function doSubmitOt(){
   api(action, params).then(function(r){
     if(!r.ok){ if(btn){btn.disabled=false;btn.textContent=defLabel;} return toast(r.error||'ส่งไม่สำเร็จ','err'); }
     toast((editing?'✅ บันทึกการแก้ไข OT แล้ว · ':'✅ ส่งคำขอ OT แล้ว · ')+r.hours+' ชม.','ok');
+    if(r.warn) noticeBox('ยื่น OT แล้ว — แต่มีเรื่องต้องทำต่อ', r.warn);
     S.editOtId=null;
     S.otForm={date:null,start:'',end:'',type:'1',reason:''};
     refresh(); setTimeout(function(){ S.histTab='ot'; goTo('history'); },1100);
@@ -963,6 +964,12 @@ function confirmModal(opts){
   c.classList.add('show');
   c.querySelector('[data-cfm-cancel]').addEventListener('click', closeConfirm);
   c.querySelector('[data-cfm-ok]').addEventListener('click', function(){ closeConfirm(); opts.onConfirm(); });
+}
+// กล่องแจ้งให้ "รับทราบ" — ใช้กับเรื่องที่ต้องลงมือทำต่อ (toast หายใน 3 วิ อ่านไม่ทัน/พลาดได้)
+function noticeBox(title, msg, emoji){
+  modalForm({ title: title, emoji: emoji || '⚠️',
+    body: '<div class="hr-note" style="font-size:13.5px;line-height:1.65">' + esc(msg) + '</div>',
+    okLabel: 'รับทราบ', onOk: function(){ closeConfirm(); } });
 }
 function closeConfirm(){ var c=document.getElementById('confirm'); if(c) c.classList.remove('show'); }
 // modal ฟอร์มทั่วไป (reuse .cfm) — opts:{title,emoji,accent,body,okLabel,onOk(c),onMount(c)}
@@ -2173,7 +2180,7 @@ function openOtProxy(){
     onOk:function(c){ var emp=c.querySelector('#otfEmp').value; if(!emp) return toast('เลือกพนักงานก่อนค่ะ','err'); var p=otReadForm(c); if(!p.otDate) return toast('เลือกวันที่','err'); if(!p.startTime||!p.endTime) return toast('ใส่เวลาให้ครบ','err'); p.targetUserId=emp; p.autoApprove=c.querySelector('#otfAuto').checked?'1':'';
       var btn=c.querySelector('[data-cfm-ok]'); if(btn){btn.disabled=true;btn.textContent='กำลังยื่น…';}
       api('mgProxyOt',p).then(function(r){ if(!r.ok){ if(btn){btn.disabled=false;btn.textContent='➕ ยื่น OT';} return toast(r.error||'ยื่นไม่สำเร็จ','err'); }
-        closeConfirm(); toast((r.approved?'✅ ยื่นแทน+อนุมัติแล้ว · ':'📝 ยื่นแทนแล้ว (รออนุมัติ) · ')+r.otId,'ok'); S.mgotData=null; if(S.otTab==='list') loadOtList(); }).catch(function(e){ if(btn){btn.disabled=false;btn.textContent='➕ ยื่น OT';} toast(String(e.message||e),'err'); }); }
+        closeConfirm(); toast((r.approved?'✅ ยื่นแทน+อนุมัติแล้ว · ':'📝 ยื่นแทนแล้ว (รออนุมัติ) · ')+r.otId,'ok'); if(r.warn) noticeBox('ยื่นแทนแล้ว — แต่มีเรื่องต้องทำต่อ', r.warn); S.mgotData=null; if(S.otTab==='list') loadOtList(); }).catch(function(e){ if(btn){btn.disabled=false;btn.textContent='➕ ยื่น OT';} toast(String(e.message||e),'err'); }); }
   });
 }
 // ── แท็บ ⚙️ ตั้งค่า ──
