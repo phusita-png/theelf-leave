@@ -2093,7 +2093,7 @@ function paintOtList(){
   var head='<div class="mg-head">📋 '+esc(S.mgotData.label||'')+' · '+S.mgotData.count+' ใบ'+(S.mgotData.count>500?' (แสดง 500 ล่าสุด)':'')+'</div>';
   var table=!list.length?emptyBox('🍃','ไม่มี OT ตามเงื่อนไข'):
     '<div class="mg-tbwrap"><table class="mg-table"><thead><tr>'+
-      '<th>เลขที่</th><th>วันที่ยื่น</th><th class="ce">รหัส</th><th>พนักงาน</th><th>แผนก</th><th>วันที่ทำ</th><th class="ce">เวลา</th><th class="ce">ชม.</th><th>ประเภท</th><th class="ce">หักพัก</th><th class="ce">สถานะ</th><th class="ce">จัดการ</th>'+
+      '<th>เลขที่</th><th>วันที่ยื่น</th><th class="ce">รหัส</th><th>พนักงาน</th><th>แผนก</th><th>วันที่ทำ</th><th class="ce">เวลา</th><th class="ce">ชม.</th><th>ประเภท</th><th class="ce">ไม่หักพัก</th><th class="ce">สถานะ</th><th class="ce">จัดการ</th>'+
     '</tr></thead><tbody>'+list.map(otRowTable).join('')+'</tbody></table></div>';
   box.innerHTML='<div class="card">'+head+otSummaryBar(counts)+table+'</div>';
   box.querySelectorAll('[data-otf]').forEach(function(el){ el.addEventListener('click',function(){ S.mgotStatus=el.dataset.otf; var ss=document.getElementById('otStatusF'); if(ss) ss.value=el.dataset.otf; paintOtList(); }); });
@@ -2105,7 +2105,7 @@ function paintOtList(){
 /** ติ๊ก/ปลด "ไม่หักพัก" จากตาราง — อัปเดตในที่ ไม่ต้องโหลดตารางใหม่ทั้งหน้า */
 function toggleOtNoBreak(el){
   var id=el.dataset.otnb, want=el.dataset.nbval;
-  el.disabled=true; el.textContent='…';
+  el.disabled=true;                                  // กันกดรัวระหว่างรอ
   api('mgSetOtNoBreak',{otId:id,noBreak:want}).then(function(r){
     el.disabled=false;
     if(!r.ok){ paintOtList(); return toast(r.error||'บันทึกไม่สำเร็จ','err'); }
@@ -2118,16 +2118,14 @@ function toggleOtNoBreak(el){
 
 function otFind(id){ return (S.mgotData&&S.mgotData.ot||[]).filter(function(x){return x.otId===id;})[0]; }
 /**
- * ช่อง "หักพัก" ในตาราง — ติ๊กได้เลยไม่ต้องเปิดฟอร์ม
- * ใบที่ปิดแล้ว (ยกเลิก/ไม่อนุมัติ) โชว์อย่างเดียว กดไม่ได้
+ * ช่อง "ไม่หักพัก" ในตาราง — ติ๊กบ็อกซ์เหมือนในชีต ติ๊กได้เลยไม่ต้องเปิดฟอร์ม
+ * ติ๊ก = ไม่หักพัก 0.5 ชม. · ใบที่ยกเลิก/ไม่อนุมัติ ติ๊กไม่ได้ (แต่ยังเห็นค่าเดิม)
  */
 function nbCell(o, grp){
-  var on = !!o.noBreak;
-  if(grp!=='pending' && grp!=='approved')
-    return '<span class="nb-chip ro'+(on?' on':'')+'">'+(on?'ไม่หักพัก':'หักปกติ')+'</span>';
-  return '<button class="nb-chip'+(on?' on':'')+'" data-otnb="'+esc(o.otId)+'" data-nbval="'+(on?'0':'1')+'"'+
-    ' title="'+(on?'กดเพื่อกลับไปหักพัก 0.5 ชม.':'กดเพื่อไม่หักพัก 0.5 ชม.')+'">'+
-    (on?'☕ ไม่หักพัก':'หักปกติ')+'</button>';
+  var on = !!o.noBreak, ro = (grp!=='pending' && grp!=='approved');
+  return '<input type="checkbox" class="nb-box"'+(on?' checked':'')+(ro?' disabled':'')+
+    (ro?'':' data-otnb="'+esc(o.otId)+'" data-nbval="'+(on?'0':'1')+'"')+
+    ' title="'+(ro?'ใบนี้ปิดแล้ว แก้ไม่ได้':'ติ๊ก = ไม่หักพัก 0.5 ชม. (พนักงานไม่ได้พักจริง)')+'">';
 }
 
 function otRowTable(o){
