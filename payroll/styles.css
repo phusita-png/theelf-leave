@@ -359,3 +359,15 @@
 /* ตอนดูทุกช่อง สิ่งที่ HR กำลังดูคือ "ตาราง" ไม่ใช่ลำดับขั้น → ดันตารางขึ้นบน
    ไม่งั้นการ์ดลำดับขั้นเต็มความกว้างจะดันตารางตกจอ ต้องเลื่อนหา */
 .pay-scope .cols.is-wide > .card:nth-child(2) { order: -1; }
+
+/* ── กล่องปิดรอบลา/OT ───────────────────────────────────────── */
+.pay-scope .lock-row {
+  display: flex; align-items: center; gap: 11px;
+  padding: 12px 14px; border: 1px solid var(--line); border-radius: 11px;
+  margin-top: 9px; cursor: pointer;
+}
+.pay-scope .lock-row:hover { background: #fafafc; }
+.pay-scope .lock-row input { width: 17px; height: 17px; cursor: pointer; }
+.pay-scope .lock-name { font-size: 14.5px; font-weight: 600; min-width: 64px; }
+.pay-scope .lock-st { font-size: 12.5px; color: var(--ink-3); }
+.pay-scope .lock-st.on { color: var(--red); font-weight: 600; }

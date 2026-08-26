@@ -48,6 +48,7 @@ var S = {
   curPayDateISO: '',
   tableMode: 'slim',   // slim = เฉพาะช่องหลัก · full = ทุกช่องเหมือนในชีต
   lastRows: null,
+  locks: null,        // สถานะปิดรอบลา/OT ของเดือนที่เลือก (มาจาก API ระบบลา)
 };
 
 // ── ขั้นที่ต้องวางข้อมูลก่อน / อ่านอย่างเดียว ──────────────────
@@ -384,6 +385,7 @@ function loadMonth() {
     S.lastRows = rows;
     renderSteps(st);
     renderTable(rows);
+    loadLocks();
   }).catch(function (e) { toast(String(e && e.message || e)); });
 }
 
@@ -395,13 +397,116 @@ function skeleton(n) {
   return out;
 }
 
+/**
+ * สถานะปิดรอบลา/OT — อยู่ในระบบลา ไม่ใช่ payroll จึงต้องยืมช่องทางของคอนโซล
+ * เปิดหน้าเดี่ยว (ไม่มี host) = ไม่มีขั้นนี้ ไม่ใช่พัง
+ */
+function loadLocks() {
+  if (!(HOST && HOST.leaveApi) || !S.cur) return;
+  HOST.leaveApi('mgPeriodLocks', { month: S.cur.month, yearBE: S.cur.yearBE })
+    .then(function (r) {
+      if (!r || !r.ok) return;
+      S.locks = r;
+      if (S.steps.length) renderSteps({ steps: S.steps, next: S.next });
+    })
+    .catch(function () {});   // อ่านสถานะไม่ได้ = ไม่โชว์ขั้นนี้ ไม่ขวางการปิดเดือน
+}
+
+/** ขั้นทั้งหมดที่จะวาด = ขั้นจาก backend + ขั้น "ปิดรอบ" ที่ทำงานฝั่งระบบลา */
+function stepsForRender() {
+  var list = S.steps.slice();
+  if (!S.locks) return list;
+
+  var lv = S.locks.leave || {}, ot = S.locks.ot || {};
+  var both = lv.locked && ot.locked;
+  var some = lv.locked || ot.locked;
+
+  var detail = both ? ('ปิดแล้วทั้งลาและ OT' + (ot.by ? ' · โดย ' + ot.by : ''))
+             : some ? ('ปิดแล้วเฉพาะ ' + (lv.locked ? 'ลา' : 'OT') + ' — อีกอย่างยังแก้ได้')
+             : 'ยังเปิดอยู่ — HR/พนักงานยังแก้ใบลา/OT ของรอบนี้ได้';
+
+  // แทรกหลัง "ดึงวันลาไม่รับเงิน" — จุดที่ข้อมูลลา/OT เข้าครบแล้ว ควรปิดก่อนคำนวณเงิน
+  var at = list.map(function (x) { return x.key; }).indexOf('importUnpaidLeave');
+  var step = {
+    key: 'lockPeriod', label: '🔒 ปิดรอบลา & OT', local: true,
+    state: both ? 'done' : '', confirmed: both, detail: detail,
+  };
+  list.splice(at >= 0 ? at + 1 : list.length, 0, step);
+  return list;
+}
+
+/** กล่องปิด/ปลดล็อกรอบ — เลือกได้ว่าจะปิดลา / OT / ทั้งคู่ */
+function askPeriodLock() {
+  if (!(HOST && HOST.leaveApi)) return toast('ขั้นนี้ใช้ได้เฉพาะตอนเปิดผ่านคอนโซลค่ะ');
+  var lv = (S.locks && S.locks.leave) || {}, ot = (S.locks && S.locks.ot) || {};
+  var period = (S.locks && S.locks.period) || (pad2(S.cur.month) + '-' + S.cur.yearBE);
+
+  var row = function (id, name, st) {
+    return '<label class="lock-row">' +
+      '<input type="checkbox" id="' + id + '"' + (st.locked ? ' checked' : '') + '>' +
+      '<span class="lock-name">' + name + '</span>' +
+      '<span class="lock-st ' + (st.locked ? 'on' : '') + '">' +
+        (st.locked ? '🔒 ปิดแล้ว' + (st.by ? ' · ' + esc(st.by) : '') + (st.at ? ' · ' + esc(st.at) : '')
+                   : '🔓 ยังเปิดอยู่') +
+      '</span></label>';
+  };
+
+  openModal('🔒 ปิดรอบ ' + period, 'ปิดแล้วจะแก้ใบลา/OT ของรอบนี้ไม่ได้',
+    '<div class="paste-help">ติ๊ก = ปิด · เอาติ๊กออก = ปลดล็อก<br>' +
+    'ปิดก่อนคำนวณเงินเดือน กันมีคนแก้ใบย้อนหลังหลังจากคิดเงินไปแล้ว<br>' +
+    '<b>ปลดล็อกทีหลังได้</b> ถ้าเจอที่ต้องแก้ (ระบบบันทึกไว้ว่าใครปิด/ปลดเมื่อไหร่)</div>' +
+    row('pay-lockLeave', 'การลา', lv) +
+    row('pay-lockOt', 'OT', ot),
+    btn('ปิด', 'btn-ghost', 'closeModal()') +
+    btn('บันทึก', 'btn-primary', 'submitPeriodLock()'));
+}
+
+function nameOfKind(j) { return j.kind === 'ot' ? 'OT' : 'การลา'; }
+
+function submitPeriodLock() {
+  var lv = (S.locks && S.locks.leave) || {}, ot = (S.locks && S.locks.ot) || {};
+  var wantLv = !!($('lockLeave') || {}).checked;
+  var wantOt = !!($('lockOt') || {}).checked;
+
+  // ส่งเฉพาะอันที่เปลี่ยน — จะได้ไม่ไปเขียนทับเวลา/ผู้ปิดเดิมโดยไม่จำเป็น
+  var jobs = [];
+  if (wantLv !== !!lv.locked) jobs.push({ kind: 'leave', locked: wantLv });
+  if (wantOt !== !!ot.locked) jobs.push({ kind: 'ot', locked: wantOt });
+  if (!jobs.length) { closeModal(); return toast('ไม่มีอะไรเปลี่ยนค่ะ'); }
+
+  S.busy = true;
+  setModal('🔒 ปิดรอบ', 'กำลังบันทึก…', '<div class="empty">กำลังบันทึก…</div>', '');
+
+  var run = jobs.map(function (j) {
+    return HOST.leaveApi('mgSetPeriodLock', {
+      kind: j.kind, month: S.cur.month, yearBE: S.cur.yearBE, locked: j.locked ? '1' : '0',
+    });
+  });
+
+  Promise.all(run).then(function (res) {
+    S.busy = false;
+    var bad = res.filter(function (r) { return !r || !r.ok; })[0];
+    if (bad) return showError('ปิดรอบ', (bad && bad.error) || 'บันทึกไม่สำเร็จ');
+    closeModal();
+    // สรุปเป็นข้อความเดียว — ยิง 2 คำสั่งแล้ว join summary จะได้ "ปิดรอบ X · ปิดรอบ X" ซ้ำ
+    var on  = jobs.filter(function (j) { return j.locked; }).map(nameOfKind);
+    var off = jobs.filter(function (j) { return !j.locked; }).map(nameOfKind);
+    var msg = [];
+    if (on.length)  msg.push('🔒 ปิดรอบ ' + on.join(' + '));
+    if (off.length) msg.push('🔓 ปลดล็อก ' + off.join(' + '));
+    toast(msg.join(' · ') + ' — ' + (res[0] && res[0].period ? res[0].period : ''));
+    loadLocks();
+  }).catch(function (e) { S.busy = false; showError('ปิดรอบ', String(e && e.message || e)); });
+}
+
 // ════════════ วาดรายการ 9 ขั้น ════════════
 function renderSteps(st) {
-  var done = S.steps.filter(function (s) { return s.done; }).length;
+  var all  = stepsForRender();
+  var done = all.filter(function (s) { return s.state === 'done' || s.done; }).length;
   // นับจากจำนวนขั้นจริง ไม่ fix เลข — เพิ่ม/ลดขั้นแล้วตัวเลขต้องตามเอง
-  $('stepsSub').textContent = done + '/' + S.steps.length + ' ขั้น';
+  $('stepsSub').textContent = done + '/' + all.length + ' ขั้น';
 
-  $('stepList').innerHTML = S.steps.map(function (s, i) {
+  $('stepList').innerHTML = all.map(function (s, i) {
     var cls = 'step';
     if (s.state === 'done')   cls += ' is-done';
     if (s.state === 'warn')   cls += ' is-warn';
@@ -606,6 +711,7 @@ function slipCell(x) {
 // ทุกขั้น = ดูก่อน (dryRun) → ยืนยัน → ทำจริง (commit)
 function startStep(key) {
   if (S.busy) return;
+  if (key === 'lockPeriod') return askPeriodLock();   // ขั้นนี้ไม่ได้มาจาก backend payroll
   var step = S.steps.filter(function (s) { return s.key === key; })[0];
   if (!step) return;
 
@@ -1285,6 +1391,8 @@ return {
   loadMonth: loadMonth,
   loadReports: loadReports,
   toggleCols: toggleCols,
+  askPeriodLock: askPeriodLock,
+  submitPeriodLock: submitPeriodLock,
   closeModal: closeModal,
 };
 

@@ -315,6 +315,9 @@ function mountPayroll(m){
       // ดึงสดทุก request — คอนโซลต่ออายุ token ระหว่างใช้งานได้
       getAuth: function(){ return S.auth; },
       onAuthExpired: reauth,
+      // ขั้น "ปิดรอบลา & OT" อยู่ในลำดับ payroll แต่ข้อมูลล็อกอยู่ในระบบลา
+      // คอนโซลคุยได้ทั้ง 2 backend อยู่แล้ว → ให้โมดูล payroll ยืมช่องทางนี้ไป
+      leaveApi: function(action, params){ return api(action, params); },
     },
   });
 }
@@ -2872,6 +2875,9 @@ function mockBootstrap(){
   document.getElementById('app').classList.remove('hidden');
   setupNavRoles(); render();
 }
+// สถานะปิดรอบ (mock) — เปลี่ยนค่าได้จริงเวลากดในหน้าเว็บ จะได้เทส flow ครบ
+var MOCK_LOCKS={leave:{locked:false,at:'',by:''},ot:{locked:false,at:'',by:''}};
+
 var MOCK_RPT_FILES=[
   {at:'25/08/2569 14:20',group:'ot',kind:'สรุป OT รายคน',label:'ส.ค. 2569',name:'สรุป OT รายคน_ส.ค. 2569_20260825-142000.xlsx',url:'#',by:'พี่กี้',count:12},
   {at:'25/08/2569 14:18',group:'ot',kind:'รายการ OT',label:'ส.ค. 2569',name:'รายการ OT_ส.ค. 2569_20260825-141800.xlsx',url:'#',by:'พี่กี้',count:48},
@@ -2916,6 +2922,15 @@ function mockApi(action, params){
       {name:'นโยบายวันลา ปี 2569',url:'#',category:'นโยบาย',scope:'ทั้งบริษัท'},
       {name:'ฟอร์มเบิกค่ารักษาพยาบาล',url:'#',category:'แบบฟอร์ม',scope:'ทั้งบริษัท'}]});
     else if(action==='mgOtList') resolve({ok:true,label:'รอบเดือนนี้ (26–25)',count:MOCK_OT_LIST.length,ot:MOCK_OT_LIST});
+    else if(action==='mgPeriodLocks') resolve({ok:true,period:'08-2569',leave:MOCK_LOCKS.leave,ot:MOCK_LOCKS.ot});
+    else if(action==='mgSetPeriodLock'){
+      var _k=(params&&params.kind)||'ot', _on=String((params&&params.locked)||'')==='1';
+      var _st=_on?{locked:true,at:'26/08/2569 14:30',by:'พี่กี้'}:{locked:false,at:'',by:''};
+      if(_k==='both'){ MOCK_LOCKS.leave=_st; MOCK_LOCKS.ot=Object.assign({},_st); }
+      else MOCK_LOCKS[_k]=_st;
+      resolve({ok:true,period:'08-2569',kind:_k,locked:_on,
+        summary:(_on?'🔒 ปิดรอบ ':'🔓 ปลดล็อกรอบ ')+'08-2569'});
+    }
     else if(action==='mgMonthlyReports') resolve({ok:true,group:(params&&params.group)||'leave',months:
       ((params&&params.group)==='ot'
         ? [{month:8,yearBE:2569,label:'ส.ค. 2569',name:'การคำนวณ OT 08-2026',rows:48,from:'26/07/2569',to:'25/08/2569',url:'#'},
