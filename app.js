@@ -1603,7 +1603,7 @@ function switchMgTab(tab){
   document.querySelectorAll('[data-mgtab]').forEach(function(el){ el.classList.toggle('on', el.dataset.mgtab===tab); });
   var box=document.getElementById('mgTab'); if(!box) return;
   if(tab==='list'){ box.innerHTML=mgListTabHtml(); wireMgListTab(); loadMgleave(); }
-  else if(tab==='files'){ box.innerHTML=rptFilesTabHtml('leave'); loadRptFiles('leave','mgTab'); }
+  else if(tab==='files'){ box.innerHTML=rptFilesTabHtml('leave'); wireRptFiles('leave'); loadRptFiles('leave'); }
   else if(tab==='tools'){ box.innerHTML=mgToolsTabHtml(); wireMgToolsTab(); ensureMgUsers(); }
   else { box.innerHTML=mgReportTabHtml(); wireMgReportTab(); loadMgReport(); }
 }
@@ -2007,7 +2007,7 @@ function switchOtTab(tab){
   document.querySelectorAll('[data-ottab]').forEach(function(el){ el.classList.toggle('on', el.dataset.ottab===tab); });
   var box=document.getElementById('otTab'); if(!box) return;
   if(tab==='list'){ box.innerHTML=otListTabHtml(); wireOtListTab(); loadOtList(); }
-  else if(tab==='files'){ box.innerHTML=rptFilesTabHtml('ot'); loadRptFiles('ot','otTab'); }
+  else if(tab==='files'){ box.innerHTML=rptFilesTabHtml('ot'); wireRptFiles('ot'); loadRptFiles('ot'); }
   else if(tab==='tools'){ box.innerHTML=otToolsTabHtml(); wireOtToolsTab(); ensureMgUsers(); }
   else { box.innerHTML=otReportTabHtml(); wireOtReportTab(); loadOtReport(); }
 }
@@ -2735,11 +2735,43 @@ var RPT_NOTE = { leave:'📚 ไฟล์รายงานการลาที
 function rptFilesTabHtml(group){
   return '<div class="card">'+
     '<div class="hr-note ok2">'+RPT_NOTE[group]+' — กดเปิดซ้ำได้ ไม่ต้องหาใน Drive</div>'+
+    '<div class="rpt-bar"><button class="rpt-refill" id="rptBackfill">🔄 ดึงรายงานเก่าเข้าทะเบียน</button></div>'+
     '<div id="rptFiles"><div class="skel" style="height:120px"></div></div>'+
   '</div>';
 }
 
-function loadRptFiles(group, hostId){
+/**
+ * ดึงรายงานเก่าจาก audit log เข้าทะเบียน — ทะเบียนเพิ่งมี ของก่อนหน้าจึงยังไม่อยู่ในลิสต์
+ * 2 จังหวะเหมือนปุ่มอื่น: ดูก่อน → ยืนยัน
+ */
+function doRptBackfill(group){
+  var btn=document.getElementById('rptBackfill'); if(btn){ btn.disabled=true; btn.textContent='กำลังตรวจ…'; }
+  var reset=function(){ var b=document.getElementById('rptBackfill'); if(b){ b.disabled=false; b.textContent='🔄 ดึงรายงานเก่าเข้าทะเบียน'; } };
+
+  api('mgReportBackfill',{}).then(function(r){
+    reset();
+    if(!r.ok) return toast(r.error||'ตรวจไม่สำเร็จ','err');
+    if(!r.found) return toast('ไม่มีรายงานเก่าที่ตกหล่น — ทะเบียนครบแล้วค่ะ','ok');
+
+    modalForm({ title:'ดึงรายงานเก่าเข้าทะเบียน', emoji:'🔄', okLabel:'✅ เพิ่มเข้าทะเบียน',
+      body:'<div class="hr-note ok2" style="white-space:pre-line;line-height:1.7">'+esc(r.report)+'</div>',
+      onOk:function(c){
+        var b=c.querySelector('[data-cfm-ok]'); if(b){ b.disabled=true; b.textContent='กำลังเพิ่ม…'; }
+        api('mgReportBackfill',{mode:'commit'}).then(function(r2){
+          if(!r2.ok){ if(b){ b.disabled=false; b.textContent='✅ เพิ่มเข้าทะเบียน'; } return toast(r2.error||'เพิ่มไม่สำเร็จ','err'); }
+          closeConfirm(); toast('✅ เพิ่มแล้ว '+r2.added+' ไฟล์','ok');
+          loadRptFiles(group);
+        }).catch(function(e){ if(b){ b.disabled=false; b.textContent='✅ เพิ่มเข้าทะเบียน'; } toast(String(e.message||e),'err'); });
+      } });
+  }).catch(function(e){ reset(); toast(String(e.message||e),'err'); });
+}
+
+function wireRptFiles(group){
+  var b=document.getElementById('rptBackfill');
+  if(b) b.addEventListener('click',function(){ doRptBackfill(group); });
+}
+
+function loadRptFiles(group){
   api('mgReportFiles',{group:group}).then(function(r){
     // ผู้ใช้อาจสลับแท็บไปแล้วระหว่างรอ — อย่าวาดทับของใหม่
     var box=document.getElementById('rptFiles'); if(!box) return;
@@ -2856,6 +2888,9 @@ function mockApi(action, params){
       {name:'นโยบายวันลา ปี 2569',url:'#',category:'นโยบาย',scope:'ทั้งบริษัท'},
       {name:'ฟอร์มเบิกค่ารักษาพยาบาล',url:'#',category:'แบบฟอร์ม',scope:'ทั้งบริษัท'}]});
     else if(action==='mgOtList') resolve({ok:true,label:'รอบเดือนนี้ (26–25)',count:MOCK_OT_LIST.length,ot:MOCK_OT_LIST});
+    else if(action==='mgReportBackfill') resolve(params&&params.mode==='commit'
+      ? {ok:true,added:3,found:3,report:'เพิ่มเข้าทะเบียนแล้ว 3 ไฟล์'}
+      : {ok:true,dryRun:true,found:3,report:'พบรายงานเก่าที่ยังไม่อยู่ในทะเบียน 3 ไฟล์\n\n  • รายการ OT 2 ไฟล์\n  • สรุปการลารายคน 1 ไฟล์\n\nกดยืนยันเพื่อเพิ่มเข้าทะเบียน (ไม่แตะไฟล์ต้นฉบับ)'});
     else if(action==='mgReportFiles') resolve({ok:true,files:MOCK_RPT_FILES.filter(function(f){return !params||!params.group||f.group===params.group;})});
     else if(action==='mgEditOt') resolve({ok:true,otId:(params&&params.otId)||'OT-MOCK',hours:1.5,wasApproved:true,warn:''});
     else if(action==='approve') resolve({ok:true,id:'(mock)',status:'✅'});

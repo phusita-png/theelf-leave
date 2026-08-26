@@ -845,3 +845,9 @@ textarea:focus,input[type=time]:focus{border-color:var(--red)}
   background:var(--green-tint);color:var(--green);border-radius:8px;padding:6px 14px}
 .rpt-open:hover{filter:brightness(.96)}
 .rpt-none{flex:none;font-size:12px;color:var(--muted)}
+.rpt-bar{display:flex;justify-content:flex-end;margin:10px 0 2px}
+/* ปุ่มนี้ป้ายยาว — ใช้ .mg-ib ไม่ได้ มันล็อก width:96px ไว้สำหรับปุ่มในตาราง แล้วป้ายจะล้นการ์ด */
+.rpt-refill{border:none;background:var(--bg);border-radius:9px;cursor:pointer;font-family:inherit;
+  font-size:12.5px;font-weight:700;color:var(--ink);padding:9px 16px;line-height:1;white-space:nowrap}
+.rpt-refill:hover{filter:brightness(.96)}
+.rpt-refill:disabled{opacity:.55;cursor:not-allowed}
