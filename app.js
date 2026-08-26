@@ -1542,7 +1542,7 @@ function thaiToIso(s){ var p=String(s||'').split('/'); if(p.length<3) return '';
 
 function viewMgleave(){
   if(!(S.profile&&S.profile.canAdmin)) return backBar()+emptyBox('🔒','เฉพาะผู้ดูแลระบบ (ADMIN/OWNER)');
-  var tabs=[['report','📊 สรุปการลา'],['list','📋 รายการใบลา'],['tools','⚙️ ตั้งค่า']];
+  var tabs=[['report','📊 สรุปการลา'],['list','📋 รายการใบลา'],['files','📚 ไฟล์รายงาน'],['tools','⚙️ ตั้งค่า']];
   return backBar()+
     '<div class="mg-tabs">'+tabs.map(function(t){return '<button class="mg-tab'+(S.mgTab===t[0]?' on':'')+'" data-mgtab="'+t[0]+'">'+t[1]+'</button>';}).join('')+'</div>'+
     '<div id="mgTab"></div>';
@@ -1603,6 +1603,7 @@ function switchMgTab(tab){
   document.querySelectorAll('[data-mgtab]').forEach(function(el){ el.classList.toggle('on', el.dataset.mgtab===tab); });
   var box=document.getElementById('mgTab'); if(!box) return;
   if(tab==='list'){ box.innerHTML=mgListTabHtml(); wireMgListTab(); loadMgleave(); }
+  else if(tab==='files'){ box.innerHTML=rptFilesTabHtml('leave'); loadRptFiles('leave','mgTab'); }
   else if(tab==='tools'){ box.innerHTML=mgToolsTabHtml(); wireMgToolsTab(); ensureMgUsers(); }
   else { box.innerHTML=mgReportTabHtml(); wireMgReportTab(); loadMgReport(); }
 }
@@ -1990,7 +1991,7 @@ function doMgExport(){
 // ════════════════════════════════════════════════════════════════
 function viewMgot(){
   if(!(S.profile&&S.profile.canAdmin)) return backBar()+emptyBox('🔒','เฉพาะผู้ดูแลระบบ (ADMIN/OWNER)');
-  var tabs=[['report','📊 สรุป OT'],['list','📋 รายการ OT'],['tools','⚙️ ตั้งค่า']];
+  var tabs=[['report','📊 สรุป OT'],['list','📋 รายการ OT'],['files','📚 ไฟล์รายงาน'],['tools','⚙️ ตั้งค่า']];
   return backBar()+
     '<div class="mg-tabs">'+tabs.map(function(t){return '<button class="mg-tab'+(S.otTab===t[0]?' on':'')+'" data-ottab="'+t[0]+'">'+t[1]+'</button>';}).join('')+'</div>'+
     '<div id="otTab"></div>';
@@ -2006,6 +2007,7 @@ function switchOtTab(tab){
   document.querySelectorAll('[data-ottab]').forEach(function(el){ el.classList.toggle('on', el.dataset.ottab===tab); });
   var box=document.getElementById('otTab'); if(!box) return;
   if(tab==='list'){ box.innerHTML=otListTabHtml(); wireOtListTab(); loadOtList(); }
+  else if(tab==='files'){ box.innerHTML=rptFilesTabHtml('ot'); loadRptFiles('ot','otTab'); }
   else if(tab==='tools'){ box.innerHTML=otToolsTabHtml(); wireOtToolsTab(); ensureMgUsers(); }
   else { box.innerHTML=otReportTabHtml(); wireOtReportTab(); loadOtReport(); }
 }
@@ -2724,6 +2726,61 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){ ret
 var _tt;
 function toast(msg,kind){ var t=document.getElementById('toast'); t.textContent=msg; t.className='toast show'+(kind?' '+kind:''); clearTimeout(_tt); _tt=setTimeout(function(){ t.className='toast'; },3200); }
 
+// ════════════ แท็บ 📚 ไฟล์รายงาน (ใช้ร่วม ลา/OT) ════════════
+// ระบบจดทุกไฟล์ที่กด Export ไว้ในชีต "ทะเบียนรายงาน"
+// เดิมลิงก์โผล่ครั้งเดียวตอนกด ปิดหน้าต่างแล้วต้องไปงมใน Drive เอง
+// เขียนเต็มประโยคไปเลย — ต่อคำเอาแล้วเว้นวรรคไทย/อังกฤษเพี้ยน ('ไฟล์รายงานOTที่เคย')
+var RPT_NOTE = { leave:'📚 ไฟล์รายงานการลาที่เคยกด Export', ot:'📚 ไฟล์รายงาน OT ที่เคยกด Export' };
+
+function rptFilesTabHtml(group){
+  return '<div class="card">'+
+    '<div class="hr-note ok2">'+RPT_NOTE[group]+' — กดเปิดซ้ำได้ ไม่ต้องหาใน Drive</div>'+
+    '<div id="rptFiles"><div class="skel" style="height:120px"></div></div>'+
+  '</div>';
+}
+
+function loadRptFiles(group, hostId){
+  api('mgReportFiles',{group:group}).then(function(r){
+    // ผู้ใช้อาจสลับแท็บไปแล้วระหว่างรอ — อย่าวาดทับของใหม่
+    var box=document.getElementById('rptFiles'); if(!box) return;
+    if(!r.ok) return box.innerHTML=emptyBox('😿', r.error||'โหลดไม่สำเร็จ');
+    box.innerHTML=rptFilesHtml(r.files||[]);
+  }).catch(function(e){
+    var box=document.getElementById('rptFiles'); if(box) box.innerHTML=emptyBox('🔌', String(e.message||e));
+  });
+}
+
+function rptFilesHtml(files){
+  if(!files.length) return emptyBox('📁','ยังไม่เคยออกไฟล์รายงาน<br>กดปุ่ม Export ในแท็บอื่นแล้วไฟล์จะมาโผล่ที่นี่');
+
+  // จัดกลุ่มตามช่วงข้อมูล (เช่น "ส.ค. 2569") — HR หาเป็นเดือน ไม่ได้หาเป็นวันที่กด
+  var order=[], byLabel={};
+  files.forEach(function(f){
+    var k=f.label||'(ไม่ระบุช่วง)';
+    if(!byLabel[k]){ byLabel[k]=[]; order.push(k); }
+    byLabel[k].push(f);
+  });
+
+  return order.map(function(k){
+    return '<div class="rpt-grp">'+
+      '<div class="rpt-grp-h">🗓️ '+esc(k)+' <span class="rpt-n">'+byLabel[k].length+' ไฟล์</span></div>'+
+      byLabel[k].map(rptFileRow).join('')+
+    '</div>';
+  }).join('');
+}
+
+function rptFileRow(f){
+  return '<div class="rpt-row">'+
+    '<div class="rpt-main">'+
+      '<div class="rpt-kind">'+esc(f.kind||'-')+(f.count!==''&&f.count!=null?' <span class="rpt-n">'+esc(String(f.count))+'</span>':'')+'</div>'+
+      '<div class="rpt-meta">'+esc(f.at||'')+(f.by?' · '+esc(f.by):'')+'</div>'+
+    '</div>'+
+    (f.url
+      ? '<a class="rpt-open" href="'+esc(f.url)+'" target="_blank" rel="noopener">เปิดไฟล์</a>'
+      : '<span class="rpt-none">ไม่มีลิงก์</span>')+
+  '</div>';
+}
+
 // ════════════ MOCK (พรีวิว UI) ════════════
 var MOCK_LT = {vac:{name:'ลาพักร้อน',emoji:'🌴'},biz:{name:'ลากิจ',emoji:'🏠'},sick:{name:'ลาป่วย',emoji:'🤒'},
   unpaid:{name:'ลากิจไม่รับค่าจ้าง',emoji:'📄'},bday:{name:'ลาวันเกิด',emoji:'🎂'},special:{name:'ลาวันเกิดคนพิเศษ',emoji:'💝'}};
@@ -2755,6 +2812,14 @@ function mockBootstrap(){
   document.getElementById('app').classList.remove('hidden');
   setupNavRoles(); render();
 }
+var MOCK_RPT_FILES=[
+  {at:'25/08/2569 14:20',group:'ot',kind:'สรุป OT รายคน',label:'ส.ค. 2569',name:'สรุป OT รายคน_ส.ค. 2569_20260825-142000.xlsx',url:'#',by:'พี่กี้',count:12},
+  {at:'25/08/2569 14:18',group:'ot',kind:'รายการ OT',label:'ส.ค. 2569',name:'รายการ OT_ส.ค. 2569_20260825-141800.xlsx',url:'#',by:'พี่กี้',count:48},
+  {at:'26/07/2569 09:05',group:'ot',kind:'สรุป OT รายคน',label:'ก.ค. 2569',name:'สรุป OT รายคน_ก.ค. 2569.xlsx',url:'#',by:'พี่กี้',count:11},
+  {at:'25/08/2569 15:02',group:'leave',kind:'สรุปการลารายคน',label:'ส.ค. 2569',name:'สรุปการลา_ส.ค. 2569.xlsx',url:'#',by:'พี่กี้',count:28},
+  {at:'25/08/2569 15:00',group:'leave',kind:'รายการใบลา',label:'ส.ค. 2569',name:'รายการใบลา_ส.ค. 2569.xlsx',url:'#',by:'พี่กี้',count:19},
+  {at:'26/07/2569 09:10',group:'leave',kind:'สรุปการลารายคน',label:'ก.ค. 2569',name:'สรุปการลา_ก.ค. 2569.xlsx',url:'#',by:'พี่กี้',count:27}];
+
 var MOCK_OT_LIST=[
   {otId:'OT-20260824193507',name:'กฤษดา ชัยวิเศษ',empId:'1349901180118',dept:'Developers',
    otDate:'21/08/2569',startTime:'19:30',endTime:'20:00',hours:0.5,otType:'อื่นๆ',status:'✅ อนุมัติแล้ว',
@@ -2791,6 +2856,7 @@ function mockApi(action, params){
       {name:'นโยบายวันลา ปี 2569',url:'#',category:'นโยบาย',scope:'ทั้งบริษัท'},
       {name:'ฟอร์มเบิกค่ารักษาพยาบาล',url:'#',category:'แบบฟอร์ม',scope:'ทั้งบริษัท'}]});
     else if(action==='mgOtList') resolve({ok:true,label:'รอบเดือนนี้ (26–25)',count:MOCK_OT_LIST.length,ot:MOCK_OT_LIST});
+    else if(action==='mgReportFiles') resolve({ok:true,files:MOCK_RPT_FILES.filter(function(f){return !params||!params.group||f.group===params.group;})});
     else if(action==='mgEditOt') resolve({ok:true,otId:(params&&params.otId)||'OT-MOCK',hours:1.5,wasApproved:true,warn:''});
     else if(action==='approve') resolve({ok:true,id:'(mock)',status:'✅'});
     else if(action==='hrDashboard') resolve({ok:true,monthLabel:'มิถุนายน 2569',

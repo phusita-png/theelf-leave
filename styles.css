@@ -830,3 +830,18 @@ textarea:focus,input[type=time]:focus{border-color:var(--red)}
 /* ต้องเจาะจงกว่า .mg-table td ไม่งั้น white-space โดนทับ แล้วเลขที่ตัดเป็น 2 บรรทัด */
 .mg-table td.ot-id{font-family:ui-monospace,'SF Mono',Consolas,monospace;font-size:11.5px;
   color:var(--ink-2);white-space:nowrap}
+
+/* ── แท็บ 📚 ไฟล์รายงาน ─────────────────────────────────────── */
+.rpt-grp{margin:14px 0 0}
+.rpt-grp-h{font-size:13px;font-weight:700;color:var(--ink);padding:8px 4px 6px;border-bottom:1px solid var(--line)}
+.rpt-n{display:inline-block;font-size:11px;font-weight:600;color:var(--muted);
+  background:var(--bg);border-radius:20px;padding:1px 9px;margin-left:6px}
+.rpt-row{display:flex;align-items:center;gap:12px;padding:11px 4px;border-bottom:1px solid var(--line)}
+.rpt-row:last-child{border-bottom:0}
+.rpt-main{flex:1;min-width:0}
+.rpt-kind{font-size:13.5px;font-weight:600}
+.rpt-meta{font-size:11.5px;color:var(--muted);margin-top:2px}
+.rpt-open{flex:none;font-size:12px;font-weight:600;text-decoration:none;
+  background:var(--green-tint);color:var(--green);border-radius:8px;padding:6px 14px}
+.rpt-open:hover{filter:brightness(.96)}
+.rpt-none{flex:none;font-size:12px;color:var(--muted)}
