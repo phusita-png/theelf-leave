@@ -2098,7 +2098,7 @@ function otRowTable(o){
   var grp=mgStatusGroup(o.status), acts;
   if(grp==='pending'||grp==='approved'){
     var b='';
-    if(grp==='pending') b+='<button class="mg-ib edit" data-otedit="'+esc(o.otId)+'">✏️ แก้ไข</button>';
+    if(grp==='pending'||grp==='approved') b+='<button class="mg-ib edit" data-otedit="'+esc(o.otId)+'">✏️ แก้ไข</button>';
     b+='<button class="mg-ib cx" data-otcancel="'+esc(o.otId)+'">🚫 ยกเลิก</button>';
     acts='<div class="mg-acts2">'+b+'</div>';
   } else acts='<span class="mg-sub2">ปิดแล้ว</span>';
@@ -2129,8 +2129,9 @@ function openOtDetail(id){
     row('สถานะ',statusBadge(o.status))+
     (o.reason?row('เหตุผล',esc(o.reason)):'')+
     (o.by?row('ผู้ดำเนินการ',esc(o.by)+(o.decidedAt?' · '+esc(o.decidedAt):'')):'')+
+    row('หักพัก',o.noBreak?'<b>ไม่หักพัก</b> (HR ตั้งไว้)':'หักตามปกติ')+
     row('เลขที่',esc(o.otId))+
-    ((grp==='pending'||grp==='approved')?'<div class="mg-dacts">'+(grp==='pending'?'<button class="pend-btn redit" id="otdEdit">✏️ แก้ไข</button>':'')+'<button class="pend-btn no" id="otdCancel">🚫 ยกเลิก</button></div>':'');
+    ((grp==='pending'||grp==='approved')?'<div class="mg-dacts">'+'<button class="pend-btn redit" id="otdEdit">✏️ แก้ไข</button>'+'<button class="pend-btn no" id="otdCancel">🚫 ยกเลิก</button></div>':'');
   modalForm({ title:'รายละเอียด OT', emoji:'⏰', accent:'ot', okLabel:'ปิด', body:body,
     onMount:function(c){ var e=c.querySelector('#otdEdit'); if(e) e.addEventListener('click',function(){ closeConfirm(); openOtEdit(id); }); var x=c.querySelector('#otdCancel'); if(x) x.addEventListener('click',function(){ closeConfirm(); openOtCancel(id); }); },
     onOk:function(){ closeConfirm(); } });
@@ -2156,20 +2157,32 @@ function otFormBody(o){
     '<label class="field-lb">📅 วันที่ทำ OT</label><input type="date" class="hr-fdate mg-full" id="otfDate" value="'+esc(o.dateIso||'')+'">'+
     '<label class="field-lb">🕐 เวลา (เริ่ม – สิ้นสุด)</label><div class="mg-drow"><input type="time" class="hr-fdate" id="otfSt" value="'+esc(o.start||'')+'"><span class="hr-fdash">–</span><input type="time" class="hr-fdate" id="otfEt" value="'+esc(o.end||'')+'"></div>'+
     '<label class="field-lb">📋 ประเภท OT</label><select id="otfType" class="hr-fsel mg-full">'+otTypeOptions(o.type)+'</select>'+
-    '<label class="field-lb">📝 เหตุผล / รายละเอียดงาน</label><textarea id="otfReason" rows="2" placeholder="รายละเอียดงาน…">'+esc(o.reason||'')+'</textarea>';
+    '<label class="field-lb">📝 เหตุผล / รายละเอียดงาน</label><textarea id="otfReason" rows="2" placeholder="รายละเอียดงาน…">'+esc(o.reason||'')+'</textarea>'+
+    // override ของระบบคำนวณ OT — ติ๊กแล้วรายการนี้ไม่ถูกหักพัก 0.5 ชม.
+    // (พักเที่ยง 1 ชม. ยังหักปกติถ้า OT คร่อมเที่ยง)
+    '<label class="mg-check"><input type="checkbox" id="otfNoBreak"'+(o.noBreak?' checked':'')+'><span>☕ ไม่หักพัก 0.5 ชม. (พนักงานไม่ได้พักจริง)</span></label>';
 }
 function otReadForm(c){
-  return { otDate:isoToThai(c.querySelector('#otfDate').value), startTime:(c.querySelector('#otfSt')||{}).value||'', endTime:(c.querySelector('#otfEt')||{}).value||'', otType:c.querySelector('#otfType').value, reason:(c.querySelector('#otfReason').value||'').trim() };
+  var nb=c.querySelector('#otfNoBreak');
+  return { otDate:isoToThai(c.querySelector('#otfDate').value), startTime:(c.querySelector('#otfSt')||{}).value||'', endTime:(c.querySelector('#otfEt')||{}).value||'', otType:c.querySelector('#otfType').value, reason:(c.querySelector('#otfReason').value||'').trim(),
+    // ส่ง 1/0 เสมอ — ส่งค่าว่างแปลว่า "ไม่แตะ" ฝั่งหลังบ้านจะไม่ล้างค่าที่ติ๊กไว้
+    noBreak: nb && nb.checked ? '1' : '0' };
 }
 function openOtEdit(id){
   var o=otFind(id); if(!o) return;
+  var wasApproved=mgStatusGroup(o.status)==='approved';
   modalForm({ title:'แก้ไข OT', emoji:'⏰', accent:'ot', okLabel:'✅ บันทึก',
-    body:'<div class="hr-note ok2" style="margin-bottom:10px">✏️ '+esc(o.name)+' · '+esc(o.otId)+' — บันทึกแล้วยังต้องอนุมัติอีกครั้ง</div>'+
-      otFormBody({ dateIso:thaiToIso(o.otDate), start:o.startTime, end:o.endTime, type:otTypeKeyOf(o.otType), reason:o.reason }),
+    body:'<div class="hr-note '+(wasApproved?'':'ok2')+'" style="margin-bottom:10px">✏️ '+esc(o.name)+' · '+esc(o.otId)+
+      (wasApproved
+        ? ' — ใบนี้<b>อนุมัติแล้ว</b> บันทึกแล้วยัง<b>อนุมัติอยู่</b> ไม่ต้องอนุมัติซ้ำ'
+        : ' — บันทึกแล้วยังต้องอนุมัติอีกครั้ง')+'</div>'+
+      otFormBody({ dateIso:thaiToIso(o.otDate), start:o.startTime, end:o.endTime, type:otTypeKeyOf(o.otType), reason:o.reason, noBreak:o.noBreak }),
     onOk:function(c){ var p=otReadForm(c); if(!p.otDate) return toast('เลือกวันที่','err'); if(!p.startTime||!p.endTime) return toast('ใส่เวลาให้ครบ','err'); p.otId=id;
       var btn=c.querySelector('[data-cfm-ok]'); if(btn){btn.disabled=true;btn.textContent='กำลังบันทึก…';}
       api('mgEditOt',p).then(function(r){ if(!r.ok){ if(btn){btn.disabled=false;btn.textContent='✅ บันทึก';} return toast(r.error||'บันทึกไม่สำเร็จ','err'); }
-        closeConfirm(); toast('✏️ แก้ไข OT แล้ว · '+r.otId,'ok'); S.mgotData=null; loadOtList(); }).catch(function(e){ if(btn){btn.disabled=false;btn.textContent='✅ บันทึก';} toast(String(e.message||e),'err'); }); }
+        closeConfirm(); toast('✏️ แก้ไข OT แล้ว · '+r.otId,'ok');
+        if(r.warn) noticeBox('แก้ไขแล้ว — แต่มีเรื่องต้องทำต่อ', r.warn);
+        S.mgotData=null; loadOtList(); }).catch(function(e){ if(btn){btn.disabled=false;btn.textContent='✅ บันทึก';} toast(String(e.message||e),'err'); }); }
   });
 }
 function openOtProxy(){
