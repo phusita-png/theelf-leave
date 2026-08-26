@@ -20,7 +20,7 @@ window.LEAVE_CONFIG = {
   //    (โค้ดเงินเดือนผูกกับไฟล์ชีตเงินเดือน จึงเป็นคนละ project → คนละ /exec)
   //    วิธีได้มา: เปิด Apps Script ของไฟล์เงินเดือน → Deploy → New deployment
   //              → Web app · Execute as: Me · Who has access: Anyone
-  PAYROLL_API_URL: "PASTE_PAYROLL_EXEC_URL_HERE",
+  PAYROLL_API_URL: "https://script.google.com/macros/s/AKfycbx29_6MQBu4jc5Yd1YpYCd7DwJ_TIdVwiIdZVwabUY-gDPV_YBn968B8z_A3t3h8EKjsA/exec",
 
   // 6) พรีวิวหน้าเงินเดือนด้วยข้อมูลปลอม (ไม่ต่อ backend) — production = false
   PAYROLL_MOCK: false,
