@@ -2040,7 +2040,7 @@ function otListTabHtml(){
     '<div class="hr-note ok2">📋 ดู/แก้/ยกเลิก OT รายใบ · คลิกแถวดูรายละเอียด · OT ไม่มีโควต้า</div>'+
     otFilterBar('otl', S.mgotFilter)+
     '<div class="mg-tools">'+
-      '<input type="text" id="otSearch" class="mg-srch" placeholder="🔎 ค้นชื่อ/รหัสพนักงาน…" value="'+esc(S.mgotSearch||'')+'">'+
+      '<input type="text" id="otSearch" class="mg-srch" placeholder="🔎 ค้นชื่อ / รหัส / เลขที่ OT…" value="'+esc(S.mgotSearch||'')+'">'+
       '<select id="otStatusF" class="hr-fsel">'+
         [['all','ทุกสถานะ'],['pending','รออนุมัติ'],['approved','อนุมัติแล้ว'],['rejected','ไม่อนุมัติ'],['cancel','ยกเลิก']]
           .map(function(o){return '<option value="'+o[0]+'"'+(S.mgotStatus===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('')+
@@ -2079,13 +2079,16 @@ function otSummaryBar(c){
 function paintOtList(){
   var box=document.getElementById('otList'); if(!box||!S.mgotData) return;
   var q=(S.mgotSearch||'').trim().toLowerCase();
-  var bySearch=S.mgotData.ot.filter(function(it){ if(!q) return true; return String(it.name).toLowerCase().indexOf(q)>=0||String(it.empId).toLowerCase().indexOf(q)>=0; });
+  var bySearch=(S.mgotData.ot||[]).filter(function(it){ if(!q) return true;
+    return String(it.name).toLowerCase().indexOf(q)>=0
+        || String(it.empId).toLowerCase().indexOf(q)>=0
+        || String(it.otId).toLowerCase().indexOf(q)>=0; });
   var counts=otCounts(bySearch), sf=S.mgotStatus||'all';
   var list=bySearch.filter(function(it){ return sf==='all'||mgStatusGroup(it.status)===sf; });
   var head='<div class="mg-head">📋 '+esc(S.mgotData.label||'')+' · '+S.mgotData.count+' ใบ'+(S.mgotData.count>500?' (แสดง 500 ล่าสุด)':'')+'</div>';
   var table=!list.length?emptyBox('🍃','ไม่มี OT ตามเงื่อนไข'):
     '<div class="mg-tbwrap"><table class="mg-table"><thead><tr>'+
-      '<th>วันที่ยื่น</th><th class="ce">รหัส</th><th>พนักงาน</th><th>แผนก</th><th>วันที่ทำ</th><th class="ce">เวลา</th><th class="ce">ชม.</th><th>ประเภท</th><th class="ce">สถานะ</th><th class="ce">จัดการ</th>'+
+      '<th>เลขที่</th><th>วันที่ยื่น</th><th class="ce">รหัส</th><th>พนักงาน</th><th>แผนก</th><th>วันที่ทำ</th><th class="ce">เวลา</th><th class="ce">ชม.</th><th>ประเภท</th><th class="ce">สถานะ</th><th class="ce">จัดการ</th>'+
     '</tr></thead><tbody>'+list.map(otRowTable).join('')+'</tbody></table></div>';
   box.innerHTML='<div class="card">'+head+otSummaryBar(counts)+table+'</div>';
   box.querySelectorAll('[data-otf]').forEach(function(el){ el.addEventListener('click',function(){ S.mgotStatus=el.dataset.otf; var ss=document.getElementById('otStatusF'); if(ss) ss.value=el.dataset.otf; paintOtList(); }); });
@@ -2103,6 +2106,7 @@ function otRowTable(o){
     acts='<div class="mg-acts2">'+b+'</div>';
   } else acts='<span class="mg-sub2">ปิดแล้ว</span>';
   return '<tr class="mg-tr" data-otrow="'+esc(o.otId)+'">'+
+    '<td class="ot-id">'+esc(o.otId||'-')+'</td>'+
     '<td class="mg-sub2">'+esc(o.submittedAt||'-')+'</td>'+
     '<td class="mg-sub2 ce">'+esc(o.empId||'-')+'</td>'+
     '<td class="lft"><b>'+esc(o.name)+'</b></td>'+
@@ -2751,6 +2755,20 @@ function mockBootstrap(){
   document.getElementById('app').classList.remove('hidden');
   setupNavRoles(); render();
 }
+var MOCK_OT_LIST=[
+  {otId:'OT-20260824193507',name:'กฤษดา ชัยวิเศษ',empId:'1349901180118',dept:'Developers',
+   otDate:'21/08/2569',startTime:'19:30',endTime:'20:00',hours:0.5,otType:'อื่นๆ',status:'✅ อนุมัติแล้ว',
+   submittedAt:'24/08/2569 19:52',by:'จิรภัทร แสงศรี',decidedAt:'25/08/2569 14:31',reason:'เลิกงานร้าน Darat spa',noBreak:false},
+  {otId:'OT-20260825133012',name:'สุวิมล ศิริเวช',empId:'1119900675743',dept:'CRM & Telesale',
+   otDate:'20/08/2569',startTime:'19:00',endTime:'20:00',hours:1,otType:'มีงานด่วน',status:'✅ อนุมัติแล้ว',
+   submittedAt:'25/08/2569 13:30',by:'จิรภัทร แสงศรี',decidedAt:'25/08/2569 14:31',reason:'ปิดยอดสิ้นเดือน',noBreak:true},
+  {otId:'OT-20260825133155',name:'สุวิมล ศิริเวช',empId:'1119900675743',dept:'CRM & Telesale',
+   otDate:'22/08/2569',startTime:'19:00',endTime:'21:30',hours:2.5,otType:'มีงานด่วน',status:'รอการอนุมัติ',
+   submittedAt:'25/08/2569 13:32',reason:'ตามงานลูกค้า',noBreak:false},
+  {otId:'OT-20260820090011',name:'ณัฐวัฒน์ พากเพียร',empId:'1100200300400',dept:'Developers',
+   otDate:'18/08/2569',startTime:'19:30',endTime:'21:00',hours:1.5,otType:'อื่นๆ',status:'🚫 ยกเลิก',
+   submittedAt:'20/08/2569 09:00',reason:'ยกเลิกเอง',noBreak:false}];
+
 function mockApi(action, params){
   return new Promise(function(resolve){ setTimeout(function(){
     if(action==='history') resolve({ok:true,count:MOCK_LV_HIST.length,history:MOCK_LV_HIST});
@@ -2772,6 +2790,8 @@ function mockApi(action, params){
       {name:'หนังสือรับรองเงินเดือน พ.ค. 69',url:'#',category:'หนังสือรับรอง',scope:'ส่วนตัว'},
       {name:'นโยบายวันลา ปี 2569',url:'#',category:'นโยบาย',scope:'ทั้งบริษัท'},
       {name:'ฟอร์มเบิกค่ารักษาพยาบาล',url:'#',category:'แบบฟอร์ม',scope:'ทั้งบริษัท'}]});
+    else if(action==='mgOtList') resolve({ok:true,label:'รอบเดือนนี้ (26–25)',count:MOCK_OT_LIST.length,ot:MOCK_OT_LIST});
+    else if(action==='mgEditOt') resolve({ok:true,otId:(params&&params.otId)||'OT-MOCK',hours:1.5,wasApproved:true,warn:''});
     else if(action==='approve') resolve({ok:true,id:'(mock)',status:'✅'});
     else if(action==='hrDashboard') resolve({ok:true,monthLabel:'มิถุนายน 2569',
       leave:{total:8,approved:5,pending:2,rejected:1},ot:{hours:24.5,count:6,pending:1},

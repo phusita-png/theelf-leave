@@ -824,3 +824,9 @@ textarea:focus,input[type=time]:focus{border-color:var(--red)}
 .soon-t{font-size:18px;font-weight:700;margin-top:12px}
 .soon-d{font-size:13px;color:var(--muted);margin-top:8px;line-height:1.6;max-width:430px;margin:8px auto 0}
 .soon-b{display:inline-block;margin-top:16px;background:var(--bg);color:var(--muted);font-size:12px;font-weight:600;padding:7px 16px;border-radius:20px}
+
+/* เลขที่เอกสาร OT ในตารางจัดการ OT — ตัวเลขล้วน อ่านง่ายกว่าถ้าเป็น monospace
+   และไม่ให้ตัดบรรทัด (เลขที่ขาดครึ่งคือใช้อ้างอิงไม่ได้) */
+/* ต้องเจาะจงกว่า .mg-table td ไม่งั้น white-space โดนทับ แล้วเลขที่ตัดเป็น 2 บรรทัด */
+.mg-table td.ot-id{font-family:ui-monospace,'SF Mono',Consolas,monospace;font-size:11.5px;
+  color:var(--ink-2);white-space:nowrap}
