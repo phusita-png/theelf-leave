@@ -13,5 +13,20 @@ window.LEAVE_CONFIG = {
   DEV_USER_ID: "",
 
   // 4) MOCK MODE — พรีวิว UI ด้วยข้อมูลตัวอย่าง (production = false)
-  MOCK: false
+  MOCK: false,
+
+  // ── เมนู "จัดการ Payroll" (โมดูล payroll/) ──────────────────
+  // 5) /exec ของ Apps Script project **payroll** — คนละตัวกับ API_URL ข้างบน
+  //    (โค้ดเงินเดือนผูกกับไฟล์ชีตเงินเดือน จึงเป็นคนละ project → คนละ /exec)
+  //    วิธีได้มา: เปิด Apps Script ของไฟล์เงินเดือน → Deploy → New deployment
+  //              → Web app · Execute as: Me · Who has access: Anyone
+  PAYROLL_API_URL: "PASTE_PAYROLL_EXEC_URL_HERE",
+
+  // 6) พรีวิวหน้าเงินเดือนด้วยข้อมูลปลอม (ไม่ต่อ backend) — production = false
+  PAYROLL_MOCK: false,
+
+  // 7) จำนวนคนต่อรอบของขั้นที่ทำทีละคน (สร้างสลิป / ส่งสลิป)
+  //    สร้างสลิปเว้น 5 วิ/คน กัน Google บล็อก → 5 คน ≈ 25 วิ/รอบ
+  PAYROLL_BATCH_SLIP: 5,
+  PAYROLL_BATCH_SEND: 5
 };

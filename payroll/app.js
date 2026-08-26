@@ -10,7 +10,26 @@
 // ================================================================
 'use strict';
 
-var CFG = window.PAYROLL_CONFIG || {};
+// ════════════════════════════════════════════════════════════════
+// โมดูล window.PAY — ใช้ได้ 2 ทาง
+//   ① ฝังในคอนโซลลา (เมนู "จัดการ Payroll")  → PAY.mount(el, {..., host:{...}, embedded:true})
+//   ② เปิดหน้าเดี่ยว payroll/index.html      → PAY.mount(el, PAYROLL_CONFIG)
+// ห่อ IIFE เพราะคอนโซลมี S/api/esc/toast/fail/init ชื่อเดียวกัน — ปล่อยไว้จะทับกัน
+// ════════════════════════════════════════════════════════════════
+var PAY = (function () {
+
+var ROOT = null;          // element ที่โมดูลนี้วาดอยู่
+var CFG  = {};            // ค่าตั้ง (มาจาก mount)
+var HOST = null;          // คอนโซลที่ฝังเราไว้ — {getAuth, onAuthExpired} · null = เปิดหน้าเดี่ยว
+
+/** หา element ในขอบเขตของโมดูลนี้เท่านั้น — id จริงมี prefix pay- กันชนกับคอนโซล */
+function $(id) { return ROOT ? ROOT.querySelector('#pay-' + id) : null; }
+
+/** ตัวตนที่แนบไปกับทุก request — ฝังในคอนโซลให้ดึงสดทุกครั้ง (token ต่ออายุได้ระหว่างใช้งาน) */
+function authParams() {
+  if (HOST && HOST.getAuth) return HOST.getAuth() || {};
+  return S.auth || {};
+}
 
 var S = {
   auth: null,        // {idToken} หรือ {userId} (dev)
@@ -44,21 +63,146 @@ var STEP_ACTION = {
 };
 var BATCH_STEPS = { genPayslips: 'BATCH_SLIP', sendPayslips: 'BATCH_SEND' };
 
-// ════════════ INIT ════════════
-window.addEventListener('DOMContentLoaded', init);
+// ════════════ โครงหน้าจอ ════════════
+// อยู่ในนี้ ไม่ใช่ index.html — เพราะต้องวาดได้ทั้งในคอนโซลและหน้าเดี่ยว
+// id ทุกตัวมี prefix pay- (คอนโซลมี #app #loader #toast ของตัวเองอยู่แล้ว)
+var TEMPLATE = [
+  '<div id="pay-loader" class="loader">',
+    '<div class="loader-mark">💰</div>',
+    '<div class="loader-bar"><i></i></div>',
+    '<div class="loader-text" id="pay-loaderText">กำลังโหลด…</div>',
+  '</div>',
 
-function init() {
-  document.getElementById('monthSel').addEventListener('change', onMonthChange);
-  document.getElementById('mask').addEventListener('click', function (e) {
-    if (e.target.id === 'mask' && !S.busy) closeModal();
+  '<div id="pay-fail" class="fail hidden">',
+    '<div class="big" id="pay-failIcon">😿</div>',
+    '<h2 id="pay-failTitle">เปิดระบบไม่ได้</h2>',
+    '<p id="pay-failMsg"></p>',
+  '</div>',
+
+  '<div id="pay-app" class="hidden">',
+
+    '<header class="hd">',
+      // ชื่อเรื่อง — ซ่อนตอนฝังในคอนโซล (คอนโซลมีหัวเรื่องของมันเองอยู่แล้ว)
+      '<div class="hd-titlewrap">',
+        '<div class="hd-title">💰 ระบบเงินเดือน</div>',
+        '<div class="hd-sub" id="pay-hdCompany">บจก.ดิเอลฟ์</div>',
+      '</div>',
+      '<nav class="hd-tabs">',
+        '<button class="hd-tab is-on" id="pay-tabClose">ปิดเดือน</button>',
+        '<button class="hd-tab" id="pay-tabReports">รายงานย้อนหลัง</button>',
+      '</nav>',
+      '<div class="hd-spacer"></div>',
+      '<select id="pay-monthSel" class="hd-month" title="เลือกเดือน"></select>',
+      '<span class="hd-role" id="pay-roleBadge">—</span>',
+    '</header>',
+
+    // ══ มุมมอง: ปิดเดือน ══
+    '<div class="wrap" id="pay-viewClose">',
+      '<div class="pre">',
+        '<span>⚠️</span>',
+        '<div>',
+          '<b>ก่อนเริ่มปิดเดือน</b> — ต้องทำ 2 อย่างนี้ในระบบอื่นให้เสร็จก่อน ',
+          'ไม่งั้นตัวเลขที่ดึงมาจะไม่ครบ<br>',
+          '① ปิดรอบ OT ในระบบ OT (กด “คำนวณ OT รอบเดือน”) &nbsp;·&nbsp;',
+          '② เคลียร์ใบลาที่ยังค้างอนุมัติในระบบลา',
+        '</div>',
+      '</div>',
+      '<div class="cols">',
+        '<div class="card">',
+          '<div class="card-hd">',
+            '<h2>ลำดับปิดเงินเดือน</h2>',
+            '<span class="sub" id="pay-stepsSub"></span>',
+          '</div>',
+          '<div class="card-bd" id="pay-stepList"></div>',
+        '</div>',
+        '<div class="card">',
+          '<div class="card-hd">',
+            '<h2>ทะเบียนจ่าย</h2>',
+            '<span class="sub" id="pay-tableSub"></span>',
+            '<div class="hd-spacer"></div>',
+            '<div class="pd-box" id="pay-payDateBox"></div>',
+          '</div>',
+          '<div class="tbl-scroll" id="pay-tableWrap"></div>',
+        '</div>',
+      '</div>',
+    '</div>',
+
+    // ══ มุมมอง: รายงานย้อนหลัง ══
+    '<div class="wrap hidden" id="pay-viewReports">',
+      '<div class="card" style="margin-bottom:20px">',
+        '<div class="card-hd">',
+          '<h2>รายงานย้อนหลัง</h2>',
+          '<span class="sub" id="pay-yearSub"></span>',
+          '<div class="hd-spacer"></div>',
+          '<select id="pay-yearSel" class="sel" title="เลือกปี"></select>',
+          '<button class="btn btn-ghost sm" id="pay-btnPND1K">📊 ภ.ง.ด.1ก รายปี</button>',
+        '</div>',
+        '<div class="tbl-scroll" id="pay-yearWrap"></div>',
+      '</div>',
+      '<div class="card">',
+        '<div class="card-hd">',
+          '<h2>ไฟล์รายงานที่ออกไปแล้ว</h2>',
+          '<span class="sub" id="pay-filesSub"></span>',
+        '</div>',
+        '<div class="tbl-scroll" id="pay-filesWrap"></div>',
+      '</div>',
+    '</div>',
+
+  '</div>',
+
+  '<div id="pay-mask" class="mask hidden">',
+    '<div class="modal">',
+      '<div class="modal-hd">',
+        '<h3 id="pay-mTitle">—</h3>',
+        '<div class="sub" id="pay-mSub"></div>',
+      '</div>',
+      '<div class="modal-bd" id="pay-mBody"></div>',
+      '<div class="modal-ft" id="pay-mFoot"></div>',
+    '</div>',
+  '</div>',
+
+  '<div id="pay-toast"></div>',
+].join('');
+
+// ════════════ MOUNT / UNMOUNT ════════════
+/**
+ * วาดระบบเงินเดือนลงใน element ที่กำหนด
+ * @param {HTMLElement} host  กล่องที่จะวาดลงไป
+ * @param {Object} opts       PAYROLL_CONFIG + (ตัวเลือก) host:{getAuth,onAuthExpired}, embedded:true
+ *
+ * ฝังในคอนโซล (embedded) = ไม่ล็อกอินเอง ยืม idToken ของคอนโซล → HR ล็อกอินครั้งเดียว
+ */
+function mount(host, opts) {
+  if (!host) return;
+  ROOT = host;
+  CFG  = opts || window.PAYROLL_CONFIG || {};
+  HOST = CFG.host || null;
+
+  ROOT.classList.add('pay-scope');
+  if (CFG.embedded) ROOT.classList.add('pay-embed');
+  ROOT.innerHTML = TEMPLATE;
+
+  $('monthSel').addEventListener('change', onMonthChange);
+  $('tabClose').addEventListener('click', function () { goTab('close'); });
+  $('tabReports').addEventListener('click', function () { goTab('reports'); });
+  $('btnPND1K').addEventListener('click', runExportPND1K);
+  $('mask').addEventListener('click', function (e) {
+    if (e.target.id === 'pay-mask' && !S.busy) closeModal();
   });
-  document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape' && !S.busy) closeModal();
-  });
+  document.addEventListener('keydown', onEsc);
 
   if (CFG.MOCK) { S.auth = { userId: 'MOCK' }; bootstrap(); return; }
+  if (HOST && HOST.getAuth) { bootstrap(); return; }              // คอนโซลล็อกอินมาให้แล้ว
   if (CFG.DEV_USER_ID) { S.auth = { userId: CFG.DEV_USER_ID }; bootstrap(); return; }
   initLiff();
+}
+
+function onEsc(e) { if (e.key === 'Escape' && !S.busy) closeModal(); }
+
+/** ออกจากหน้านี้ (คอนโซลสลับเมนู) — ถอด listener ที่ผูกไว้กับ document */
+function unmount() {
+  document.removeEventListener('keydown', onEsc);
+  ROOT = null;
 }
 
 function initLiff() {
@@ -85,6 +229,13 @@ function tokenExpMs(t) {
 var _reauthing = false;
 function reauth() {
   if (_reauthing || CFG.MOCK || CFG.DEV_USER_ID) return;
+  // ฝังในคอนโซล = คอนโซลเป็นเจ้าของ LIFF session · ถ้าเราสั่ง liff.login() เองจะเด้งทับกัน
+  if (HOST && HOST.onAuthExpired) {
+    _reauthing = true;
+    toast('เซสชันหมดอายุ · กำลังเข้าสู่ระบบใหม่…');
+    HOST.onAuthExpired();
+    return;
+  }
   _reauthing = true;
   try {
     var last = +(sessionStorage.getItem('pay_reauth_ts') || 0);
@@ -110,7 +261,7 @@ function api(action, params) {
 
     var cb = '__pay_' + (++_seq) + '_' + Date.now();
     var q  = ['action=' + encodeURIComponent(action), 'callback=' + cb];
-    var all = Object.assign({}, S.auth || {}, params || {});
+    var all = Object.assign({}, authParams(), params || {});
     Object.keys(all).forEach(function (k) {
       if (all[k] == null) return;
       var v = all[k];
@@ -163,8 +314,8 @@ function bootstrap() {
     S.company = r.company || 'บจก.ดิเอลฟ์';
     S.months  = r.months || [];
 
-    document.getElementById('hdCompany').textContent = S.company;
-    document.getElementById('roleBadge').textContent = r.role === 'OWNER' ? '👑 เจ้าของ' : '🛡️ ผู้ดูแล';
+    $('hdCompany').textContent = S.company;
+    $('roleBadge').textContent = r.role === 'OWNER' ? '👑 เจ้าของ' : '🛡️ ผู้ดูแล';
 
     // เดือนที่จะเปิดตอนแรก = เดือนปัจจุบันใน "ตั้งค่าระบบ" ถ้ามีชีต ไม่งั้นเอาเดือนล่าสุด
     var cur = r.current || {};
@@ -175,14 +326,14 @@ function bootstrap() {
     // เดือนถัดไปที่ยังไม่มีชีต — ให้เลือกได้เพื่อกด "สร้างทะเบียนเดือนใหม่"
     buildMonthOptions();
 
-    document.getElementById('loader').classList.add('hidden');
-    document.getElementById('app').classList.remove('hidden');
+    $('loader').classList.add('hidden');
+    $('app').classList.remove('hidden');
     loadMonth();
   }).catch(function (e) { fail(String(e && e.message || e), '🔌'); });
 }
 
 function buildMonthOptions() {
-  var sel = document.getElementById('monthSel');
+  var sel = $('monthSel');
   var opts = S.months.slice();
 
   // เพิ่ม "เดือนถัดไป" ที่ยังไม่มีชีต (ต้องเลือกได้ ไม่งั้นสร้างเดือนใหม่ไม่ได้)
@@ -202,7 +353,7 @@ function buildMonthOptions() {
 }
 
 function onMonthChange() {
-  var v = document.getElementById('monthSel').value.split('-');
+  var v = $('monthSel').value.split('-');
   S.cur = { month: parseInt(v[0], 10), yearBE: parseInt(v[1], 10) };
   loadMonth();
 }
@@ -210,8 +361,8 @@ function onMonthChange() {
 // ════════════ โหลดข้อมูลเดือนที่เลือก ════════════
 function loadMonth() {
   if (!S.cur) return;
-  document.getElementById('stepList').innerHTML = skeleton(9);
-  document.getElementById('tableWrap').innerHTML = '<div class="empty">กำลังโหลด…</div>';
+  $('stepList').innerHTML = skeleton(9);
+  $('tableWrap').innerHTML = '<div class="empty">กำลังโหลด…</div>';
 
   var p = { month: S.cur.month, yearBE: S.cur.yearBE };
   Promise.all([api('stepStatus', p), api('registerRows', p)]).then(function (res) {
@@ -241,9 +392,9 @@ function skeleton(n) {
 function renderSteps(st) {
   var done = S.steps.filter(function (s) { return s.done; }).length;
   // นับจากจำนวนขั้นจริง ไม่ fix เลข — เพิ่ม/ลดขั้นแล้วตัวเลขต้องตามเอง
-  document.getElementById('stepsSub').textContent = done + '/' + S.steps.length + ' ขั้น';
+  $('stepsSub').textContent = done + '/' + S.steps.length + ' ขั้น';
 
-  document.getElementById('stepList').innerHTML = S.steps.map(function (s, i) {
+  $('stepList').innerHTML = S.steps.map(function (s, i) {
     var cls = 'step';
     if (s.state === 'done')   cls += ' is-done';
     if (s.state === 'warn')   cls += ' is-warn';
@@ -270,13 +421,13 @@ function renderSteps(st) {
       //   (เดิมเขียน "ทำซ้ำ" — ฟังเหมือนต้องทำงานเดิมซ้ำโดยไม่จำเป็น)
       var hoverLabel = s.key === 'audit' ? 'ตรวจใหม่' : 'แก้ไข';
       btn = '<button class="step-btn ghost swap"' + dis +
-              ' title="' + hoverLabel + '" onclick="startStep(\'' + s.key + '\')">' +
+              ' title="' + hoverLabel + '" onclick="PAY.startStep(\'' + s.key + '\')">' +
               '<span class="lbl-idle">เสร็จสิ้น</span>' +
               '<span class="lbl-hover">' + hoverLabel + '</span>' +
             '</button>';
     } else {
       btn = '<button class="step-btn"' + dis +
-              ' onclick="startStep(\'' + s.key + '\')">' +
+              ' onclick="PAY.startStep(\'' + s.key + '\')">' +
               (s.key === 'audit' ? 'ตรวจ' : s.key === 'setPayDate' ? 'ระบุวันที่' : 'ดำเนินการ') +
             '</button>';
     }
@@ -299,12 +450,12 @@ function labelOf(key) {
 
 // ════════════ วาดตารางทะเบียน ════════════
 function renderTable(r) {
-  var wrap = document.getElementById('tableWrap');
-  var sub  = document.getElementById('tableSub');
+  var wrap = $('tableWrap');
+  var sub  = $('tableSub');
 
   if (!r.exists) {
     sub.textContent = '';
-    var pdEmpty = document.getElementById('payDateBox');
+    var pdEmpty = $('payDateBox');
     if (pdEmpty) pdEmpty.innerHTML = '';
     wrap.innerHTML = '<div class="empty"><span class="big">📋</span>' +
       'ยังไม่มีทะเบียนเดือน ' + pad2(S.cur.month) + '/' + S.cur.yearBE + '<br>' +
@@ -317,7 +468,7 @@ function renderTable(r) {
   // วันที่จ่ายอยู่ตรงนี้ (ไม่ใช่หน้ารายงาน) — เป็นส่วนหนึ่งของการทำทะเบียนจ่าย
   // และกระทบวันที่บนสลิปเงินเดือน จึงต้องตั้งก่อนสร้างสลิป
   S.curPayDateISO = r.payDateISO || '';
-  var pdBox = document.getElementById('payDateBox');
+  var pdBox = $('payDateBox');
   if (pdBox) {
     // แสดงอย่างเดียว — การตั้งค่าอยู่ที่ขั้น "📅 กำหนดวันที่จ่าย" ในลำดับ (ทางซ้าย)
     pdBox.innerHTML = r.payDate
@@ -454,9 +605,9 @@ function runBatch(key, step, extra) {
   var problems = [];
 
   setModal(step.label, 'กำลังดำเนินการ — อย่าปิดหน้านี้',
-    '<div id="batchNote" class="paste-help">กำลังเริ่ม…</div>' +
-    '<div class="prog"><div class="prog-bar"><i id="progBar" style="width:0%"></i></div>' +
-    '<div class="prog-text" id="progText">เตรียมข้อมูล…</div></div>', '');
+    '<div id="pay-batchNote" class="paste-help">กำลังเริ่ม…</div>' +
+    '<div class="prog"><div class="prog-bar"><i id="pay-progBar" style="width:0%"></i></div>' +
+    '<div class="prog-text" id="pay-progText">เตรียมข้อมูล…</div></div>', '');
 
   function tick() {
     var p = { month: S.cur.month, yearBE: S.cur.yearBE, mode: 'commit', limit: limit };
@@ -478,8 +629,8 @@ function runBatch(key, step, extra) {
       });
 
       var pct = total ? Math.round(doneCount / total * 100) : 100;
-      var bar = document.getElementById('progBar');
-      var txt = document.getElementById('progText');
+      var bar = $('progBar');
+      var txt = $('progText');
       if (bar) bar.style.width = pct + '%';
       if (txt) txt.textContent = 'ทำไปแล้ว ' + doneCount + '/' + total + ' คน';
 
@@ -557,14 +708,14 @@ function askStudentLoanData() {
       'เปิดไฟล์ที่ กยศ. ส่งมา → เลือกทั้งตาราง (รวมหัวคอลัมน์) → Ctrl+C → คลิกในช่องข้างล่าง → Ctrl+V<br>' +
       'หัวคอลัมน์ต่างจากตัวอย่างก็ได้ ระบบจะหา <b>เลขบัตร</b> / <b>ชื่อ</b> / <b>จำนวนเงิน</b> ให้เอง' +
     '</div>' +
-    '<textarea id="slPaste" class="paste" placeholder="เลขประจำตัวประชาชน\tชื่อ-สกุล\tจำนวนเงิน&#10;1100100100101\tสมชาย ใจดี\t1500"></textarea>',
+    '<textarea id="pay-slPaste" class="paste" placeholder="เลขประจำตัวประชาชน\tชื่อ-สกุล\tจำนวนเงิน&#10;1100100100101\tสมชาย ใจดี\t1500"></textarea>',
     btn('ยกเลิก', 'btn-ghost', 'closeModal()') +
     btn('ตรวจสอบข้อมูล', 'btn-primary', 'submitStudentLoan()'));
-  setTimeout(function () { var t = document.getElementById('slPaste'); if (t) t.focus(); }, 60);
+  setTimeout(function () { var t = $('slPaste'); if (t) t.focus(); }, 60);
 }
 
 function submitStudentLoan() {
-  var raw = (document.getElementById('slPaste') || {}).value || '';
+  var raw = ($('slPaste') || {}).value || '';
   if (!raw.trim()) return toast('ยังไม่ได้วางข้อมูลค่ะ');
 
   var rows = parsePasted(raw);
@@ -621,20 +772,20 @@ function cellValue(cell) {
 function goTab(tab) {
   S.tab = tab;
   var isReports = tab === 'reports';
-  document.getElementById('viewClose').classList.toggle('hidden', isReports);
-  document.getElementById('viewReports').classList.toggle('hidden', !isReports);
-  document.getElementById('tabClose').classList.toggle('is-on', !isReports);
-  document.getElementById('tabReports').classList.toggle('is-on', isReports);
+  $('viewClose').classList.toggle('hidden', isReports);
+  $('viewReports').classList.toggle('hidden', !isReports);
+  $('tabClose').classList.toggle('is-on', !isReports);
+  $('tabReports').classList.toggle('is-on', isReports);
   // เลือกเดือนใช้เฉพาะหน้าปิดเดือน — หน้ารายงานเลือกเป็น "ปี" แทน
-  document.getElementById('monthSel').classList.toggle('hidden', isReports);
+  $('monthSel').classList.toggle('hidden', isReports);
   if (isReports) loadReports();
 }
 
 // ════════════ รายงานย้อนหลัง ════════════
 function loadReports() {
   var year = S.repYear || (S.cur && S.cur.yearBE) || new Date().getFullYear() + 543;
-  document.getElementById('yearWrap').innerHTML  = '<div class="empty">กำลังโหลด…</div>';
-  document.getElementById('filesWrap').innerHTML = '<div class="empty">กำลังโหลด…</div>';
+  $('yearWrap').innerHTML  = '<div class="empty">กำลังโหลด…</div>';
+  $('filesWrap').innerHTML = '<div class="empty">กำลังโหลด…</div>';
 
   Promise.all([api('yearSummary', { yearBE: year }), api('reportFiles', { yearBE: year })])
     .then(function (res) {
@@ -647,13 +798,13 @@ function loadReports() {
       buildYearOptions();
       renderYearTable(sum);
       if (files.ok) renderFiles(files);
-      else document.getElementById('filesWrap').innerHTML = '<div class="empty">โหลดรายการไฟล์ไม่สำเร็จ</div>';
+      else $('filesWrap').innerHTML = '<div class="empty">โหลดรายการไฟล์ไม่สำเร็จ</div>';
     })
     .catch(function (e) { toast(String(e && e.message || e)); });
 }
 
 function buildYearOptions() {
-  var sel = document.getElementById('yearSel');
+  var sel = $('yearSel');
   var years = (S.repYears || []).slice();
   if (years.indexOf(S.repYear) < 0) years.unshift(S.repYear);
   sel.innerHTML = years.map(function (y) {
@@ -664,10 +815,10 @@ function buildYearOptions() {
 }
 
 function renderYearTable(r) {
-  document.getElementById('yearSub').textContent =
+  $('yearSub').textContent =
     r.months.length ? r.months.length + ' เดือน' : '';
 
-  var wrap = document.getElementById('yearWrap');
+  var wrap = $('yearWrap');
   if (!r.months.length) {
     wrap.innerHTML = '<div class="empty"><span class="big">📅</span>ยังไม่มีทะเบียนของปี ' + r.yearBE + '</div>';
     return;
@@ -677,7 +828,7 @@ function renderYearTable(r) {
     var st = m.status === 'จ่ายแล้ว' ? 'paid' : (m.status === 'ส่งบางส่วน' ? 'partial' : 'none');
     return '<tr>' +
       '<td class="l muted">' + (i + 1) + '</td>' +
-      '<td class="l"><button class="linklike" onclick="openMonth(' + m.month + ',' + m.yearBE + ')">' +
+      '<td class="l"><button class="linklike" onclick="PAY.openMonth(' + m.month + ',' + m.yearBE + ')">' +
         pad2(m.month) + '/' + m.yearBE + '</button></td>' +
       '<td class="l">' + esc(m.from) + '</td>' +
       '<td class="l">' + esc(m.to) + '</td>' +
@@ -689,7 +840,7 @@ function renderYearTable(r) {
       '<td>' + money(m.sso) + '</td>' +
       '<td>' + m.emp + '</td>' +
       '<td class="l">' +
-        '<button class="icon-btn" onclick="runExportRegister(' + m.month + ',' + m.yearBE + ')">' +
+        '<button class="icon-btn" onclick="PAY.runExportRegister(' + m.month + ',' + m.yearBE + ')">' +
           'ส่งออกไฟล์ Excel</button>' +
       '</td>' +
       '<td class="l"><span class="st ' + st + '">' + esc(m.status) + '</span></td>' +
@@ -713,8 +864,8 @@ function renderYearTable(r) {
 }
 
 function renderFiles(r) {
-  document.getElementById('filesSub').textContent = r.count ? r.count + ' ไฟล์' : '';
-  var wrap = document.getElementById('filesWrap');
+  $('filesSub').textContent = r.count ? r.count + ' ไฟล์' : '';
+  var wrap = $('filesWrap');
 
   if (!r.count) {
     wrap.innerHTML = '<div class="empty"><span class="big">📁</span>' +
@@ -746,7 +897,7 @@ function renderFiles(r) {
 /** คลิกเดือนในตารางรายงาน → สลับไปหน้าปิดเดือนของเดือนนั้น */
 function openMonth(month, yearBE) {
   S.cur = { month: month, yearBE: yearBE };
-  var sel = document.getElementById('monthSel');
+  var sel = $('monthSel');
   var v = month + '-' + yearBE;
   if (!Array.prototype.some.call(sel.options, function (o) { return o.value === v; })) {
     var op = document.createElement('option');
@@ -765,15 +916,15 @@ function askPayDate(month, yearBE) {
     'ตั้งก่อนสร้างสลิป — วันที่นี้กระทบสลิปเงินเดือน',
     '<div class="paste-help">ใส่วันที่ที่โอนเงินให้พนักงานจริง<br>' +
     'เว้นว่างแล้วกดบันทึก = ล้างค่า</div>' +
-    '<input type="date" id="payDateInput" class="sel" style="font-size:15px;padding:9px 12px"' +
+    '<input type="date" id="pay-payDateInput" class="sel" style="font-size:15px;padding:9px 12px"' +
       (iso ? ' value="' + esc(iso) + '"' : '') + '>' +
     // ⚠️ ช่องเลือกวันที่ของเบราว์เซอร์เป็น ค.ศ. แต่ทั้งระบบแสดง พ.ศ. → โชว์ผลแปลงให้เห็นทันที
-    '<div class="paste-help" id="payDatePreview" style="margin:10px 0 0"></div>',
+    '<div class="paste-help" id="pay-payDatePreview" style="margin:10px 0 0"></div>',
     btn('ยกเลิก', 'btn-ghost', 'closeModal()') +
     btn('บันทึก', 'btn-primary', 'submitPayDate(' + month + ',' + yearBE + ')'));
 
   setTimeout(function () {
-    var el = document.getElementById('payDateInput');
+    var el = $('payDateInput');
     if (!el) return;
     el.focus();
     el.addEventListener('input', paintPayDatePreview);
@@ -783,8 +934,8 @@ function askPayDate(month, yearBE) {
 
 /** แปลง ค.ศ. ในช่อง input → พ.ศ. ให้ HR เห็นว่ากำลังจะบันทึกวันไหน */
 function paintPayDatePreview() {
-  var el = document.getElementById('payDateInput');
-  var out = document.getElementById('payDatePreview');
+  var el = $('payDateInput');
+  var out = $('payDatePreview');
   if (!el || !out) return;
   var m = String(el.value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
   out.innerHTML = m
@@ -793,7 +944,7 @@ function paintPayDatePreview() {
 }
 
 function submitPayDate(month, yearBE) {
-  var v = (document.getElementById('payDateInput') || {}).value || '';
+  var v = ($('payDateInput') || {}).value || '';
   S.busy = true;
   api('setPayDate', { month: month, yearBE: yearBE, payDate: v, mode: 'commit' })
     .then(function (r) {
@@ -849,17 +1000,17 @@ function doExport(title, action, params) {
 
 // ════════════ MODAL ════════════
 function openModal(title, sub, body, foot) {
-  document.getElementById('mTitle').textContent = title;
-  document.getElementById('mSub').textContent   = sub || '';
-  document.getElementById('mBody').innerHTML    = body || '';
-  document.getElementById('mFoot').innerHTML    = foot || '';
-  document.getElementById('mask').classList.remove('hidden');
+  $('mTitle').textContent = title;
+  $('mSub').textContent   = sub || '';
+  $('mBody').innerHTML    = body || '';
+  $('mFoot').innerHTML    = foot || '';
+  $('mask').classList.remove('hidden');
 }
 var setModal = openModal;
 
 function closeModal() {
   if (S.busy) return;
-  document.getElementById('mask').classList.add('hidden');
+  $('mask').classList.add('hidden');
   S._pendingExtra = null;
 }
 
@@ -870,8 +1021,13 @@ function showError(title, msg) {
     btn('ปิด', 'btn-ghost', 'closeModal()'));
 }
 
+/**
+ * ปุ่มในโมดัล — onclick เขียนชื่อฟังก์ชันสั้นๆ ได้เลย ('closeModal(); loadMonth();')
+ * เดี๋ยวเติม PAY. ให้เอง เพราะโค้ดอยู่ใน IIFE เบราว์เซอร์เรียกตรงไม่ได้
+ */
 function btn(label, cls, onclick) {
-  return '<button class="btn ' + cls + '" onclick="' + onclick + '">' + label + '</button>';
+  var js = String(onclick).replace(/(^|;\s*)([A-Za-z_$][\w$]*)\s*\(/g, '$1PAY.$2(');
+  return '<button class="btn ' + cls + '" onclick="' + js + '">' + label + '</button>';
 }
 
 // ════════════ UTIL ════════════
@@ -889,7 +1045,7 @@ function money(n) {
 
 var _toastTimer;
 function toast(msg) {
-  var el = document.getElementById('toast');
+  var el = $('toast');
   el.textContent = msg;
   el.classList.add('show');
   clearTimeout(_toastTimer);
@@ -897,16 +1053,16 @@ function toast(msg) {
 }
 
 function setLoaderText(t) {
-  var el = document.getElementById('loaderText');
+  var el = $('loaderText');
   if (el) el.textContent = t;
 }
 
 function fail(msg, icon) {
-  document.getElementById('loader').classList.add('hidden');
-  document.getElementById('app').classList.add('hidden');
-  var f = document.getElementById('fail');
-  document.getElementById('failIcon').textContent = icon || '😿';
-  document.getElementById('failMsg').textContent  = msg;
+  $('loader').classList.add('hidden');
+  $('app').classList.add('hidden');
+  var f = $('fail');
+  $('failIcon').textContent = icon || '😿';
+  $('failMsg').textContent  = msg;
   f.classList.remove('hidden');
 }
 
@@ -1030,3 +1186,27 @@ function mockResult(action, params) {
     summary: 'พรีวิว', written: 1, writes: 1, pending: 4, remaining: 0, done: true, results: [] };
   return noop;
 }
+
+// ════════════ EXPORT ════════════
+// เปิดเฉพาะที่ปุ่ม onclick กับคอนโซลต้องเรียก — ที่เหลือปิดไว้ในโมดูล
+return {
+  mount: mount,
+  unmount: unmount,
+  goTab: goTab,
+  startStep: startStep,
+  commitStep: commitStep,
+  runAudit: runAudit,
+  submitStudentLoan: submitStudentLoan,
+  submitPayDate: submitPayDate,
+  openMonth: openMonth,
+  runExportRegister: runExportRegister,
+  runExportPND1K: runExportPND1K,
+  doExport: doExport,
+  loadMonth: loadMonth,
+  loadReports: loadReports,
+  closeModal: closeModal,
+};
+
+})();
+
+window.PAY = PAY;

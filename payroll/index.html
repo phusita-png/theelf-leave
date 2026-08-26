@@ -8,120 +8,29 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=1">
+  <link rel="stylesheet" href="styles.css?v=2">
+  <style>
+    /* หน้าเดี่ยว = โมดูลกินเต็มจอ · ในคอนโซลจะถูกครอบด้วยกรอบเนื้อหาแทน */
+    html, body { margin: 0; min-height: 100%; }
+    #payHost { min-height: 100vh; }
+  </style>
 </head>
 <body>
 
-  <!-- ░░ LOADING ░░ -->
-  <div id="loader" class="loader">
-    <div class="loader-mark">💰</div>
-    <div class="loader-bar"><i></i></div>
-    <div class="loader-text" id="loaderText">กำลังโหลด…</div>
-  </div>
+  <!--
+    หน้านี้เป็นแค่ "ที่วาง" ของโมดูล window.PAY — โครงหน้าจอทั้งหมดอยู่ใน app.js
+    เพราะโมดูลตัวเดียวกันถูกฝังในคอนโซลลา (เมนู "จัดการ Payroll") ด้วย
+    ถ้าแยก markup ไว้ 2 ที่ แก้หน้าตาทีต้องตามแก้ 2 รอบ = ลืมแน่นอน
 
-  <!-- ░░ ERROR เต็มจอ ░░ -->
-  <div id="fail" class="fail hidden">
-    <div class="big" id="failIcon">😿</div>
-    <h2 id="failTitle">เปิดระบบไม่ได้</h2>
-    <p id="failMsg"></p>
-  </div>
-
-  <!-- ░░ APP ░░ -->
-  <div id="app" class="hidden">
-
-    <header class="hd">
-      <div>
-        <div class="hd-title">💰 ระบบเงินเดือน</div>
-        <div class="hd-sub" id="hdCompany">บจก.ดิเอลฟ์</div>
-      </div>
-      <nav class="hd-tabs">
-        <button class="hd-tab is-on" id="tabClose"   onclick="goTab('close')">ปิดเดือน</button>
-        <button class="hd-tab"       id="tabReports" onclick="goTab('reports')">รายงานย้อนหลัง</button>
-      </nav>
-      <div class="hd-spacer"></div>
-      <select id="monthSel" class="hd-month" title="เลือกเดือน"></select>
-      <span class="hd-role" id="roleBadge">—</span>
-    </header>
-
-    <!-- ══ มุมมอง: ปิดเดือน ══ -->
-    <div class="wrap" id="viewClose">
-
-      <div class="pre">
-        <span>⚠️</span>
-        <div>
-          <b>ก่อนเริ่มปิดเดือน</b> — ต้องทำ 2 อย่างนี้ในระบบอื่นให้เสร็จก่อน
-          ไม่งั้นตัวเลขที่ดึงมาจะไม่ครบ<br>
-          ① ปิดรอบ OT ในระบบ OT (กด “คำนวณ OT รอบเดือน”) &nbsp;·&nbsp;
-          ② เคลียร์ใบลาที่ยังค้างอนุมัติในระบบลา
-        </div>
-      </div>
-
-      <div class="cols">
-
-        <!-- ซ้าย: 9 ขั้น -->
-        <div class="card">
-          <div class="card-hd">
-            <h2>ลำดับปิดเงินเดือน</h2>
-            <span class="sub" id="stepsSub"></span>
-          </div>
-          <div class="card-bd" id="stepList"></div>
-        </div>
-
-        <!-- ขวา: ตารางทะเบียน -->
-        <div class="card">
-          <div class="card-hd">
-            <h2>ทะเบียนจ่าย</h2>
-            <span class="sub" id="tableSub"></span>
-            <div class="hd-spacer"></div>
-            <div class="pd-box" id="payDateBox"></div>
-          </div>
-          <div class="tbl-scroll" id="tableWrap"></div>
-        </div>
-
-      </div>
-    </div>
-
-    <!-- ══ มุมมอง: รายงานย้อนหลัง ══ -->
-    <div class="wrap hidden" id="viewReports">
-
-      <div class="card" style="margin-bottom:20px">
-        <div class="card-hd">
-          <h2>รายงานย้อนหลัง</h2>
-          <span class="sub" id="yearSub"></span>
-          <div class="hd-spacer"></div>
-          <select id="yearSel" class="sel" title="เลือกปี"></select>
-          <button class="btn btn-ghost sm" onclick="runExportPND1K()">📊 ภ.ง.ด.1ก รายปี</button>
-        </div>
-        <div class="tbl-scroll" id="yearWrap"></div>
-      </div>
-
-      <div class="card">
-        <div class="card-hd">
-          <h2>ไฟล์รายงานที่ออกไปแล้ว</h2>
-          <span class="sub" id="filesSub"></span>
-        </div>
-        <div class="tbl-scroll" id="filesWrap"></div>
-      </div>
-
-    </div>
-  </div>
-
-  <!-- ░░ MODAL ░░ -->
-  <div id="mask" class="mask hidden">
-    <div class="modal">
-      <div class="modal-hd">
-        <h3 id="mTitle">—</h3>
-        <div class="sub" id="mSub"></div>
-      </div>
-      <div class="modal-bd" id="mBody"></div>
-      <div class="modal-ft" id="mFoot"></div>
-    </div>
-  </div>
-
-  <div id="toast"></div>
+    เปิดหน้านี้ตรงๆ มีประโยชน์ตอน debug (ไม่ต้องผ่านคอนโซล) — ล็อกอิน LIFF เอง
+  -->
+  <div id="payHost"></div>
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-  <script src="config.js?v=1"></script>
-  <script src="app.js?v=1"></script>
+  <script src="config.js?v=2"></script>
+  <script src="app.js?v=2"></script>
+  <script>
+    PAY.mount(document.getElementById('payHost'), window.PAYROLL_CONFIG);
+  </script>
 </body>
 </html>

@@ -22,7 +22,7 @@ var VIEW_HEAD = {
   dashboard:['แดชบอร์ด','สรุปภาพรวม HR'],
   mgleave: ['จัดการการลา','ดู · แก้ · โควต้า · export'],
   mgot:    ['จัดการ OT','ดู · แก้ · คำนวณ · ส่งสรุป'],
-  mgpay:   ['จัดการ Payroll','dashboard · สลิป · กท.20'],
+  mgpay:   ['จัดการ Payroll','ปิดเดือน 10 ขั้น · รายงานย้อนหลัง'],
   emps:    ['พนักงาน','เพิ่ม · บทบาท · โควต้า · ข้อมูล'],
   unpaidreq:['ขอสิทธิ์ลาไม่รับค่าจ้าง','ส่งคำขอ → HR ให้สิทธิ์ → ยื่นใบลา']
 };
@@ -207,6 +207,7 @@ function bindNav(){
   });
 }
 function goTo(view){
+  if (S.view==='mgpay' && view!=='mgpay' && window.PAY) PAY.unmount();
   if (view === 'settings') view = 'emps';   // เมนู "ตั้งค่าระบบ" เดิม = หน้าพนักงาน → alias ไว้ให้ลิงก์เก่า/deep-link ยังใช้ได้
   S.view = view;
   document.querySelectorAll('.nav-btn').forEach(function(b){ b.classList.toggle('active', b.dataset.view===view); });
@@ -286,11 +287,36 @@ function render(){
   else if (S.view==='dashboard'){ m.innerHTML = viewSoon('📊 แดชบอร์ด','วันนี้ใครลา/OT · สถิติเดือนนี้ · จำนวนพนักงาน/แผนก · เข้าใหม่-ลาออก'); }
   else if (S.view==='mgleave'){ m.innerHTML = viewMgleave(); wireMgleave(); loadMgleave(); }
   else if (S.view==='mgot'){ m.innerHTML = viewMgot(); wireMgot(); }
-  else if (S.view==='mgpay'){ m.innerHTML = viewSoon('💰 จัดการ Payroll','dashboard · ยอดรายเดือน · สลิป · คำนวณ · ทะเบียน/ภงด.1ก · กท.20'); }
+  else if (S.view==='mgpay'){ mountPayroll(m); }
   else if (S.view==='emps'){ m.innerHTML = '<div class="card"><div class="skel" style="height:120px"></div></div>'; loadSettings(); }
   else if (S.view==='unpaidreq'){ m.innerHTML = viewUnpaidReq(); wireUnpaidReq(); }
   else if (S.view==='history'){ m.innerHTML = viewHistory(); wireHistory(); }
   else if (S.view==='profile') m.innerHTML = viewProfile();
+}
+
+// ════════════ VIEW: จัดการ Payroll (โมดูล window.PAY) ════════════
+// ระบบเงินเดือนเป็น Apps Script คนละ project (ผูกกับไฟล์ชีตเงินเดือน) → /exec คนละตัว
+// แต่ล็อกอินใช้ LIFF channel เดียวกัน — ส่ง idToken ของคอนโซลให้โมดูลใช้ต่อ
+// HR จึงล็อกอินครั้งเดียว ไม่ต้องเด้งออกไปหน้าอื่น
+function mountPayroll(m){
+  if (!window.PAY){ m.innerHTML = viewSoon('💰 จัดการ Payroll','โหลดโมดูลเงินเดือนไม่สำเร็จ — ลองรีเฟรชหน้าอีกครั้ง'); return; }
+  if (!CFG.PAYROLL_API_URL || CFG.PAYROLL_API_URL.indexOf('PASTE')===0){
+    m.innerHTML = viewSoon('💰 จัดการ Payroll','ยังไม่ได้ตั้งค่า PAYROLL_API_URL ใน config.js — ใส่ /exec ของ project payroll ก่อนค่ะ');
+    return;
+  }
+  m.innerHTML = '<div id="payHost"></div>';
+  PAY.mount(document.getElementById('payHost'), {
+    PAYROLL_API_URL: CFG.PAYROLL_API_URL,
+    MOCK:       !!CFG.PAYROLL_MOCK,
+    BATCH_SLIP: CFG.PAYROLL_BATCH_SLIP || 5,
+    BATCH_SEND: CFG.PAYROLL_BATCH_SEND || 5,
+    embedded:   true,
+    host: {
+      // ดึงสดทุก request — คอนโซลต่ออายุ token ระหว่างใช้งานได้
+      getAuth: function(){ return S.auth; },
+      onAuthExpired: reauth,
+    },
+  });
 }
 
 // ════════════ VIEW: HOME (Hub) ════════════
