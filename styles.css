@@ -863,3 +863,11 @@ textarea:focus,input[type=time]:focus{border-color:var(--red)}
 .rpt-mo:hover{filter:brightness(.96)}
 .rpt-mo-t{font-size:13.5px;font-weight:700;color:var(--ink)}
 .rpt-mo-s{font-size:11px;color:var(--muted)}
+
+/* ── ช่อง "หักพัก" ในตารางรายการ OT (ติ๊กได้เลยไม่ต้องเปิดฟอร์ม) ── */
+.nb-chip{border:none;background:var(--bg);color:var(--muted);border-radius:20px;
+  padding:4px 11px;font-family:inherit;font-size:11.5px;font-weight:600;cursor:pointer;white-space:nowrap}
+.nb-chip:hover{filter:brightness(.95)}
+.nb-chip.on{background:var(--ot-tint);color:var(--ot)}
+.nb-chip.ro{cursor:default;opacity:.6}
+.nb-chip:disabled{opacity:.5;cursor:wait}

@@ -2093,15 +2093,43 @@ function paintOtList(){
   var head='<div class="mg-head">📋 '+esc(S.mgotData.label||'')+' · '+S.mgotData.count+' ใบ'+(S.mgotData.count>500?' (แสดง 500 ล่าสุด)':'')+'</div>';
   var table=!list.length?emptyBox('🍃','ไม่มี OT ตามเงื่อนไข'):
     '<div class="mg-tbwrap"><table class="mg-table"><thead><tr>'+
-      '<th>เลขที่</th><th>วันที่ยื่น</th><th class="ce">รหัส</th><th>พนักงาน</th><th>แผนก</th><th>วันที่ทำ</th><th class="ce">เวลา</th><th class="ce">ชม.</th><th>ประเภท</th><th class="ce">สถานะ</th><th class="ce">จัดการ</th>'+
+      '<th>เลขที่</th><th>วันที่ยื่น</th><th class="ce">รหัส</th><th>พนักงาน</th><th>แผนก</th><th>วันที่ทำ</th><th class="ce">เวลา</th><th class="ce">ชม.</th><th>ประเภท</th><th class="ce">หักพัก</th><th class="ce">สถานะ</th><th class="ce">จัดการ</th>'+
     '</tr></thead><tbody>'+list.map(otRowTable).join('')+'</tbody></table></div>';
   box.innerHTML='<div class="card">'+head+otSummaryBar(counts)+table+'</div>';
   box.querySelectorAll('[data-otf]').forEach(function(el){ el.addEventListener('click',function(){ S.mgotStatus=el.dataset.otf; var ss=document.getElementById('otStatusF'); if(ss) ss.value=el.dataset.otf; paintOtList(); }); });
   box.querySelectorAll('[data-otrow]').forEach(function(el){ el.addEventListener('click',function(){ openOtDetail(el.dataset.otrow); }); });
   box.querySelectorAll('[data-otedit]').forEach(function(el){ el.addEventListener('click',function(ev){ ev.stopPropagation(); openOtEdit(el.dataset.otedit); }); });
+  box.querySelectorAll('[data-otnb]').forEach(function(el){ el.addEventListener('click',function(ev){ ev.stopPropagation(); toggleOtNoBreak(el); }); });
   box.querySelectorAll('[data-otcancel]').forEach(function(el){ el.addEventListener('click',function(ev){ ev.stopPropagation(); openOtCancel(el.dataset.otcancel); }); });
 }
+/** ติ๊ก/ปลด "ไม่หักพัก" จากตาราง — อัปเดตในที่ ไม่ต้องโหลดตารางใหม่ทั้งหน้า */
+function toggleOtNoBreak(el){
+  var id=el.dataset.otnb, want=el.dataset.nbval;
+  el.disabled=true; el.textContent='…';
+  api('mgSetOtNoBreak',{otId:id,noBreak:want}).then(function(r){
+    el.disabled=false;
+    if(!r.ok){ paintOtList(); return toast(r.error||'บันทึกไม่สำเร็จ','err'); }
+    var o=otFind(id); if(o) o.noBreak=r.noBreak;    // อัปเดตข้อมูลในหน่วยความจำด้วย
+    paintOtList();
+    toast(r.summary||'บันทึกแล้ว','ok');
+    if(r.warn) noticeBox('บันทึกแล้ว — แต่มีเรื่องต้องทำต่อ', r.warn);
+  }).catch(function(e){ el.disabled=false; paintOtList(); toast(String(e.message||e),'err'); });
+}
+
 function otFind(id){ return (S.mgotData&&S.mgotData.ot||[]).filter(function(x){return x.otId===id;})[0]; }
+/**
+ * ช่อง "หักพัก" ในตาราง — ติ๊กได้เลยไม่ต้องเปิดฟอร์ม
+ * ใบที่ปิดแล้ว (ยกเลิก/ไม่อนุมัติ) โชว์อย่างเดียว กดไม่ได้
+ */
+function nbCell(o, grp){
+  var on = !!o.noBreak;
+  if(grp!=='pending' && grp!=='approved')
+    return '<span class="nb-chip ro'+(on?' on':'')+'">'+(on?'ไม่หักพัก':'หักปกติ')+'</span>';
+  return '<button class="nb-chip'+(on?' on':'')+'" data-otnb="'+esc(o.otId)+'" data-nbval="'+(on?'0':'1')+'"'+
+    ' title="'+(on?'กดเพื่อกลับไปหักพัก 0.5 ชม.':'กดเพื่อไม่หักพัก 0.5 ชม.')+'">'+
+    (on?'☕ ไม่หักพัก':'หักปกติ')+'</button>';
+}
+
 function otRowTable(o){
   var grp=mgStatusGroup(o.status), acts;
   if(grp==='pending'||grp==='approved'){
@@ -2120,6 +2148,7 @@ function otRowTable(o){
     '<td class="ce mg-sub2">'+esc(o.startTime)+'–'+esc(o.endTime)+'</td>'+
     '<td class="ce"><b>'+esc(o.hours)+'</b></td>'+
     '<td>'+esc(o.otType)+'</td>'+
+    '<td class="ce">'+nbCell(o,grp)+'</td>'+
     '<td class="ce">'+statusBadge(o.status)+'</td>'+
     '<td class="mg-actcell">'+acts+'</td>'+
   '</tr>';
@@ -2945,6 +2974,12 @@ function mockApi(action, params){
       ? {ok:true,added:3,found:3,report:'เพิ่มเข้าทะเบียนแล้ว 3 ไฟล์'}
       : {ok:true,dryRun:true,found:3,report:'พบรายงานเก่าที่ยังไม่อยู่ในทะเบียน 3 ไฟล์\n\n  • รายการ OT 2 ไฟล์\n  • สรุปการลารายคน 1 ไฟล์\n\nกดยืนยันเพื่อเพิ่มเข้าทะเบียน (ไม่แตะไฟล์ต้นฉบับ)'});
     else if(action==='mgReportFiles') resolve({ok:true,files:MOCK_RPT_FILES.filter(function(f){return !params||!params.group||f.group===params.group;})});
+    else if(action==='mgSetOtNoBreak'){
+      var _o=(MOCK_OT_LIST.filter(function(x){return x.otId===(params&&params.otId);})[0])||{};
+      _o.noBreak=String((params&&params.noBreak)||'')==='1';
+      resolve({ok:true,otId:_o.otId,noBreak:_o.noBreak,warn:'',
+        summary:(_o.noBreak?'☕ ตั้งไม่หักพัก · ':'☕ หักพักตามปกติ · ')+(_o.name||'')});
+    }
     else if(action==='mgEditOt') resolve({ok:true,otId:(params&&params.otId)||'OT-MOCK',hours:1.5,wasApproved:true,warn:''});
     else if(action==='approve') resolve({ok:true,id:'(mock)',status:'✅'});
     else if(action==='hrDashboard') resolve({ok:true,monthLabel:'มิถุนายน 2569',
