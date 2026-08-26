@@ -46,6 +46,8 @@ var S = {
   repYears: [],
   repMonths: [],
   curPayDateISO: '',
+  tableMode: 'slim',   // slim = เฉพาะช่องหลัก · full = ทุกช่องเหมือนในชีต
+  lastRows: null,
 };
 
 // ── ขั้นที่ต้องวางข้อมูลก่อน / อ่านอย่างเดียว ──────────────────
@@ -121,6 +123,7 @@ var TEMPLATE = [
             '<span class="sub" id="pay-tableSub"></span>',
             '<div class="hd-spacer"></div>',
             '<div class="pd-box" id="pay-payDateBox"></div>',
+            '<button class="btn btn-ghost sm" id="pay-btnCols">⇥ ดูทุกช่อง</button>',
           '</div>',
           '<div class="tbl-scroll" id="pay-tableWrap"></div>',
         '</div>',
@@ -186,6 +189,9 @@ function mount(host, opts) {
   $('tabClose').addEventListener('click', function () { goTab('close'); });
   $('tabReports').addEventListener('click', function () { goTab('reports'); });
   $('btnPND1K').addEventListener('click', runExportPND1K);
+  $('btnCols').addEventListener('click', toggleCols);
+  try { S.tableMode = localStorage.getItem('pay_tableMode') || 'slim'; } catch (e) {}
+  paintColsBtn();
   $('mask').addEventListener('click', function (e) {
     if (e.target.id === 'pay-mask' && !S.busy) closeModal();
   });
@@ -375,6 +381,7 @@ function loadMonth() {
     S.rows   = rows.rows || [];
     S.totals = rows.totals || null;
 
+    S.lastRows = rows;
     renderSteps(st);
     renderTable(rows);
   }).catch(function (e) { toast(String(e && e.message || e)); });
@@ -449,6 +456,60 @@ function labelOf(key) {
 }
 
 // ════════════ วาดตารางทะเบียน ════════════
+/**
+ * นิยามคอลัมน์ตารางทะเบียนจ่าย — ที่เดียว ใช้ทั้งหัวตาราง / ตัวตาราง / แถวรวม
+ *   slim    = โชว์ในโหมด "ย่อ" ด้วย (โหมดเต็มโชว์ทุกอัน)
+ *   formula = ช่องสูตรในชีต แก้ไม่ได้ — ทำสีต่างให้รู้ (เขียนทับ = สูตรหายถาวร)
+ *   dash    = ค่า 0 แสดงเป็น "—" อ่านง่ายกว่า 0.00 เต็มตาราง
+ */
+var REG_COLS = [
+  { key: 'seq',         label: 'ลำดับ',      type: 'seq',  cls: 'l muted', slim: true },
+  { key: 'name',        label: 'ชื่อ-สกุล',   type: 'name', cls: 'l',       slim: true },
+
+  { key: 'salary',      label: 'เงินเดือน',   slim: true },
+  { key: 'ot',          label: 'OT',          slim: true, dash: true },
+  { key: 'posAllow',    label: 'ค่าตำแหน่ง',  dash: true },
+  { key: 'incentive',   label: 'Incentive',   dash: true },
+  { key: 'utility',     label: 'ค่าน้ำ-ไฟ',   dash: true },
+  { key: 'attendance',  label: 'เบี้ยขยัน',   dash: true },
+  { key: 'backpay',     label: 'ตกเบิก',      dash: true },
+  { key: 'incomePND1',  label: 'รวมเงินได้ ภงด.1', formula: true },
+  { key: 'incomeOther', label: 'รายรับอื่นๆ', dash: true },
+  { key: 'incomeTotal', label: 'รวมรายรับ',   slim: true, formula: true },
+
+  { key: 'sso',         label: 'ปกส.',        slim: true, formula: true },
+  { key: 'tax',         label: 'ภาษี',        slim: true, formula: true },
+  { key: 'otherDed',    label: 'หักอื่นๆ',    dash: true },
+  { key: 'damage',      label: 'ค่าเสียหาย',  dash: true },
+  { key: 'insurance',   label: 'ประกันทำงาน', dash: true },
+  { key: 'studentLoan', label: 'กยศ.',        slim: true, dash: true },
+  { key: 'deductTotal', label: 'รวมหัก',      slim: true, formula: true, neg: true },
+  { key: 'net',         label: 'สุทธิ',       slim: true, formula: true, bold: true },
+
+  { key: 'note',        label: 'หมายเหตุ',    type: 'text', cls: 'l' },
+  { key: 'slip',        label: 'สลิป',        type: 'slip', cls: 'l', slim: true },
+];
+
+/** คอลัมน์ที่จะวาดตามโหมดที่เลือก */
+function activeCols() {
+  return S.tableMode === 'full' ? REG_COLS : REG_COLS.filter(function (c) { return c.slim; });
+}
+
+function cellHtml(c, x) {
+  if (c.type === 'seq')  return esc(String(x.seq));
+  if (c.type === 'name') {
+    return esc(x.name) + (x.unpaidLeave > 0
+      ? ' <span class="pill wait">ลา ' + num(x.unpaidLeave) + ' วัน</span>' : '');
+  }
+  if (c.type === 'slip') return slipCell(x);
+  if (c.type === 'text') return esc(String(x[c.key] || ''));
+
+  var v = Number(x[c.key]) || 0;
+  if (c.dash && !v) return '<span class="muted">—</span>';
+  return c.bold ? '<b>' + money(v) + '</b>' : money(v);
+}
+
+// ════════════ วาดตารางทะเบียน ════════════
 function renderTable(r) {
   var wrap = $('tableWrap');
   var sub  = $('tableSub');
@@ -459,7 +520,7 @@ function renderTable(r) {
     if (pdEmpty) pdEmpty.innerHTML = '';
     wrap.innerHTML = '<div class="empty"><span class="big">📋</span>' +
       'ยังไม่มีทะเบียนเดือน ' + pad2(S.cur.month) + '/' + S.cur.yearBE + '<br>' +
-      'กด “สร้างทะเบียนเดือนใหม่” ทางซ้ายเพื่อเริ่มค่ะ</div>';
+      'กด "สร้างทะเบียนเดือนใหม่" ทางซ้ายเพื่อเริ่มค่ะ</div>';
     return;
   }
 
@@ -470,46 +531,61 @@ function renderTable(r) {
   S.curPayDateISO = r.payDateISO || '';
   var pdBox = $('payDateBox');
   if (pdBox) {
-    // แสดงอย่างเดียว — การตั้งค่าอยู่ที่ขั้น "📅 กำหนดวันที่จ่าย" ในลำดับ (ทางซ้าย)
     pdBox.innerHTML = r.payDate
       ? '<span class="pd-label">วันที่จ่าย</span><b>' + esc(r.payDate) + '</b>'
       : '<span class="pd-label">ยังไม่ได้กำหนดวันที่จ่าย</span>';
   }
 
-  var head = ['ลำดับ', 'ชื่อ-สกุล', 'เงินเดือน', 'OT', 'รวมรายรับ', 'ปกส.', 'ภาษี', 'กยศ.', 'รวมหัก', 'สุทธิ', 'สลิป'];
-  var body = S.rows.map(function (x) {
-    return '<tr>' +
-      '<td class="l muted">' + x.seq + '</td>' +
-      '<td class="l">' + esc(x.name) + (x.unpaidLeave > 0
-        ? ' <span class="pill wait">ลา ' + num(x.unpaidLeave) + ' วัน</span>' : '') + '</td>' +
-      '<td>' + money(x.salary) + '</td>' +
-      '<td>' + (x.ot ? money(x.ot) : '<span class="muted">—</span>') + '</td>' +
-      '<td>' + money(x.incomeTotal) + '</td>' +
-      '<td>' + money(x.sso) + '</td>' +
-      '<td>' + money(x.tax) + '</td>' +
-      '<td>' + (x.studentLoan ? money(x.studentLoan) : '<span class="muted">—</span>') + '</td>' +
-      '<td class="neg">' + money(x.deductTotal) + '</td>' +
-      '<td><b>' + money(x.net) + '</b></td>' +
-      '<td class="l">' + slipCell(x) + '</td>' +
-    '</tr>';
+  var cols = activeCols();
+  var t    = r.totals || {};
+
+  var head = cols.map(function (c) {
+    return '<th class="' + (c.cls || '') + (c.formula ? ' is-formula' : '') + '"' +
+           (c.formula ? ' title="ช่องสูตรในชีต — แก้ไม่ได้"' : '') + '>' + esc(c.label) + '</th>';
   }).join('');
 
-  var t = r.totals || {};
+  var body = S.rows.map(function (x) {
+    return '<tr>' + cols.map(function (c) {
+      return '<td class="' + (c.cls || '') + (c.neg ? ' neg' : '') + (c.formula ? ' is-formula' : '') +
+             '">' + cellHtml(c, x) + '</td>';
+    }).join('') + '</tr>';
+  }).join('');
+
+  // แถวรวม — ช่องที่รวมไม่ได้ (ลำดับ/ชื่อ/หมายเหตุ/สลิป) ปล่อยว่าง
+  var foot = cols.map(function (c, i) {
+    if (i === 0) return '<td class="l">รวม</td>';
+    if (i === 1) return '<td class="l">' + r.count + ' คน</td>';
+    if (c.type) return '<td></td>';
+    var v = t[c.key];
+    if (c.key === 'incomeTotal') v = t.income;
+    if (c.key === 'deductTotal') v = t.deduct;
+    return '<td class="' + (c.neg ? 'neg' : '') + '">' + (v == null ? '' : money(v)) + '</td>';
+  }).join('');
+
+  var colsBox = ROOT.querySelector('.cols');
+  if (colsBox) colsBox.classList.toggle('is-wide', S.tableMode === 'full');
+
   wrap.innerHTML =
-    '<table class="reg"><thead><tr>' +
-      head.map(function (h, i) { return '<th class="' + (i < 2 || i === 10 ? 'l' : '') + '">' + h + '</th>'; }).join('') +
-    '</tr></thead><tbody>' + body + '</tbody>' +
-    '<tfoot><tr>' +
-      '<td class="l" colspan="2">รวม ' + r.count + ' คน</td>' +
-      '<td colspan="2"></td>' +
-      '<td>' + money(t.income) + '</td>' +
-      '<td>' + money(t.sso) + '</td>' +
-      '<td>' + money(t.tax) + '</td>' +
-      '<td></td>' +
-      '<td class="neg">' + money(t.deduct) + '</td>' +
-      '<td>' + money(t.net) + '</td>' +
-      '<td></td>' +
-    '</tr></tfoot></table>';
+    '<table class="reg"><thead><tr>' + head + '</tr></thead>' +
+    '<tbody>' + body + '</tbody>' +
+    '<tfoot><tr>' + foot + '</tr></tfoot></table>';
+
+  paintColsBtn();
+}
+
+/** สลับ ย่อ/เต็ม — จำโหมดไว้ HR ที่ชอบดูเต็มไม่ต้องกดใหม่ทุกครั้ง */
+function toggleCols() {
+  S.tableMode = S.tableMode === 'full' ? 'slim' : 'full';
+  try { localStorage.setItem('pay_tableMode', S.tableMode); } catch (e) {}
+  if (S.lastRows) renderTable(S.lastRows);
+}
+
+function paintColsBtn() {
+  var b = $('btnCols');
+  if (!b) return;
+  var full = S.tableMode === 'full';
+  b.textContent = full ? '⇤ ดูย่อ' : '⇥ ดูทุกช่อง';
+  b.title = full ? 'ซ่อนช่องที่ไม่ค่อยได้ใช้' : 'โชว์ทุกช่องเหมือนในชีต';
 }
 
 function slipCell(x) {
@@ -1068,10 +1144,14 @@ function fail(msg, icon) {
 
 // ════════════ MOCK — พรีวิวหน้าจอโดยไม่ต่อ backend ════════════
 var MOCK_ROWS = [
-  { seq: 1, name: 'สมชาย ใจดี',      rate: 25000, salary: 25000, ot: 1250, sso: 875, tax: 420, studentLoan: 0,    unpaidLeave: 0 },
-  { seq: 2, name: 'สมหญิง รักงาน',   rate: 18000, salary: 16800, ot: 0,    sso: 840, tax: 0,   studentLoan: 1500, unpaidLeave: 2 },
-  { seq: 3, name: 'ประเสริฐ มั่นคง',  rate: 15000, salary: 15000, ot: 800,  sso: 790, tax: 0,   studentLoan: 800,  unpaidLeave: 0 },
-  { seq: 4, name: 'ณัฐวัฒน์ พากเพียร', rate: 12000, salary: 12000, ot: 0,   sso: 600, tax: 0,   studentLoan: 0,    unpaidLeave: 0 },
+  { seq: 1, name: 'สมชาย ใจดี',      rate: 25000, salary: 25000, ot: 1250, sso: 875, tax: 420, studentLoan: 0,    unpaidLeave: 0,
+    posAllow: 3000, incentive: 2000, utility: 500, attendance: 1000, backpay: 0,    incomeOther: 0,   otherDed: 0,   damage: 0,   insurance: 200, note: '' },
+  { seq: 2, name: 'สมหญิง รักงาน',   rate: 18000, salary: 16800, ot: 0,    sso: 840, tax: 0,   studentLoan: 1500, unpaidLeave: 2,
+    posAllow: 0,    incentive: 1500, utility: 0,   attendance: 0,    backpay: 1200, incomeOther: 0,   otherDed: 300, damage: 0,   insurance: 200, note: 'ลากิจ 2 วัน' },
+  { seq: 3, name: 'ประเสริฐ มั่นคง',  rate: 15000, salary: 15000, ot: 800,  sso: 790, tax: 0,   studentLoan: 800,  unpaidLeave: 0,
+    posAllow: 0,    incentive: 0,    utility: 300, attendance: 1000, backpay: 0,    incomeOther: 500, otherDed: 0,   damage: 500, insurance: 200, note: '' },
+  { seq: 4, name: 'ณัฐวัฒน์ พากเพียร', rate: 12000, salary: 12000, ot: 0,   sso: 600, tax: 0,   studentLoan: 0,    unpaidLeave: 0,
+    posAllow: 0,    incentive: 0,    utility: 0,   attendance: 1000, backpay: 0,    incomeOther: 0,   otherDed: 0,   damage: 0,   insurance: 200, note: '' },
 ];
 var MOCK_STEP_DONE = { createMonth: 1, importOT: 1, importUnpaidLeave: 1 };
 
@@ -1204,6 +1284,7 @@ return {
   doExport: doExport,
   loadMonth: loadMonth,
   loadReports: loadReports,
+  toggleCols: toggleCols,
   closeModal: closeModal,
 };
 

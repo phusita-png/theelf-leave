@@ -333,3 +333,29 @@
 .pay-scope .hd   { box-shadow: none; }
 .pay-scope .sel  { box-shadow: none; }
 .pay-scope .loader-text, .pay-scope .neg { font-weight: 400; }
+
+/* ── ช่องสูตรในชีต (แก้ไม่ได้) ─────────────────────────────────
+   ทำสีต่างเพื่อกันเข้าใจผิดว่าแก้ได้ — เขียนทับสูตรในชีต = สูตรหายถาวร
+   เดือนถัดไปคำนวณเพี้ยนโดยไม่มี error ให้เห็น
+   ────────────────────────────────────────────────────────────── */
+.pay-scope table.reg th.is-formula { color: var(--ink-3); }
+.pay-scope table.reg td.is-formula { background: #fbfbfd; }
+.pay-scope table.reg tbody tr:hover td.is-formula { background: #f4f4f8; }
+
+/* โหมด "ดูทุกช่อง" ตารางกว้างมาก — ล็อก 2 คอลัมน์แรกไว้ไม่ให้เลื่อนหาย
+   ไม่งั้นเลื่อนไปขวาแล้วไม่รู้ว่ากำลังดูแถวของใคร */
+.pay-scope table.reg th:nth-child(1),
+.pay-scope table.reg td:nth-child(1) { position: sticky; left: 0;  z-index: 2; background: #fff; }
+.pay-scope table.reg th:nth-child(2),
+.pay-scope table.reg td:nth-child(2) { position: sticky; left: 46px; z-index: 2; background: #fff; }
+.pay-scope table.reg thead th:nth-child(1),
+.pay-scope table.reg thead th:nth-child(2) { background: #fafafc; z-index: 3; }
+.pay-scope table.reg tfoot td:nth-child(1),
+.pay-scope table.reg tfoot td:nth-child(2) { background: #fafafc; }
+
+/* โหมด "ดูทุกช่อง" — ยุบเหลือคอลัมน์เดียว ให้ตารางกว้างเต็มจอ
+   (20 ช่องในคอลัมน์แคบ ต้องเลื่อนซ้ายขวาจนไม่รู้ว่าดูถึงไหนแล้ว) */
+.pay-scope .cols.is-wide { grid-template-columns: 1fr; }
+/* ตอนดูทุกช่อง สิ่งที่ HR กำลังดูคือ "ตาราง" ไม่ใช่ลำดับขั้น → ดันตารางขึ้นบน
+   ไม่งั้นการ์ดลำดับขั้นเต็มความกว้างจะดันตารางตกจอ ต้องเลื่อนหา */
+.pay-scope .cols.is-wide > .card:nth-child(2) { order: -1; }
