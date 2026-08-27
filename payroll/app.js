@@ -797,6 +797,7 @@ function startStep(key) {
 }
 
 function preview(key, step, extraParams) {
+  step = step || stepOf(key);
   var action = STEP_ACTION[key];
   openModal(step.label, 'กำลังตรวจว่าจะเกิดอะไรขึ้น…', '<div class="empty">กำลังคำนวณ…</div>', '');
 
@@ -829,11 +830,14 @@ function isNoop(key, r) {
   if (key === 'genPayslips')       return r.pending === 0;
   if (key === 'sendPayslips')      return r.pending === 0;
   if (key === 'cleanRegister')     return !r.removed || r.removed.length === 0;
+  if (key === 'editRegister')      return !r.changes || r.changes.length === 0;
   return false;
 }
 
 function commitStep(key) {
-  var step = S.steps.filter(function (s) { return s.key === key; })[0];
+  // ⚠️ อย่าดึงจาก S.steps ตรงๆ — ขั้นเสริม (editRegister/cleanRegister) อาจยังไม่อยู่ในลิสต์
+  //    ถ้าหน้าเว็บโหลดก่อน backend มีขั้นนั้น → step undefined → กดยืนยันแล้วเงียบไปเลย
+  var step = stepOf(key);
   var extra = S._pendingExtra;
 
   if (BATCH_STEPS[key]) return runBatch(key, step, extra);
@@ -1514,9 +1518,13 @@ function submitEditPaste() {
 }
 
 /** หา step object (ขั้นเสริมอาจยังไม่อยู่ใน S.steps ถ้า backend เก่า) */
+var STEP_FALLBACK_LABEL = {
+  editRegister:  '✏️ กรอกเงินได้/เงินหักอื่นๆ',
+  cleanRegister: '🧹 ล้างคนที่ไม่ได้เงินรอบนี้',
+};
 function stepOf(key) {
-  var s = S.steps.filter(function (x) { return x.key === key; })[0];
-  return s || { key: key, label: '✏️ กรอกเงินได้/เงินหักอื่นๆ', state: 'ready' };
+  var s = (S.steps || []).filter(function (x) { return x.key === key; })[0];
+  return s || { key: key, label: STEP_FALLBACK_LABEL[key] || key, state: 'ready' };
 }
 
 /** คลิกแถวในตาราง → กล่องแก้รายคน (ยอดรวม/สุทธิ คำนวณสดตอนพิมพ์) */
@@ -1543,7 +1551,7 @@ function openEditRow(seq) {
     '<div class="ed-live" id="pay-edLive"></div>' +
     '<div class="paste-help">OT · ปกส. · ภาษี · ยอดรวม = ช่องสูตร ระบบคิดให้เอง แก้ที่นี่ไม่ได้</div>',
     btn('ปิด', 'btn-ghost', 'closeModal()') +
-    btn('ดูก่อนบันทึก', 'btn-primary', 'submitEditRow(' + JSON.stringify(String(seq)) + ')'));
+    btn('ดูก่อนบันทึก', 'btn-primary', "submitEditRow('" + String(seq).replace(/'/g, '') + "')"));
 
   var live = function () { paintEditLive(x); };
   document.querySelectorAll('[data-ed]').forEach(function (el) { el.addEventListener('input', live); });
