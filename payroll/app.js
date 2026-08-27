@@ -508,13 +508,23 @@ function submitPeriodLock() {
   S.busy = true;
   setModal('🔒 ปิดรอบ', 'กำลังบันทึก…', '<div class="empty">กำลังบันทึก…</div>', '');
 
-  var run = jobs.map(function (j) {
+  // ⚠️ ห้ามยิงขนาน — 2 คำสั่งจะกลายเป็น 2 execution ใน Apps Script ที่มองไม่เห็นแถวของกันและกัน
+  //    แล้วต่างคนต่างสร้างแถวในชีต "ล็อกรอบ" (เคสจริง 27 ส.ค. 69: งวดเดียวมี 8 แถว อ่านกลับได้ไม่ครบ)
+  //    เปลี่ยนทั้งคู่ไปทางเดียวกัน → ส่ง kind='both' ครั้งเดียว · ไม่งั้นยิงทีละคำสั่งต่อกัน
+  var calls = (jobs.length === 2 && jobs[0].locked === jobs[1].locked)
+    ? [{ kind: 'both', locked: jobs[0].locked }]
+    : jobs;
+
+  var send = function (j) {
     return HOST.leaveApi('mgSetPeriodLock', {
       kind: j.kind, month: S.cur.month, yearBE: S.cur.yearBE, locked: j.locked ? '1' : '0',
     });
-  });
+  };
+  var run = calls.reduce(function (chain, j) {          // ต่อคิว: ทำเสร็จทีละอัน
+    return chain.then(function (acc) { return send(j).then(function (r) { return acc.concat([r]); }); });
+  }, Promise.resolve([]));
 
-  Promise.all(run).then(function (res) {
+  run.then(function (res) {
     S.busy = false;
     var bad = res.filter(function (r) { return !r || !r.ok; })[0];
     if (bad) return showError('ปิดรอบ', (bad && bad.error) || 'บันทึกไม่สำเร็จ');
@@ -530,10 +540,12 @@ function submitPeriodLock() {
     // อัปเดตจอทันทีจากผลลัพธ์ที่ backend ตอบกลับ (ไม่รอรอบอ่านใหม่)
     // ถ้าเน็ตสะดุดตอน loadLocks จอจะได้ไม่ค้างค่าเก่าจนพี่คิดว่าปิดไม่สำเร็จ
     S.locks = S.locks || { leave: {}, ot: {} };
-    res.forEach(function (r, i) {
+    res.forEach(function (r) {
       if (!r || !r.ok) return;
-      var kind = jobs[i].kind;
-      S.locks[kind] = { locked: !!r.locked, at: 'เมื่อสักครู่', by: '' };   // ชื่อผู้ปิดของจริงมาจาก loadLocks
+      var kinds = r.kind === 'both' ? ['leave', 'ot'] : [r.kind];
+      kinds.forEach(function (k) {
+        S.locks[k] = { locked: !!r.locked, at: 'เมื่อสักครู่', by: '' };   // ชื่อผู้ปิดของจริงมาจาก loadLocks
+      });
       if (r.period) S.locks.period = r.period;
     });
     if (S.steps.length) renderSteps({ steps: S.steps, next: S.next });
