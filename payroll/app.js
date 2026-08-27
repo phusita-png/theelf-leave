@@ -63,6 +63,7 @@ var STEP_ACTION = {
   setPayDate:        'setPayDate',
   genPayslips:       'genPayslips',
   sendPayslips:      'sendPayslips',
+  cleanRegister:     'cleanRegister',   // 🧹 นอกลำดับ 10 ขั้น — กดจากปุ่มเหนือตาราง
 };
 var BATCH_STEPS = { genPayslips: 'BATCH_SLIP', sendPayslips: 'BATCH_SEND' };
 
@@ -124,6 +125,7 @@ var TEMPLATE = [
             '<span class="sub" id="pay-tableSub"></span>',
             '<div class="hd-spacer"></div>',
             '<div class="pd-box" id="pay-payDateBox"></div>',
+            '<button class="btn btn-ghost sm" id="pay-btnClean" title="เอาคนที่ไม่ได้เงินในรอบนี้ออกจากทะเบียน (ลาออกกลางรอบยังอยู่)">🧹 ล้างคนที่ไม่ได้เงินรอบนี้</button>',
             '<button class="btn btn-ghost sm" id="pay-btnCols">⇥ ดูทุกช่อง</button>',
           '</div>',
           '<div class="tbl-scroll" id="pay-tableWrap"></div>',
@@ -191,6 +193,7 @@ function mount(host, opts) {
   $('tabReports').addEventListener('click', function () { goTab('reports'); });
   $('btnPND1K').addEventListener('click', runExportPND1K);
   $('btnCols').addEventListener('click', toggleCols);
+  var bc = $('btnClean'); if (bc) bc.addEventListener('click', startCleanRegister);
   try { S.tableMode = localStorage.getItem('pay_tableMode') || 'slim'; } catch (e) {}
   paintColsBtn();
   $('mask').addEventListener('click', function (e) {
@@ -704,6 +707,16 @@ function renderTable(r) {
   paintColsBtn();
 }
 
+// 🧹 เอาคนที่ "ไม่ได้เงินในรอบนี้" ออกจากทะเบียน (ลาออกก่อนต้นรอบ / ยังไม่เริ่มงาน)
+//    ลาออก "กลางรอบ" ไม่ถูกแตะ — ยังได้ค่าจ้างและต้องยื่น ปกส./ภ.ง.ด.1 เดือนนั้น
+//    ใช้ flow เดียวกับขั้นอื่น: ดูก่อน (dryRun) → ยืนยัน → ทำจริง
+function startCleanRegister() {
+  if (S.busy) return;
+  var step = { key: 'cleanRegister', label: '🧹 ล้างคนที่ไม่ได้เงินรอบนี้', state: 'ok' };
+  if (!S.steps.filter(function (s2) { return s2.key === 'cleanRegister'; }).length) S.steps.push(step);
+  preview('cleanRegister', step);
+}
+
 /** สลับ ย่อ/เต็ม — จำโหมดไว้ HR ที่ชอบดูเต็มไม่ต้องกดใหม่ทุกครั้ง */
 function toggleCols() {
   S.tableMode = S.tableMode === 'full' ? 'slim' : 'full';
@@ -780,6 +793,7 @@ function isNoop(key, r) {
   if (key === 'importStudentLoan') return r.plan && r.plan.writes === 0;
   if (key === 'genPayslips')       return r.pending === 0;
   if (key === 'sendPayslips')      return r.pending === 0;
+  if (key === 'cleanRegister')     return !r.removed || r.removed.length === 0;
   return false;
 }
 
@@ -1331,6 +1345,18 @@ function mockResult(action, params) {
              exists: true, steps: steps, next: next, allDone: false };
   }
 
+  if (action === 'cleanRegister') {
+    var gone = [{ seq: 4, name: 'ปิยกานต์ ทวีโต', reason: 'ลาออก 30/06/2569 (ก่อนต้นรอบ)' },
+                { seq: 5, name: 'ทาริกา เจียนจันทร์วงศ์', reason: 'ลาออก 12/07/2569 (ก่อนต้นรอบ)' }];
+    var lines = gone.map(function (g) { return '• ' + g.name + ' (#' + g.seq + ') — ' + g.reason; }).join('\n');
+    return Promise.resolve({ ok: true, dryRun: params.mode !== 'commit', removed: gone, skipped: [], keptCount: 26,
+      report: '🧹 ล้างทะเบียน ทะเบียน 08-2569\nรอบ 26/07/2569 − 25/08/2569\n━━━━━━━━━━━━\n' +
+              (params.mode === 'commit'
+                ? '✅ เอาออกแล้ว 2 คน · เหลือ 26 คน\n\n'
+                : 'จะเอาออก 2 คน (เหลือ 26 คนที่ได้เงินรอบนี้)\n\n') +
+              lines + '\n\n📌 ใบ ปกส./ภ.ง.ด.1 ไม่กระทบ — คนพวกนี้ถูกกรองออกอยู่แล้วเพราะยอดเป็น 0',
+      summary: 'เอาออก 2 คน · เหลือ 26 คน' });
+  }
   if (action === 'registerRows') {
     var rows = MOCK_ROWS.map(function (x) {
       var income = x.salary + x.ot;
