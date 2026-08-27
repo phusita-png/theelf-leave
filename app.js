@@ -4,6 +4,8 @@
 'use strict';
 
 var CFG = window.LEAVE_CONFIG || {};
+// ?preview=1 → โหมดพรีวิว UI ด้วยข้อมูลตัวอย่าง (ไม่ต่อ LINE/ไม่แตะข้อมูลจริง) — ไว้โชว์หน้าจอ
+try{ if(location.search.indexOf('preview=1')>=0){ CFG.MOCK = true; CFG.PAYROLL_MOCK = true; } }catch(e){}
 var TH_MONTHS = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน',
   'กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
 var TH_DOW = ['อา','จ','อ','พ','พฤ','ศ','ส'];
@@ -3028,8 +3030,9 @@ function mockApi(action, params){
     else if(action==='slipShareLink') resolve({ok:true,url:'#'});
     else if(action==='addEmployee') resolve({ok:true,fullName:(params&&params.name||'')+' '+(params&&params.lastName||''),written:['โควต้าลา','วันลาคงเหลือ','payroll (ลำดับ 99)','OT อัตราค่าจ้าง'],warnings:[]});
     else if(action==='emSalaryHistory') resolve({ok:true,current:23000,history:[
-      {from:'26/12/2568',rate:10000,reason:'ยกมา (จากทะเบียน 01-2569)',by:'seed'},
-      {from:'26/02/2569',rate:23000,reason:'ปรับฐาน (จากทะเบียน 03-2569)',by:'seed'}]});
+      {from:'26/12/2568',rate:15000,prev:null,diff:null,pct:null,reason:'ยกมา (จากทะเบียน 01-2569)',by:'ระบบ (seed)',at:'27/08/2569'},
+      {from:'26/02/2569',rate:18000,prev:15000,diff:3000,pct:20,reason:'ผ่านทดลองงาน',by:'พี่กี้',at:'27/08/2569'},
+      {from:'16/08/2569',rate:23000,prev:18000,diff:5000,pct:27.8,reason:'ปรับตำแหน่ง Senior',by:'พี่กี้',at:'27/08/2569'}]});
     else if(action==='emAddSalary') resolve({ok:true,summary:'บันทึกแล้ว (mock)'});
     else if(action==='emJobHistory') resolve({ok:true,employed:true,serviceDays:400,serviceText:'1 ปี 1 เดือน 5 วัน',
       events:['เข้างาน','ผ่านทดลองงาน','ย้ายแผนก','เลื่อนตำแหน่ง','ตักเตือน','พักงาน','กลับเข้าทำงาน','ลาออก','เลิกจ้าง'],
@@ -3044,8 +3047,16 @@ function mockApi(action, params){
       schedules:[{code:'S01',desc:'จ-ศ 09:00-18:00'},{code:'S02',desc:'จ-ส 08:00-17:00'},{code:'RM01',desc:'Remote'}],
       roles:['EMPLOYEE','REVIEWER','APPROVER','ADMIN','OWNER'],leaveTypes:MOCK_LT,
       users:[
-        {lineUserId:'MOCK',name:'นางสาวชนัญชิดา โชคธนอนันต์',empId:'EMP-001',dept:'สำนักงานใหญ่',email:'a@theelf.co',role:'OWNER',startDate:'01/01/2566',branch:'สนญ.',status:'ปกติ',position:'CEO',ssoFlag:'ไม่ใช่',taxFlag:'ใช่',bank:'ไทยพาณิชย์',bankAcc:'1234567890',quota:{sick:30,biz:3,vac:6,bday:1,special:1,unpaid:3}},
-        {lineUserId:'MOCK2',name:'นายตัวอย่าง ทดสอบ',empId:'EMP-002',dept:'ฝ่ายขาย',email:'b@theelf.co',role:'EMPLOYEE',startDate:'15/03/2567',branch:'สาขา 2',status:'ปกติ',position:'Sales',ssoFlag:'ใช่',taxFlag:'ใช่',bank:'กสิกรไทย',bankAcc:'9876543210',quota:{sick:30,biz:3,vac:6,bday:1,special:1,unpaid:3}}]});
+        {lineUserId:'MOCK',name:'นางสาวชนัญชิดา โชคธนอนันต์',empId:'1100100100101',dept:'สำนักงานใหญ่',email:'mock@theelf.co',role:'OWNER',startDate:'01/01/2566',branch:'สนญ.',status:'ปกติ',position:'CEO',ssoFlag:'ไม่ใช่',taxFlag:'ใช่',bank:'ไทยพาณิชย์',bankAcc:'1234567890',quota:{sick:30,biz:3,vac:6,bday:1,special:1,unpaid:3}},
+        {lineUserId:'MOCK2',name:'นายพงศกร วัฒนไพศาล',empId:'1100200200202',dept:'Developers',email:'mock2@theelf.co',role:'ADMIN',startDate:'15/03/2567',branch:'สนญ.',status:'ปกติ',position:'Tech Lead',ssoFlag:'ใช่',taxFlag:'ใช่',bank:'กสิกรไทย',bankAcc:'9876543210',quota:{sick:30,biz:3,vac:6,bday:1,special:1,unpaid:3}},
+        {lineUserId:'MOCK3',name:'นางสาวปิยะฉัตร ทองแท้',empId:'1100300300303',dept:'CRM & Telesale',email:'mock3@theelf.co',role:'APPROVER',startDate:'01/06/2567',branch:'สนญ.',status:'ปกติ',position:'หัวหน้าทีม CRM',ssoFlag:'ใช่',taxFlag:'ใช่',bank:'กสิกรไทย',bankAcc:'1112223330',quota:{sick:30,biz:3,vac:6,bday:1,special:1,unpaid:3}},
+        {lineUserId:'MOCK4',name:'นายอรรถพล ศรีสุวรรณ',empId:'1100400400404',dept:'CRM & Telesale',email:'mock4@theelf.co',role:'EMPLOYEE',startDate:'16/09/2567',branch:'สนญ.',status:'ปกติ',position:'Telesale',ssoFlag:'ใช่',taxFlag:'ไม่ใช่',bank:'กรุงไทย',bankAcc:'2223334440',quota:{sick:30,biz:3,vac:6,bday:1,special:1,unpaid:3}},
+        {lineUserId:'MOCK5',name:'นางสาวธัญชนก พูนทรัพย์',empId:'1100500500505',dept:'Content Creator',email:'mock5@theelf.co',role:'EMPLOYEE',startDate:'01/11/2567',branch:'สนญ.',status:'ปกติ',position:'Content Creator',ssoFlag:'ใช่',taxFlag:'ไม่ใช่',bank:'กสิกรไทย',bankAcc:'3334445550',quota:{sick:30,biz:3,vac:6,bday:1,special:1,unpaid:3}},
+        {lineUserId:'MOCK6',name:'นายกิตติภพ เรืองฤทธิ์',empId:'1100600600606',dept:'Graphic Design',email:'mock6@theelf.co',role:'EMPLOYEE',startDate:'02/01/2568',branch:'สนญ.',status:'ปกติ',position:'Graphic Designer',ssoFlag:'ใช่',taxFlag:'ไม่ใช่',bank:'ไทยพาณิชย์',bankAcc:'4445556660',quota:{sick:30,biz:3,vac:6,bday:1,special:1,unpaid:3}},
+        {lineUserId:'MOCK7',name:'นางสาวมนัสนันท์ ใจงาม',empId:'1100700700707',dept:'Live Sale',email:'mock7@theelf.co',role:'REVIEWER',startDate:'01/03/2568',branch:'สนญ.',status:'ปกติ',position:'Live Host',ssoFlag:'ใช่',taxFlag:'ไม่ใช่',bank:'กรุงเทพ',bankAcc:'5556667770',quota:{sick:30,biz:3,vac:6,bday:1,special:1,unpaid:3}},
+        {lineUserId:'MOCK8',name:'นายวรากร สมบูรณ์ทรัพย์',empId:'1100800800808',dept:'บัญชี',email:'mock8@theelf.co',role:'EMPLOYEE',startDate:'16/05/2568',branch:'สนญ.',status:'ปกติ',position:'บัญชี',ssoFlag:'ใช่',taxFlag:'ใช่',bank:'กสิกรไทย',bankAcc:'6667778880',quota:{sick:30,biz:3,vac:6,bday:1,special:1,unpaid:3}},
+        {lineUserId:'MOCK9',name:'นางสาวเบญจวรรณ อินทร์แก้ว',empId:'1100900900909',dept:'Developers',email:'mock9@theelf.co',role:'EMPLOYEE',startDate:'01/07/2568',branch:'สนญ.',status:'ปกติ',position:'Frontend Dev',ssoFlag:'ใช่',taxFlag:'ใช่',bank:'ไทยพาณิชย์',bankAcc:'7778889990',quota:{sick:30,biz:3,vac:6,bday:1,special:1,unpaid:3}},
+        {lineUserId:'MOCK10',name:'นายภูริช ธนกิจไพศาล',empId:'1101001001010',dept:'Live Sale',email:'mock10@theelf.co',role:'EMPLOYEE',startDate:'01/02/2568',branch:'สนญ.',status:'ลาออก (31/07/2569)',position:'Live Host',ssoFlag:'ใช่',taxFlag:'ไม่ใช่',bank:'กรุงไทย',bankAcc:'8889990000',quota:{sick:30,biz:3,vac:6,bday:1,special:1,unpaid:3}}]});
     else if(action==='setRole'||action==='setLeaveQuota'||action==='updateEmployee') resolve({ok:true,changed:1});
     else if(action==='documents') resolve({ok:true,documents:[
       {name:'หนังสือรับรองเงินเดือน พ.ค. 69',url:'#',category:'หนังสือรับรอง',scope:'ส่วนตัว'},
@@ -3387,7 +3398,7 @@ function paintEmpSalary(box, u){
         '<td class="lft">'+esc(h.by||'-')+'</td>'+
         '<td class="ce mg-sub2">'+esc(h.at||'-')+'</td></tr>'; }).join('');
     var table = rows
-      ? '<div class="mg-tbwrap"><table class="mg-table mg-rpt"><thead><tr>'+
+      ? '<div class="mg-tbwrap"><table class="mg-table mg-rpt sal-tb"><thead><tr>'+
           '<th class="ce">ลำดับ</th><th class="lft">ข้อมูลที่มีการเปลี่ยนแปลง</th><th class="lft">เหตุผล</th>'+
           '<th class="ce">มีผลตั้งแต่วันที่</th><th class="lft">ผู้ที่ทำรายการ</th><th class="ce">วันที่ทำรายการ</th>'+
         '</tr></thead><tbody>'+rows+'</tbody></table></div>'
