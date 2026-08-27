@@ -3044,8 +3044,8 @@ function mockApi(action, params){
       schedules:[{code:'S01',desc:'จ-ศ 09:00-18:00'},{code:'S02',desc:'จ-ส 08:00-17:00'},{code:'RM01',desc:'Remote'}],
       roles:['EMPLOYEE','REVIEWER','APPROVER','ADMIN','OWNER'],leaveTypes:MOCK_LT,
       users:[
-        {lineUserId:'MOCK',name:'นางสาวชนัญชิดา โชคธนอนันต์',empId:'EMP-001',dept:'สำนักงานใหญ่',email:'a@theelf.co',role:'OWNER',startDate:'01/01/2566',branch:'สนญ.',status:'ปกติ',quota:{sick:30,biz:3,vac:6,bday:1,special:1,unpaid:3}},
-        {lineUserId:'MOCK2',name:'นายตัวอย่าง ทดสอบ',empId:'EMP-002',dept:'ฝ่ายขาย',email:'b@theelf.co',role:'EMPLOYEE',startDate:'15/03/2567',branch:'สาขา 2',status:'ปกติ',quota:{sick:30,biz:3,vac:6,bday:1,special:1,unpaid:3}}]});
+        {lineUserId:'MOCK',name:'นางสาวชนัญชิดา โชคธนอนันต์',empId:'EMP-001',dept:'สำนักงานใหญ่',email:'a@theelf.co',role:'OWNER',startDate:'01/01/2566',branch:'สนญ.',status:'ปกติ',position:'CEO',ssoFlag:'ไม่ใช่',taxFlag:'ใช่',bank:'ไทยพาณิชย์',bankAcc:'1234567890',quota:{sick:30,biz:3,vac:6,bday:1,special:1,unpaid:3}},
+        {lineUserId:'MOCK2',name:'นายตัวอย่าง ทดสอบ',empId:'EMP-002',dept:'ฝ่ายขาย',email:'b@theelf.co',role:'EMPLOYEE',startDate:'15/03/2567',branch:'สาขา 2',status:'ปกติ',position:'Sales',ssoFlag:'ใช่',taxFlag:'ใช่',bank:'กสิกรไทย',bankAcc:'9876543210',quota:{sick:30,biz:3,vac:6,bday:1,special:1,unpaid:3}}]});
     else if(action==='setRole'||action==='setLeaveQuota'||action==='updateEmployee') resolve({ok:true,changed:1});
     else if(action==='documents') resolve({ok:true,documents:[
       {name:'หนังสือรับรองเงินเดือน พ.ค. 69',url:'#',category:'หนังสือรับรอง',scope:'ส่วนตัว'},
@@ -3303,7 +3303,7 @@ function openSalarySet(empId, name, curRate){
 var EMP_TABS = [
   { key:'info',   label:'📄 ข้อมูลหลัก' },
   { key:'salary', label:'💹 เงินเดือน' },
-  { key:'job',    label:'📋 ประวัติการจ้าง' },
+  { key:'job',    label:'📋 ประวัติการทำงาน' },
 ];
 
 function openEmpPage(lineUserId){
@@ -3358,6 +3358,14 @@ function paintEmpInfo(box, u){
       empRow('สถานะ', u.status)+
       empRow('บทบาทในระบบ', u.role)+
     '</div>'+
+    '<div class="card"><div class="card-title"><span class="ic"></span>การคิดเงินเดือน</div>'+
+      empRow('หักประกันสังคม', u.ssoFlag || '—')+
+      empRow('หักภาษี ณ ที่จ่าย', u.taxFlag || '—')+
+      empRow('วิธีคิดภาษี', 'คำนวณใหม่ทุกเดือน (จากรายได้สะสมทั้งปี)')+
+      empRow('ธนาคาร', u.bank)+
+      empRow('เลขบัญชี', u.bankAcc)+
+      '<div class="paste-help">ตั้งค่า 2 ช่องแรกที่ชีตพนักงาน (คอลัมน์ M/N) — ระบบใช้ตัดสินว่าจะหักหรือไม่หักตอนปิดเงินเดือน</div>'+
+    '</div>'+
     '<div class="card"><div class="card-title"><span class="ic"></span>โควต้าลาปีนี้</div>'+
       '<div class="chips">'+
         '<div class="chip"><div class="chip-v">'+(q.sick!=null?q.sick:'—')+'</div><div class="chip-l">ลาป่วย</div></div>'+
@@ -3396,8 +3404,8 @@ function paintEmpJob(box, u){
         (j.detail?'<div class="hist-meta">'+esc(j.detail)+'</div>':'')+
         (j.by?'<div class="hist-meta">โดย '+esc(j.by)+'</div>':'')+'</div></div>'; }).join('');
     box.innerHTML = '<div class="card">'+
-      '<div class="card-title"><span class="ic"></span>ประวัติการจ้าง</div>'+
-      '<div class="pf-row"><span class="k">สถานะตอนนี้</span><span class="v"><b>'+
+      '<div class="card-title"><span class="ic"></span>ประวัติการทำงาน</div>'+
+      '<div class="pf-row"><span class="k">สถานะ</span><span class="v"><b>'+
         (r.employed===null?'—':(r.employed?'ทำงานอยู่':'พ้นสภาพแล้ว'))+'</b></span></div>'+
       '<div class="pf-row"><span class="k">อายุงาน</span><span class="v">'+esc(r.serviceText||'—')+'</span></div>'+
       '<button class="btn btn-primary" data-ejobadd style="width:100%;margin:10px 0">➕ บันทึกเหตุการณ์</button>'+
@@ -3416,7 +3424,7 @@ function openJobAdd(u, events){
   var iso = dkeyISO(new Date());
   var list = (events && events.length) ? events : ['เข้างาน','ลาออก'];
   var opts = list.map(function(e){ return '<option value="'+esc(e)+'">'+esc(e)+'</option>'; }).join('');
-  modalForm({ title:'บันทึกเหตุการณ์ · '+u.name, emoji:'📋',
+  modalForm({ title:'บันทึกเหตุการณ์การทำงาน · '+u.name, emoji:'📋',
     body:'<label class="field-lb">📌 เหตุการณ์</label>'+
          '<select id="jobEvent" class="hr-fsel mg-full">'+opts+'</select>'+
          '<label class="field-lb">📅 วันที่</label>'+
