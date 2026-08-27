@@ -2526,6 +2526,7 @@ function renderSettings(r){
         '<button class="set-btn" data-srole="'+esc(u.lineUserId)+'">👤 บทบาท</button>'+
         '<button class="set-btn" data-squota="'+esc(u.empId)+'">🏖️ โควต้า</button>'+
         '<button class="set-btn" data-sinfo="'+esc(u.lineUserId)+'">✏️ ข้อมูล</button>'+
+        '<button class="set-btn" data-ssalary="'+esc(u.empId||'')+'" data-sname="'+esc(u.name||'')+'">💹 ฐานเงินเดือน</button>'+
       '</div></div>';
   }).join('');
   return '<div class="card"><div class="card-title"><span class="ic"></span>พนักงาน ('+r.users.length+') · OWNER '+r.ownerCount+' คน</div>'+
@@ -2538,6 +2539,7 @@ function wireSettings(){
   document.querySelectorAll('[data-srole]').forEach(function(el){ el.addEventListener('click',function(){ openRoleModal(el.dataset.srole); }); });
   document.querySelectorAll('[data-squota]').forEach(function(el){ el.addEventListener('click',function(){ openQuotaModal(el.dataset.squota); }); });
   document.querySelectorAll('[data-sinfo]').forEach(function(el){ el.addEventListener('click',function(){ openInfoModal(el.dataset.sinfo); }); });
+  document.querySelectorAll('[data-ssalary]').forEach(function(el){ el.addEventListener('click',function(){ openSalaryHistory(el.dataset.ssalary, el.dataset.sname); }); });
 }
 // ➕ body ฟอร์มเพิ่มพนักงาน (reuse ได้ทั้งหน้าตั้งค่า + การ์ดคำขอลงทะเบียน) · prefill ชื่อ/นามสกุลได้
 function _addEmpFormBody_(pfName, pfLast){
@@ -2956,6 +2958,10 @@ function mockApi(action, params){
     else if(action==='payslip') resolve({ok:true,latest:MOCK_SLIPS[0],slips:MOCK_SLIPS});
     else if(action==='slipShareLink') resolve({ok:true,url:'#'});
     else if(action==='addEmployee') resolve({ok:true,fullName:(params&&params.name||'')+' '+(params&&params.lastName||''),written:['โควต้าลา','วันลาคงเหลือ','payroll (ลำดับ 99)','OT อัตราค่าจ้าง'],warnings:[]});
+    else if(action==='emSalaryHistory') resolve({ok:true,current:23000,history:[
+      {from:'26/12/2568',rate:10000,reason:'ยกมา (จากทะเบียน 01-2569)',by:'seed'},
+      {from:'26/02/2569',rate:23000,reason:'ปรับฐาน (จากทะเบียน 03-2569)',by:'seed'}]});
+    else if(action==='emAddSalary') resolve({ok:true,summary:'บันทึกแล้ว (mock)'});
     else if(action==='adminBootstrap') resolve({ok:true,callerId:'MOCK',ownerCount:1,
       schedules:[{code:'S01',desc:'จ-ศ 09:00-18:00'},{code:'S02',desc:'จ-ส 08:00-17:00'},{code:'RM01',desc:'Remote'}],
       roles:['EMPLOYEE','REVIEWER','APPROVER','ADMIN','OWNER'],leaveTypes:MOCK_LT,
@@ -3160,4 +3166,55 @@ function loadMyUnpaidReqs(){
         (x.note?'<div class="hist-meta">📝 '+esc(x.note)+'</div>':'')+'</div></div>'; }).join('');
     el.innerHTML='<div class="card"><div class="card-title"><span class="ic"></span>ประวัติคำขอของฉัน</div>'+rows+'</div>';
   }).catch(function(){});
+}
+
+// ════════════ 💹 ฐานเงินเดือน (ทะเบียนพนักงาน) ════════════
+// ประวัติเก็บที่ไฟล์ทะเบียนพนักงาน — ปรับกี่ครั้งในงวดเดียวก็ได้
+// แก้ = เพิ่มแถวใหม่เสมอ ของเดิมไม่ถูกลบ (ตรวจย้อนหลังได้ · ใช้ทำ ภ.ง.ด.1ก)
+function openSalaryHistory(empId, name){
+  if(!empId){ toast('คนนี้ยังไม่มีรหัสพนักงาน (เลขบัตร) ในระบบ','err'); return; }
+  toast('กำลังโหลดประวัติ…');
+  api('emSalaryHistory',{empId:empId,name:name||''}).then(function(r){
+    if(!r.ok){ toast(r.error||'โหลดไม่สำเร็จ','err'); return; }
+    var cur = r.current==null ? null : r.current;
+    var rows = (r.history||[]).map(function(h){
+      return '<div class="hist"><div class="hist-ic">💹</div><div class="hist-main">'+
+        '<div class="hist-type">'+baht0(h.rate)+' <span class="hist-meta">ตั้งแต่ '+esc(h.from)+'</span></div>'+
+        '<div class="hist-meta">'+esc(h.reason||'-')+(h.by?' · โดย '+esc(h.by):'')+'</div>'+
+      '</div></div>'; }).join('');
+    modalForm({ title:'ฐานเงินเดือน · '+(name||''), emoji:'💹',
+      body:'<div class="cfm-row"><span class="cfm-k">ฐานปัจจุบัน</span><span class="cfm-v"><b>'+
+             (cur==null?'— (ยังไม่มีในทะเบียน)':baht0(cur))+'</b></span></div>'+
+           (rows||'<div class="mg-sub2">ยังไม่มีประวัติในทะเบียน</div>')+
+           '<div class="cfm-note">ปรับได้หลายครั้งในงวดเดียวกัน · แก้ = เพิ่มแถวใหม่ ของเดิมไม่หาย</div>',
+      okLabel:'💹 ปรับฐานใหม่',
+      onOk:function(){ closeConfirm(); openSalarySet(empId, name, cur); } });
+  }).catch(function(e){ toast(String(e.message||e),'err'); });
+}
+
+function openSalarySet(empId, name, curRate){
+  var iso = dkeyISO(new Date());
+  modalForm({ title:'ปรับฐานเงินเดือน · '+(name||''), emoji:'💹',
+    body:'<div class="cfm-row"><span class="cfm-k">ฐานปัจจุบัน</span><span class="cfm-v">'+
+           (curRate==null?'—':baht0(curRate))+'</span></div>'+
+         '<label class="field-lb">📅 วันที่เริ่มใช้ฐานใหม่</label>'+
+         '<input type="date" class="hr-fdate mg-full" id="salFrom" value="'+esc(iso)+'">'+
+         '<label class="field-lb">💰 ฐานเงินเดือนใหม่ (บาท/เดือน)</label>'+
+         '<input type="number" class="hr-fdate mg-full" id="salRate" min="1" step="100" placeholder="เช่น 20000">'+
+         '<label class="field-lb">📝 เหตุผล</label>'+
+         '<textarea id="salReason" rows="2" placeholder="เช่น ผ่านทดลองงาน / ปรับประจำปี"></textarea>'+
+         '<div class="cfm-note">ระบบคิดเงินเดือนและ OT ตามฐานของแต่ละช่วงวันให้เอง</div>',
+    okLabel:'✅ บันทึก',
+    onOk:function(c){
+      var from = isoToThai(c.querySelector('#salFrom').value);
+      var rate = parseFloat(c.querySelector('#salRate').value);
+      var reason = c.querySelector('#salReason').value.trim();
+      if(!from){ toast('ใส่วันที่เริ่มใช้ก่อนนะคะ','err'); return; }
+      if(!(rate>0)){ toast('ใส่ฐานเงินเดือนใหม่ก่อนนะคะ','err'); return; }
+      toast('กำลังบันทึก…');
+      api('emAddSalary',{empId:empId,name:name||'',from:from,rate:rate,reason:reason}).then(function(r){
+        if(!r.ok){ toast(r.error||'บันทึกไม่สำเร็จ','err'); return; }
+        closeConfirm(); toast(r.summary||'บันทึกแล้ว');
+      }).catch(function(e){ toast(String(e.message||e),'err'); });
+    } });
 }
