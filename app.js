@@ -3358,14 +3358,7 @@ function paintEmpInfo(box, u){
       empRow('สถานะ', u.status)+
       empRow('บทบาทในระบบ', u.role)+
     '</div>'+
-    '<div class="card"><div class="card-title"><span class="ic"></span>การคิดเงินเดือน</div>'+
-      empRow('หักประกันสังคม', u.ssoFlag || '—')+
-      empRow('หักภาษี ณ ที่จ่าย', u.taxFlag || '—')+
-      empRow('วิธีคิดภาษี', 'คำนวณใหม่ทุกเดือน (จากรายได้สะสมทั้งปี)')+
-      empRow('ธนาคาร', u.bank)+
-      empRow('เลขบัญชี', u.bankAcc)+
-      '<div class="paste-help">ตั้งค่า 2 ช่องแรกที่ชีตพนักงาน (คอลัมน์ M/N) — ระบบใช้ตัดสินว่าจะหักหรือไม่หักตอนปิดเงินเดือน</div>'+
-    '</div>'+
+
     '<div class="card"><div class="card-title"><span class="ic"></span>โควต้าลาปีนี้</div>'+
       '<div class="chips">'+
         '<div class="chip"><div class="chip-v">'+(q.sick!=null?q.sick:'—')+'</div><div class="chip-l">ลาป่วย</div></div>'+
@@ -3388,7 +3381,15 @@ function paintEmpSalary(box, u){
         (r.current==null?'— (ยังไม่มีในทะเบียน)':baht0(r.current))+'</b></span></div>'+
       '<button class="btn btn-primary" data-esalset style="width:100%;margin:10px 0">💹 ปรับฐานใหม่</button>'+
       (rows||'<div class="mg-sub2">ยังไม่มีประวัติ</div>')+
-      '<div class="paste-help">ปรับได้หลายครั้งในงวดเดียวกัน · แก้ = เพิ่มแถวใหม่ ของเดิมไม่หาย</div></div>';
+      '<div class="paste-help">ปรับได้หลายครั้งในงวดเดียวกัน · แก้ = เพิ่มแถวใหม่ ของเดิมไม่หาย</div></div>'+
+      '<div class="card"><div class="card-title"><span class="ic"></span>การคิดเงินเดือน</div>'+
+        empRow('หักประกันสังคม', u.ssoFlag || '—')+
+        empRow('หักภาษี ณ ที่จ่าย', u.taxFlag || '—')+
+        empRow('วิธีคิดภาษี', 'คำนวณใหม่ทุกเดือน (จากรายได้สะสมทั้งปี)')+
+        empRow('ธนาคาร', u.bank)+
+        empRow('เลขบัญชี', u.bankAcc)+
+        '<div class="paste-help">ตั้งค่าหัก ปกส./ภาษี ที่ชีตพนักงาน (คอลัมน์ M/N) — ระบบใช้ตัดสินตอนปิดเงินเดือน</div>'+
+      '</div>';
     var b = box.querySelector('[data-esalset]');
     if(b) b.addEventListener('click', function(){ openSalarySet(u.empId||'', u.name, r.current); });
   }).catch(function(e){ box.innerHTML = emptyBox('😿', String(e.message||e)); });
