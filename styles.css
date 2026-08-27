@@ -901,3 +901,5 @@ textarea:focus,input[type=time]:focus{border-color:var(--red)}
 .bar span { position: absolute; left: 0; right: 0; text-align: center; font-size: 11px; color: #fff; font-weight: 700; top: 2px; }
 .bar.e span { top: auto; bottom: 2px; }
 .bar-mo { height: 20%; display: flex; align-items: center; justify-content: center; font-size: 11px; color: var(--muted); }
+.emp-code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12.5px;
+            background: #f6f6f6; border: 1px solid var(--line); border-radius: 6px; padding: 2px 7px; white-space: nowrap; }

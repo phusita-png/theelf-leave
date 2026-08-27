@@ -2527,13 +2527,24 @@ function renderSettings(r){
           [['all','ทุกสถานะ'],['active','ทำงานอยู่'],['left','ลาออกแล้ว']].map(function(o){
             return '<option value="'+o[0]+'"'+((S.empStatus||'active')===o[0]?' selected':'')+'>'+o[1]+'</option>'; }).join('')+
         '</select>'+
+        '<select id="empDeptF" class="hr-fsel">'+optsOf(r.users,'dept','ทุกแผนก',S.empDept)+'</select>'+
+        '<select id="empPosF" class="hr-fsel">'+optsOf(r.users,'position','ทุกตำแหน่ง',S.empPos)+'</select>'+
         '<button class="btn btn-primary" data-addemp style="width:auto;white-space:nowrap">➕ เพิ่มพนักงาน</button>'+
       '</div>'+
       '<div id="empTable"></div>'+
     '</div>';
 }
 
-/** ตารางรายชื่อ — ลำดับ · ชื่อ · ตำแหน่ง · แผนก · สถานะ · จัดการ */
+/** optsOf — สร้าง <option> จากค่าที่มีจริงในข้อมูล (ไม่ต้องมีตารางตั้งค่าแยก) */
+function optsOf(users, field, allLabel, cur){
+  var set = {};
+  (users||[]).forEach(function(u){ var v=(u[field]||'').trim(); if(v) set[v]=1; });
+  var list = Object.keys(set).sort(function(a,b){ return a.localeCompare(b,'th'); });
+  return '<option value="">'+esc(allLabel)+'</option>'+
+    list.map(function(v){ return '<option value="'+esc(v)+'"'+(cur===v?' selected':'')+'>'+esc(v)+'</option>'; }).join('');
+}
+
+/** ตารางรายชื่อ — ลำดับ · รหัส · ชื่อ · ตำแหน่ง · แผนก · สถานะ · จัดการ */
 function paintEmpTable(){
   var box = document.getElementById('empTable'); if(!box) return;
   var q = (S.empQ||'').trim().toLowerCase();
@@ -2542,6 +2553,8 @@ function paintEmpTable(){
     var isLeft = String(u.status||'').indexOf('ลาออก') >= 0;
     if(sf==='active' && isLeft) return false;
     if(sf==='left' && !isLeft) return false;
+    if(S.empDept && (u.dept||'') !== S.empDept) return false;
+    if(S.empPos  && (u.position||'') !== S.empPos) return false;
     if(!q) return true;
     return [u.name,u.empId,u.dept,u.position,u.branch].join(' ').toLowerCase().indexOf(q) >= 0;
   });
@@ -2553,9 +2566,9 @@ function paintEmpTable(){
     var isSelf = u.lineUserId === S.adminCaller;
     return '<tr class="mg-tr">'+
       '<td class="ce mg-sub2">'+(i+1)+'</td>'+
+      '<td class="ce"><span class="emp-code">'+esc(u.empId||'-')+'</span></td>'+
       '<td class="lft"><a class="emp-link" data-eopen="'+esc(u.lineUserId)+'"><b>'+esc(u.name)+'</b></a>'+
-        (isSelf?' <span class="re-badge">คุณ</span>':'')+
-        '<div class="mg-sub2">'+esc(u.empId||'-')+'</div></td>'+
+        (isSelf?' <span class="re-badge">คุณ</span>':'')+'</td>'+
       '<td class="lft">'+esc(u.position||'-')+'</td>'+
       '<td class="lft">'+esc(u.dept||'-')+'</td>'+
       '<td class="ce">'+(isLeft?'<span class="pill">ลาออก</span>':'<span class="pill ok">ทำงานอยู่</span>')+'</td>'+
@@ -2566,8 +2579,8 @@ function paintEmpTable(){
       '</div></td></tr>'; }).join('');
 
   box.innerHTML = '<div class="mg-tbwrap"><table class="mg-table"><thead><tr>'+
-      '<th class="ce">ลำดับ</th><th class="lft">ชื่อ-นามสกุล</th><th class="lft">ตำแหน่ง</th>'+
-      '<th class="lft">แผนก</th><th class="ce">สถานะ</th><th class="ce">จัดการ</th>'+
+      '<th class="ce">ลำดับ</th><th class="ce">รหัสพนักงาน</th><th class="lft">ชื่อ-นามสกุล</th>'+
+      '<th class="lft">ตำแหน่ง</th><th class="lft">แผนก</th><th class="ce">สถานะ</th><th class="ce">จัดการ</th>'+
     '</tr></thead><tbody>'+rows+'</tbody></table></div>'+
     '<div class="mg-sub2" style="margin-top:8px">แสดง '+list.length+' คน</div>';
   wireEmpTable();
@@ -2588,6 +2601,10 @@ function wireSettings(){
   if(q) q.addEventListener('input', function(){ S.empQ=q.value; paintEmpTable(); });
   var sf=document.getElementById('empStatusF');
   if(sf) sf.addEventListener('change', function(){ S.empStatus=sf.value; paintEmpTable(); });
+  var df=document.getElementById('empDeptF');
+  if(df) df.addEventListener('change', function(){ S.empDept=df.value; paintEmpTable(); });
+  var pf=document.getElementById('empPosF');
+  if(pf) pf.addEventListener('change', function(){ S.empPos=pf.value; paintEmpTable(); });
   paintEmpTable();
   loadEmpDash();
   document.querySelectorAll('[data-ssalary]').forEach(function(el){ el.addEventListener('click',function(){ openSalaryHistory(el.dataset.ssalary, el.dataset.sname); }); });
