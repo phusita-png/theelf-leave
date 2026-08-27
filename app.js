@@ -3371,16 +3371,33 @@ function paintEmpSalary(box, u){
   box.innerHTML = '<div class="card"><div class="skel" style="height:100px"></div></div>';
   api('emSalaryHistory',{empId:u.empId||'',name:u.name||''}).then(function(r){
     if(!r.ok){ box.innerHTML = emptyBox('⚠️', r.error||'โหลดไม่สำเร็จ'); return; }
-    var rows = (r.history||[]).map(function(h){
-      return '<div class="hist"><div class="hist-ic">💹</div><div class="hist-main">'+
-        '<div class="hist-type">'+baht0(h.rate)+' <span class="hist-meta">ตั้งแต่ '+esc(h.from)+'</span></div>'+
-        '<div class="hist-meta">'+esc(h.reason||'-')+(h.by?' · โดย '+esc(h.by):'')+'</div></div></div>'; }).join('');
+    var hist = r.history || [];
+    var last = hist.length - 1;
+    var rows = hist.map(function(h,i){
+      var chg = (h.prev==null)
+        ? '<b>'+baht0(h.rate)+'</b> <span class="hist-meta">(ฐานตั้งต้น)</span>'
+        : '<span class="sal-old">'+baht0(h.prev)+'</span> <span class="sal-ar">→</span> <b>'+baht0(h.rate)+'</b>'+
+          (h.diff ? ' <span class="pill '+(h.diff>0?'ok':'warn')+'">'+(h.diff>0?'+':'')+baht0(h.diff)+
+                    (h.pct!=null?' · '+(h.pct>0?'+':'')+h.pct+'%':'')+'</span>' : '');
+      return '<tr class="mg-tr">'+
+        '<td class="ce mg-sub2">'+(i+1)+'</td>'+
+        '<td class="lft">'+chg+(i===last?' <span class="re-badge">ใช้อยู่</span>':'')+'</td>'+
+        '<td class="lft">'+esc(h.reason||'-')+'</td>'+
+        '<td class="ce">'+esc(h.from)+'</td>'+
+        '<td class="lft">'+esc(h.by||'-')+'</td>'+
+        '<td class="ce mg-sub2">'+esc(h.at||'-')+'</td></tr>'; }).join('');
+    var table = rows
+      ? '<div class="mg-tbwrap"><table class="mg-table mg-rpt"><thead><tr>'+
+          '<th class="ce">ลำดับ</th><th class="lft">ข้อมูลที่มีการเปลี่ยนแปลง</th><th class="lft">เหตุผล</th>'+
+          '<th class="ce">มีผลตั้งแต่วันที่</th><th class="lft">ผู้ที่ทำรายการ</th><th class="ce">วันที่ทำรายการ</th>'+
+        '</tr></thead><tbody>'+rows+'</tbody></table></div>'
+      : '<div class="mg-sub2">ยังไม่มีประวัติ — กด "➕ เพิ่ม" เพื่อบันทึกฐานเงินเดือน</div>';
     box.innerHTML = '<div class="card">'+
-      '<div class="card-title"><span class="ic"></span>ฐานเงินเดือน</div>'+
+      '<div class="emp-thead"><div class="card-title" style="margin:0"><span class="ic"></span>การปรับฐานเงินเดือน</div>'+
+        '<button class="btn btn-primary btn-sm" data-esalset>➕ เพิ่ม</button></div>'+
       '<div class="pf-row"><span class="k">ฐานปัจจุบัน</span><span class="v"><b>'+
         (r.current==null?'— (ยังไม่มีในทะเบียน)':baht0(r.current))+'</b></span></div>'+
-      '<button class="btn btn-primary" data-esalset style="width:100%;margin:10px 0">💹 ปรับฐานใหม่</button>'+
-      (rows||'<div class="mg-sub2">ยังไม่มีประวัติ</div>')+
+      table+
       '<div class="paste-help">ปรับได้หลายครั้งในงวดเดียวกัน · แก้ = เพิ่มแถวใหม่ ของเดิมไม่หาย</div></div>'+
       '<div class="card"><div class="card-title"><span class="ic"></span>การคิดเงินเดือน</div>'+
         empRow('หักประกันสังคม', u.ssoFlag || '—')+
