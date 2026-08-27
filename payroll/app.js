@@ -1254,7 +1254,7 @@ function doExport(title, action, params) {
     setModal(title, '✅ สร้างไฟล์แล้ว',
       '<pre class="report">' + esc(r.report || r.summary) + '</pre>' +
       (r.xlsxUrl ? '<div style="margin-top:13px"><a class="btn btn-primary" style="text-decoration:none;display:inline-block"' +
-                   ' href="' + esc(r.xlsxUrl) + '" target="_blank" rel="noopener">📊 เปิดไฟล์ Excel</a></div>' : ''),
+                   ' href="' + esc(r.xlsxUrl) + '" target="_blank" rel="noopener">📄 เปิดไฟล์รายงาน</a></div>' : ''),
       btn('เสร็จสิ้น', 'btn-primary', 'closeModal(); loadReports();'));
   }).catch(function (e) { S.busy = false; showError(title, String(e && e.message || e)); });
 }
@@ -1461,11 +1461,11 @@ function mockResult(action, params) {
   if (action === 'reportFiles') {
     return { ok: true, yearBE: params && params.yearBE, count: 3, files: [
       { at: '01/08/2569', type: 'ทะเบียนจ่าย', month: 7, yearBE: 2569,
-        name: 'ทะเบียนจ่าย_07-2569.xlsx', url: '#', by: 'phusita@moodata.me' },
+        name: 'ทะเบียนจ่าย_07-2569', url: '#', by: 'phusita@moodata.me' },
       { at: '01/07/2569', type: 'ทะเบียนจ่าย', month: 6, yearBE: 2569,
-        name: 'ทะเบียนจ่าย_06-2569.xlsx', url: '#', by: 'phusita@moodata.me' },
+        name: 'ทะเบียนจ่าย_06-2569', url: '#', by: 'phusita@moodata.me' },
       { at: '15/01/2569', type: 'ภ.ง.ด.1ก', month: null, yearBE: 2568,
-        name: 'ภงด.1ก_2568.xlsx', url: '#', by: 'phusita@moodata.me' },
+        name: 'ภงด.1ก_2568', url: '#', by: 'phusita@moodata.me' },
     ] };
   }
 
