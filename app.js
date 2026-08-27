@@ -2517,28 +2517,79 @@ function loadSettings(){
   }).catch(function(e){ var m=document.getElementById('main'); if(m){ m.innerHTML=backBar()+emptyBox('😿',String(e.message||e)); bindBack(); } });
 }
 function renderSettings(r){
-  var rows=r.users.map(function(u){
-    var isSelf=u.lineUserId===r.callerId;
-    return '<div class="set-emp"><div class="set-emp-top"><div class="hist-ic">👤</div><div class="hist-main">'+
-      '<div class="hist-type"><a class="emp-link" data-eopen="'+esc(u.lineUserId)+'">'+esc(u.name)+'</a>'+(isSelf?' <span class="re-badge">คุณ</span>':'')+'</div>'+
-      '<div class="hist-meta">'+esc(u.empId||'-')+' · '+esc(u.dept||'-')+' · บทบาท <b>'+esc(u.role)+'</b></div></div></div>'+
-      '<div class="set-acts">'+
-        '<button class="set-btn" data-srole="'+esc(u.lineUserId)+'">👤 บทบาท</button>'+
-        '<button class="set-btn" data-squota="'+esc(u.empId)+'">🏖️ โควต้า</button>'+
-        '<button class="set-btn" data-sinfo="'+esc(u.lineUserId)+'">✏️ ข้อมูล</button>'+
-        '<button class="set-btn" data-ssalary="'+esc(u.empId||'')+'" data-sname="'+esc(u.name||'')+'">💹 ฐานเงินเดือน</button>'+
-      '</div></div>';
-  }).join('');
-  return '<div class="card"><div class="card-title"><span class="ic"></span>พนักงาน ('+r.users.length+') · OWNER '+r.ownerCount+' คน</div>'+
-    '<div class="hr-note ok2">⚙️ เฉพาะ ADMIN/OWNER · ทุกการเปลี่ยนถูกบันทึก audit</div>'+
-    '<button class="btn btn-primary" data-addemp style="width:100%;margin-bottom:10px">➕ เพิ่มพนักงานใหม่</button>'+
-    rows+'</div>';
+  // หน้าแรกเมนูพนักงาน = แดชบอร์ด + ค้นหา + ตาราง (ปรับตามแบบที่พี่กี้ส่ง 27 ส.ค. 69)
+  return '<div id="empDash"><div class="card"><div class="skel" style="height:90px"></div></div></div>'+
+    '<div class="card">'+
+      '<div class="card-title"><span class="ic"></span>รายชื่อพนักงาน ('+r.users.length+') · OWNER '+r.ownerCount+' คน</div>'+
+      '<div class="mg-tools">'+
+        '<input type="text" id="empSearch" class="mg-srch" placeholder="🔎 ค้นชื่อ / รหัส / แผนก / ตำแหน่ง…" value="'+esc(S.empQ||'')+'">'+
+        '<select id="empStatusF" class="hr-fsel">'+
+          [['all','ทุกสถานะ'],['active','ทำงานอยู่'],['left','ลาออกแล้ว']].map(function(o){
+            return '<option value="'+o[0]+'"'+((S.empStatus||'active')===o[0]?' selected':'')+'>'+o[1]+'</option>'; }).join('')+
+        '</select>'+
+        '<button class="btn btn-primary" data-addemp style="width:auto;white-space:nowrap">➕ เพิ่มพนักงาน</button>'+
+      '</div>'+
+      '<div id="empTable"></div>'+
+    '</div>';
 }
+
+/** ตารางรายชื่อ — ลำดับ · ชื่อ · ตำแหน่ง · แผนก · สถานะ · จัดการ */
+function paintEmpTable(){
+  var box = document.getElementById('empTable'); if(!box) return;
+  var q = (S.empQ||'').trim().toLowerCase();
+  var sf = S.empStatus || 'active';
+  var list = (S.adminUsers||[]).filter(function(u){
+    var isLeft = String(u.status||'').indexOf('ลาออก') >= 0;
+    if(sf==='active' && isLeft) return false;
+    if(sf==='left' && !isLeft) return false;
+    if(!q) return true;
+    return [u.name,u.empId,u.dept,u.position,u.branch].join(' ').toLowerCase().indexOf(q) >= 0;
+  });
+
+  if(!list.length){ box.innerHTML = emptyBox('🍃','ไม่พบพนักงานตามที่ค้น'); return; }
+
+  var rows = list.map(function(u,i){
+    var isLeft = String(u.status||'').indexOf('ลาออก') >= 0;
+    var isSelf = u.lineUserId === S.adminCaller;
+    return '<tr class="mg-tr">'+
+      '<td class="ce mg-sub2">'+(i+1)+'</td>'+
+      '<td class="lft"><a class="emp-link" data-eopen="'+esc(u.lineUserId)+'"><b>'+esc(u.name)+'</b></a>'+
+        (isSelf?' <span class="re-badge">คุณ</span>':'')+
+        '<div class="mg-sub2">'+esc(u.empId||'-')+'</div></td>'+
+      '<td class="lft">'+esc(u.position||'-')+'</td>'+
+      '<td class="lft">'+esc(u.dept||'-')+'</td>'+
+      '<td class="ce">'+(isLeft?'<span class="pill">ลาออก</span>':'<span class="pill ok">ทำงานอยู่</span>')+'</td>'+
+      '<td class="mg-actcell"><div class="mg-acts2">'+
+        '<button class="mg-ib edit" data-eopen="'+esc(u.lineUserId)+'">✏️ เปิด</button>'+
+        '<button class="mg-ib" data-srole="'+esc(u.lineUserId)+'">👤 บทบาท</button>'+
+        '<button class="mg-ib" data-squota="'+esc(u.empId)+'">🏖️ โควต้า</button>'+
+      '</div></td></tr>'; }).join('');
+
+  box.innerHTML = '<div class="mg-tbwrap"><table class="mg-table"><thead><tr>'+
+      '<th class="ce">ลำดับ</th><th class="lft">ชื่อ-นามสกุล</th><th class="lft">ตำแหน่ง</th>'+
+      '<th class="lft">แผนก</th><th class="ce">สถานะ</th><th class="ce">จัดการ</th>'+
+    '</tr></thead><tbody>'+rows+'</tbody></table></div>'+
+    '<div class="mg-sub2" style="margin-top:8px">แสดง '+list.length+' คน</div>';
+  wireEmpTable();
+}
+
+function wireEmpTable(){
+  document.querySelectorAll('[data-eopen]').forEach(function(el){
+    el.addEventListener('click',function(){ openEmpPage(el.dataset.eopen); }); });
+  document.querySelectorAll('[data-srole]').forEach(function(el){
+    el.addEventListener('click',function(ev){ ev.stopPropagation(); openRoleModal(el.dataset.srole); }); });
+  document.querySelectorAll('[data-squota]').forEach(function(el){
+    el.addEventListener('click',function(ev){ ev.stopPropagation(); openQuotaModal(el.dataset.squota); }); });
+}
+
 function wireSettings(){
   var add=document.querySelector('[data-addemp]'); if(add) add.addEventListener('click', openAddEmployeeModal);
-  document.querySelectorAll('[data-srole]').forEach(function(el){ el.addEventListener('click',function(){ openRoleModal(el.dataset.srole); }); });
-  document.querySelectorAll('[data-squota]').forEach(function(el){ el.addEventListener('click',function(){ openQuotaModal(el.dataset.squota); }); });
-  document.querySelectorAll('[data-sinfo]').forEach(function(el){ el.addEventListener('click',function(){ openInfoModal(el.dataset.sinfo); }); });
+  var q=document.getElementById('empSearch');
+  if(q) q.addEventListener('input', function(){ S.empQ=q.value; paintEmpTable(); });
+  var sf=document.getElementById('empStatusF');
+  if(sf) sf.addEventListener('change', function(){ S.empStatus=sf.value; paintEmpTable(); });
+  paintEmpTable();
+  loadEmpDash();
   document.querySelectorAll('[data-ssalary]').forEach(function(el){ el.addEventListener('click',function(){ openSalaryHistory(el.dataset.ssalary, el.dataset.sname); }); });
   document.querySelectorAll('[data-eopen]').forEach(function(el){ el.addEventListener('click',function(){ openEmpPage(el.dataset.eopen); }); });
 }
@@ -2968,6 +3019,10 @@ function mockApi(action, params){
       jobs:[{date:'15/07/2568',event:'เข้างาน',detail:'ตำแหน่ง Developers',by:'seed'},
             {date:'15/10/2568',event:'ผ่านทดลองงาน',detail:'',by:'พี่กี้'}]});
     else if(action==='emAddJob') resolve({ok:true,summary:'บันทึกแล้ว (mock)'});
+    else if(action==='emStats') resolve({ok:true,yearBE:2569,total:28,active:24,left:4,hasJobs:true,
+      byDept:[{name:'CRM & Telesale',count:8},{name:'Content Creator',count:5},{name:'Developers',count:3},
+              {name:'Live Sale',count:3},{name:'Graphic Design',count:2},{name:'บัญชี',count:3}],
+      joins:[14,9,1,3,6,5,5,6,0,0,0,0], exits:[2,4,2,4,5,4,4,1,0,0,0,0], joinTotal:49, exitTotal:26});
     else if(action==='adminBootstrap') resolve({ok:true,callerId:'MOCK',ownerCount:1,
       schedules:[{code:'S01',desc:'จ-ศ 09:00-18:00'},{code:'S02',desc:'จ-ส 08:00-17:00'},{code:'RM01',desc:'Remote'}],
       roles:['EMPLOYEE','REVIEWER','APPROVER','ADMIN','OWNER'],leaveTypes:MOCK_LT,
@@ -3364,4 +3419,82 @@ function openJobAdd(u, events){
         closeConfirm(); toast(r.summary||'บันทึกแล้ว'); paintEmpTab();
       }).catch(function(e){ toast(String(e.message||e),'err'); });
     } });
+}
+
+// ════════════ 📊 แดชบอร์ดหน้าแรกเมนูพนักงาน ════════════
+// วาดกราฟเองด้วย SVG — ไม่พึ่ง library ภายนอก (โหลดเร็ว + ไม่มีปัญหาเน็ตบริษัท)
+function loadEmpDash(){
+  var box = document.getElementById('empDash'); if(!box) return;
+  var yearBE = S.empDashYear || (new Date().getFullYear()+543);
+  api('emStats',{yearBE:yearBE}).then(function(r){
+    if(!r.ok){ box.innerHTML=''; return; }          // ไม่มีสิทธิ์/ยังไม่มีทะเบียน = ไม่ต้องโชว์
+    S.empStats = r;
+    paintEmpDash();
+  }).catch(function(){ box.innerHTML=''; });
+}
+
+function paintEmpDash(){
+  var box = document.getElementById('empDash'); if(!box || !S.empStats) return;
+  var r = S.empStats;
+  var yrs = []; var nowY = new Date().getFullYear()+543;
+  for(var y=nowY; y>=nowY-2; y--) yrs.push('<option value="'+y+'"'+(r.yearBE===y?' selected':'')+'>'+y+'</option>');
+
+  box.innerHTML =
+    '<div class="dash-grid">'+
+      '<div class="card dash-card">'+
+        '<div class="card-title"><span class="ic"></span>ภาพรวมพนักงาน</div>'+
+        '<div class="chips">'+
+          '<div class="chip"><div class="chip-v">'+r.active+'</div><div class="chip-l">ทำงานอยู่</div></div>'+
+          '<div class="chip"><div class="chip-v">'+r.left+'</div><div class="chip-l">ลาออกแล้ว</div></div>'+
+          '<div class="chip"><div class="chip-v">'+r.byDept.length+'</div><div class="chip-l">แผนก</div></div>'+
+        '</div>'+
+        deptDonut(r.byDept, r.active)+
+      '</div>'+
+      '<div class="card dash-card">'+
+        '<div class="card-title"><span class="ic"></span>เข้าใหม่ / ลาออก'+
+          '<select id="dashYear" class="hr-fsel" style="float:right">'+yrs.join('')+'</select></div>'+
+        (r.hasJobs ? joinExitChart(r)
+          : '<div class="hr-note">ยังไม่มีประวัติการจ้างในทะเบียน — ไปที่ไฟล์ payroll เมนู 📂 Pro-rate/ปรับฐาน → 📋 สร้างประวัติการจ้าง เพื่อให้กราฟนี้มีข้อมูล</div>')+
+      '</div>'+
+    '</div>';
+
+  var ys = document.getElementById('dashYear');
+  if(ys) ys.addEventListener('change', function(){ S.empDashYear = parseInt(ys.value,10); loadEmpDash(); });
+}
+
+/** โดนัทแยกตามแผนก (วาดด้วย SVG stroke-dasharray) */
+function deptDonut(list, total){
+  if(!list.length || !total) return '<div class="mg-sub2">ยังไม่มีข้อมูลแผนก</div>';
+  var COLORS = ['#cc1019','#f2994a','#2f80ed','#27ae60','#9b51e0','#e91e8c','#00b8a9','#8d6e63'];
+  var R = 54, C = 2*Math.PI*R, off = 0;
+  var arcs = list.slice(0,8).map(function(d,i){
+    var frac = d.count/total, len = C*frac;
+    var seg = '<circle cx="70" cy="70" r="'+R+'" fill="none" stroke="'+COLORS[i%COLORS.length]+'" stroke-width="22"'+
+      ' stroke-dasharray="'+len.toFixed(2)+' '+(C-len).toFixed(2)+'" stroke-dashoffset="'+(-off).toFixed(2)+'"'+
+      ' transform="rotate(-90 70 70)"></circle>';
+    off += len; return seg;
+  }).join('');
+  var legend = list.slice(0,8).map(function(d,i){
+    return '<div class="lg-row"><span class="lg-dot" style="background:'+COLORS[i%COLORS.length]+'"></span>'+
+      '<span class="lg-name">'+esc(d.name)+'</span><span class="lg-num">'+d.count+' คน</span></div>'; }).join('');
+  return '<div class="donut-wrap">'+
+    '<svg viewBox="0 0 140 140" class="donut">'+arcs+
+      '<text x="70" y="66" text-anchor="middle" class="donut-n">'+total+'</text>'+
+      '<text x="70" y="84" text-anchor="middle" class="donut-l">คน</text>'+
+    '</svg><div class="donut-lg">'+legend+'</div></div>';
+}
+
+/** กราฟแท่งเข้าใหม่(บวก)/ลาออก(ลบ) รายเดือน */
+function joinExitChart(r){
+  var MO = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  var max = Math.max(1, Math.max.apply(null, r.joins.concat(r.exits)));
+  var bars = MO.map(function(mo,i){
+    var jh = r.joins[i]/max*100, eh = r.exits[i]/max*100;
+    return '<div class="bar-col">'+
+      '<div class="bar-up"><div class="bar j" style="height:'+jh+'%">'+(r.joins[i]?'<span>'+r.joins[i]+'</span>':'')+'</div></div>'+
+      '<div class="bar-dn"><div class="bar e" style="height:'+eh+'%">'+(r.exits[i]?'<span>'+r.exits[i]+'</span>':'')+'</div></div>'+
+      '<div class="bar-mo">'+mo+'</div></div>'; }).join('');
+  return '<div class="chart-lg"><span class="lg-dot j"></span>เข้าใหม่ '+r.joinTotal+' คน'+
+         ' <span class="lg-dot e" style="margin-left:12px"></span>ลาออก '+r.exitTotal+' คน</div>'+
+         '<div class="barchart">'+bars+'</div>';
 }

@@ -872,3 +872,32 @@ textarea:focus,input[type=time]:focus{border-color:var(--red)}
 .emp-link { color: var(--red); cursor: pointer; text-decoration: underline dotted; }
 .emp-hd { margin-bottom: 10px; }
 .emp-hd-top { display: flex; align-items: center; gap: 12px; }
+
+/* ── 📊 แดชบอร์ดหน้าพนักงาน ─────────────────────────────── */
+.dash-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
+@media (min-width: 900px) { .dash-grid { grid-template-columns: 360px 1fr; } }
+.dash-card { margin-bottom: 0; }
+
+.donut-wrap { display: flex; align-items: center; gap: 14px; margin-top: 10px; }
+.donut { width: 140px; height: 140px; flex: none; }
+.donut-n { font-size: 26px; font-weight: 800; fill: var(--ink); }
+.donut-l { font-size: 12px; fill: var(--muted); }
+.donut-lg { flex: 1; min-width: 0; }
+.lg-row { display: flex; align-items: center; gap: 8px; font-size: 12.5px; padding: 2px 0; }
+.lg-dot { width: 10px; height: 10px; border-radius: 50%; flex: none; display: inline-block; }
+.lg-dot.j { background: #2f80ed; }
+.lg-dot.e { background: #f2994a; }
+.lg-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lg-num { color: var(--muted); }
+
+.chart-lg { font-size: 12.5px; color: var(--muted); margin: 6px 0 10px; }
+.barchart { display: flex; align-items: flex-end; gap: 4px; height: 190px; overflow-x: auto; padding-bottom: 4px; }
+.bar-col { flex: 1; min-width: 34px; display: flex; flex-direction: column; height: 100%; }
+.bar-up { height: 45%; display: flex; align-items: flex-end; }
+.bar-dn { height: 35%; display: flex; align-items: flex-start; border-top: 1px solid var(--line); }
+.bar { width: 100%; border-radius: 4px 4px 0 0; position: relative; min-height: 2px; }
+.bar.j { background: #2f80ed; }
+.bar.e { background: #f2994a; border-radius: 0 0 4px 4px; }
+.bar span { position: absolute; left: 0; right: 0; text-align: center; font-size: 11px; color: #fff; font-weight: 700; top: 2px; }
+.bar.e span { top: auto; bottom: 2px; }
+.bar-mo { height: 20%; display: flex; align-items: center; justify-content: center; font-size: 11px; color: var(--muted); }
