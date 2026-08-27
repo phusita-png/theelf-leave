@@ -597,7 +597,10 @@ function labelOf(key) {
  *   dash    = ค่า 0 แสดงเป็น "—" อ่านง่ายกว่า 0.00 เต็มตาราง
  */
 var REG_COLS = [
-  { key: 'seq',         label: 'ลำดับ',      type: 'seq',  cls: 'l muted', slim: true },
+  // ⚠️ "ลำดับ" ที่โชว์ = นับแถวจริงในตาราง (1…N) ไม่ใช่เลขในชีต
+  //    เลขในชีต col A = "รหัส" ที่ผูกพนักงานกับสูตร B–H ห้ามเรียงใหม่ (ข้อมูลจะสลับคน)
+  { key: 'rowNo',       label: 'ลำดับ',      type: 'rowno', cls: 'l muted', slim: true },
+  { key: 'seq',         label: 'รหัส',       type: 'seq',   cls: 'l muted' },
   { key: 'name',        label: 'ชื่อ-สกุล',   type: 'name', cls: 'l',       slim: true },
 
   { key: 'salary',      label: 'เงินเดือน',   slim: true },
@@ -629,7 +632,8 @@ function activeCols() {
   return S.tableMode === 'full' ? REG_COLS : REG_COLS.filter(function (c) { return c.slim; });
 }
 
-function cellHtml(c, x) {
+function cellHtml(c, x, i) {
+  if (c.type === 'rowno') return '<span title="รหัสในชีต #' + esc(String(x.seq)) + '">' + (i + 1) + '</span>';
   if (c.type === 'seq')  return esc(String(x.seq));
   if (c.type === 'name') {
     return esc(x.name) + (x.unpaidLeave > 0
@@ -678,17 +682,17 @@ function renderTable(r) {
            (c.formula ? ' title="ช่องสูตรในชีต — แก้ไม่ได้"' : '') + '>' + esc(c.label) + '</th>';
   }).join('');
 
-  var body = S.rows.map(function (x) {
+  var body = S.rows.map(function (x, i) {
     return '<tr>' + cols.map(function (c) {
       return '<td class="' + (c.cls || '') + (c.neg ? ' neg' : '') + (c.formula ? ' is-formula' : '') +
-             '">' + cellHtml(c, x) + '</td>';
+             '">' + cellHtml(c, x, i) + '</td>';
     }).join('') + '</tr>';
   }).join('');
 
   // แถวรวม — ช่องที่รวมไม่ได้ (ลำดับ/ชื่อ/หมายเหตุ/สลิป) ปล่อยว่าง
   var foot = cols.map(function (c, i) {
     if (i === 0) return '<td class="l">รวม</td>';
-    if (i === 1) return '<td class="l">' + r.count + ' คน</td>';
+    if (c.key === 'name') return '<td class="l">' + r.count + ' คน</td>';
     if (c.type) return '<td></td>';
     var v = t[c.key];
     if (c.key === 'incomeTotal') v = t.income;
@@ -1294,9 +1298,9 @@ var MOCK_ROWS = [
     posAllow: 3000, incentive: 2000, utility: 500, attendance: 1000, backpay: 0,    incomeOther: 0,   otherDed: 0,   damage: 0,   insurance: 200, note: '' },
   { seq: 2, name: 'สมหญิง รักงาน',   rate: 18000, salary: 16800, ot: 0,    sso: 840, tax: 0,   studentLoan: 1500, unpaidLeave: 2,
     posAllow: 0,    incentive: 1500, utility: 0,   attendance: 0,    backpay: 1200, incomeOther: 0,   otherDed: 300, damage: 0,   insurance: 200, note: 'ลากิจ 2 วัน' },
-  { seq: 3, name: 'ประเสริฐ มั่นคง',  rate: 15000, salary: 15000, ot: 800,  sso: 790, tax: 0,   studentLoan: 800,  unpaidLeave: 0,
+  { seq: 7, name: 'ประเสริฐ มั่นคง',  rate: 15000, salary: 15000, ot: 800,  sso: 790, tax: 0,   studentLoan: 800,  unpaidLeave: 0,
     posAllow: 0,    incentive: 0,    utility: 300, attendance: 1000, backpay: 0,    incomeOther: 500, otherDed: 0,   damage: 500, insurance: 200, note: '' },
-  { seq: 4, name: 'ณัฐวัฒน์ พากเพียร', rate: 12000, salary: 12000, ot: 0,   sso: 600, tax: 0,   studentLoan: 0,    unpaidLeave: 0,
+  { seq: 12, name: 'ณัฐวัฒน์ พากเพียร', rate: 12000, salary: 12000, ot: 0,   sso: 600, tax: 0,   studentLoan: 0,    unpaidLeave: 0,
     posAllow: 0,    incentive: 0,    utility: 0,   attendance: 1000, backpay: 0,    incomeOther: 0,   otherDed: 0,   damage: 0,   insurance: 200, note: '' },
 ];
 var MOCK_STEP_DONE = { createMonth: 1, importOT: 1, importUnpaidLeave: 1 };
