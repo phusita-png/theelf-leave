@@ -381,3 +381,18 @@
 .pay-scope .drift.ok   { background: var(--ok-soft);   color: var(--ok); }
 .pay-scope .drift.warn { background: var(--warn-soft); color: var(--warn); font-weight: 600; }
 .pay-scope .drift-sub { font-size: 12px; font-weight: 400; margin-top: 5px; opacity: .85; }
+
+/* ── ✏️ กล่องกรอกเงินได้/เงินหักรายคน (ขั้น ❺) ───────────── */
+.reg-row { cursor: pointer; }
+.reg-row:hover td { background: #fff6f6; }
+.ed-sec { margin: 14px 0 6px; font-weight: 700; font-size: 13px; color: var(--muted); }
+.ed-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.ed-lb { flex: 1; font-size: 13.5px; }
+.ed-in { width: 140px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px;
+         font-family: inherit; font-size: 14px; text-align: right; }
+.ed-in:focus { outline: none; border-color: var(--red); }
+.ed-live { margin-top: 14px; padding: 10px 12px; background: #fafafa;
+           border: 1px solid var(--line); border-radius: 10px; }
+.ed-live-row { display: flex; justify-content: space-between; font-size: 13.5px; padding: 2px 0; }
+.ed-live-row.big { border-top: 1px solid var(--line); margin-top: 6px; padding-top: 6px; font-size: 15px; }
+.ed-live-note { margin-top: 6px; font-size: 12px; color: var(--muted); }

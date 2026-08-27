@@ -63,7 +63,8 @@ var STEP_ACTION = {
   setPayDate:        'setPayDate',
   genPayslips:       'genPayslips',
   sendPayslips:      'sendPayslips',
-  cleanRegister:     'cleanRegister',   // 🧹 นอกลำดับ 10 ขั้น — กดจากปุ่มเหนือตาราง
+  cleanRegister:     'cleanRegister',   // 🧹 นอกลำดับ — กดจากปุ่มเหนือตาราง
+  editRegister:      'editRegister',    // ✏️ ขั้น ❺ กรอกเงินได้/เงินหักอื่นๆ
 };
 var BATCH_STEPS = { genPayslips: 'BATCH_SLIP', sendPayslips: 'BATCH_SEND' };
 
@@ -709,7 +710,7 @@ function renderTable(r) {
   }).join('');
 
   var body = S.rows.map(function (x, i) {
-    return '<tr>' + cols.map(function (c) {
+    return '<tr class="reg-row" data-editseq="' + esc(String(x.seq)) + '" title="คลิกเพื่อกรอกเงินได้/เงินหักของคนนี้">' + cols.map(function (c) {
       return '<td class="' + (c.cls || '') + (c.neg ? ' neg' : '') + (c.formula ? ' is-formula' : '') +
              '">' + cellHtml(c, x, i) + '</td>';
     }).join('') + '</tr>';
@@ -734,6 +735,9 @@ function renderTable(r) {
     '<tbody>' + body + '</tbody>' +
     '<tfoot><tr>' + foot + '</tr></tfoot></table>';
 
+  wrap.querySelectorAll('[data-editseq]').forEach(function (tr) {
+    tr.addEventListener('click', function () { openEditRow(tr.dataset.editseq); });
+  });
   paintColsBtn();
 }
 
@@ -784,6 +788,7 @@ function startStep(key) {
   var step = S.steps.filter(function (s) { return s.key === key; })[0];
   if (!step) return;
 
+  if (key === 'editRegister')      return askEditRegister();
   if (key === 'audit')             return runAudit();
   if (key === 'importStudentLoan') return askStudentLoanData();
   if (key === 'setPayDate')        return askPayDate(S.cur.month, S.cur.yearBE);
@@ -1375,6 +1380,17 @@ function mockResult(action, params) {
              exists: true, steps: steps, next: next, allDone: false };
   }
 
+  if (action === 'editRegister') {
+    var mode = params.mode === 'commit';
+    var ch = [{ name: 'สมชาย ใจดี', label: 'เบี้ยขยัน', before: 0, after: 1000 },
+              { name: 'สมชาย ใจดี', label: 'Incentive', before: 0, after: 2000 }];
+    return Promise.resolve({ ok: true, dryRun: !mode, changes: ch, skipped: [], warnings: [], notFound: [],
+      report: 'กรอกเงินได้/เงินหักอื่นๆ - ทะเบียน 08-2569' + String.fromCharCode(10) +
+              (mode ? 'บันทึกแล้ว 2 ช่อง (1 คน)' : 'จะแก้ 2 ช่อง (1 คน)') + String.fromCharCode(10, 10) +
+              ch.map(function (c) { return '- ' + c.name + ' / ' + c.label + ': ' + c.before + ' -> ' + c.after; })
+                .join(String.fromCharCode(10)),
+      summary: 'แก้ 2 ช่อง' });
+  }
   if (action === 'cleanRegister') {
     var gone = [{ seq: 4, name: 'ปิยกานต์ ทวีโต', reason: 'ลาออก 30/06/2569 (ก่อนต้นรอบ)' },
                 { seq: 5, name: 'ทาริกา เจียนจันทร์วงศ์', reason: 'ลาออก 12/07/2569 (ก่อนต้นรอบ)' }];
@@ -1455,6 +1471,117 @@ function mockResult(action, params) {
   return noop;
 }
 
+
+// ════════════ ❺ กรอกเงินได้ / เงินหักอื่นๆ ════════════
+// 2 ทาง: กดชื่อคนในตาราง (รายคน) · ปุ่มวางจาก Excel (ทั้งตาราง)
+// ทุกทางเป็น ดูก่อน → ยืนยัน เหมือนขั้นอื่น
+
+var EDIT_FIELDS = [
+  { key: 'salary',      label: 'เงินเดือน',       group: 'income' },
+  { key: 'posAllow',    label: 'ค่าประจำตำแหน่ง', group: 'income' },
+  { key: 'incentive',   label: 'Incentive',       group: 'income' },
+  { key: 'utility',     label: 'ค่าน้ำ-ไฟ',       group: 'income' },
+  { key: 'attendance',  label: 'เบี้ยขยัน',       group: 'income' },
+  { key: 'backpay',     label: 'ค่าตกเบิก',       group: 'income' },
+  { key: 'incomeOther', label: 'รายรับอื่นๆ',     group: 'income' },
+  { key: 'otherDed',    label: 'หักอื่นๆ',        group: 'deduct' },
+  { key: 'damage',      label: 'หักค่าเสียหาย',   group: 'deduct' },
+  { key: 'insurance',   label: 'ประกันการทำงาน',  group: 'deduct' },
+  { key: 'studentLoan', label: 'หัก กยศ.',        group: 'deduct' },
+];
+
+/** กดขั้น ❺ ในลำดับ → ให้เลือกวิธีกรอก */
+function askEditRegister() {
+  openModal('✏️ กรอกเงินได้ / เงินหักอื่นๆ', 'เลือกวิธีที่สะดวก',
+    '<div class="paste-help">' +
+      '<b>ทีละคน</b> — ปิดกล่องนี้แล้วคลิกที่แถวของคนนั้นในตารางข้างบนได้เลย<br>' +
+      '<b>ทั้งตาราง</b> — เตรียมไฟล์ Excel ที่มีคอลัมน์ "ลำดับ" (หรือ "ชื่อ") + ช่องที่จะกรอก แล้ววางในช่องข้างล่าง' +
+    '</div>' +
+    '<textarea id="pay-editPaste" class="paste" placeholder="ลำดับ\tเบี้ยขยัน\tIncentive&#10;1\t1000\t2000&#10;3\t500\t"></textarea>' +
+    '<div class="paste-help">ช่องที่เว้นว่าง = ไม่แตะของเดิม · ช่องที่เป็นสูตรในชีตจะถูกข้ามให้เอง</div>',
+    btn('ปิด', 'btn-ghost', 'closeModal()') +
+    btn('ตรวจสอบข้อมูล', 'btn-primary', 'submitEditPaste()'));
+  setTimeout(function () { var t = $('editPaste'); if (t) t.focus(); }, 60);
+}
+
+function submitEditPaste() {
+  var raw = ($('editPaste') || {}).value || '';
+  if (!raw.trim()) return toast('ยังไม่ได้วางข้อมูลค่ะ');
+  var grid = parsePasted(raw);
+  if (grid.length < 2) return toast('ต้องมีหัวตาราง + ข้อมูลอย่างน้อย 1 แถว');
+  var step = stepOf('editRegister');
+  preview('editRegister', step, { paste: JSON.stringify(grid) });
+}
+
+/** หา step object (ขั้นเสริมอาจยังไม่อยู่ใน S.steps ถ้า backend เก่า) */
+function stepOf(key) {
+  var s = S.steps.filter(function (x) { return x.key === key; })[0];
+  return s || { key: key, label: '✏️ กรอกเงินได้/เงินหักอื่นๆ', state: 'ready' };
+}
+
+/** คลิกแถวในตาราง → กล่องแก้รายคน (ยอดรวม/สุทธิ คำนวณสดตอนพิมพ์) */
+function openEditRow(seq) {
+  if (S.busy) return;
+  var x = (S.rows || []).filter(function (r) { return String(r.seq) === String(seq); })[0];
+  if (!x) return;
+
+  var row = function (f) {
+    var v = Number(x[f.key] || 0);
+    return '<label class="ed-row">' +
+      '<span class="ed-lb">' + esc(f.label) + '</span>' +
+      '<input class="ed-in" type="number" step="0.01" data-ed="' + f.key + '" value="' + (v || '') + '" placeholder="0">' +
+    '</label>';
+  };
+
+  openModal('✏️ ' + esc(x.name), 'ลำดับ ' + esc(String(x.seq)) + ' · ทะเบียน ' + pad2(S.cur.month) + '-' + S.cur.yearBE,
+    '<div class="ed-sec">รายได้</div>' +
+    EDIT_FIELDS.filter(function (f) { return f.group === 'income'; }).map(row).join('') +
+    '<div class="ed-sec">รายการหัก</div>' +
+    EDIT_FIELDS.filter(function (f) { return f.group === 'deduct'; }).map(row).join('') +
+    '<label class="ed-row"><span class="ed-lb">หมายเหตุ</span>' +
+      '<input class="ed-in" type="text" data-ed="note" value="' + esc(String(x.note || '')) + '"></label>' +
+    '<div class="ed-live" id="pay-edLive"></div>' +
+    '<div class="paste-help">OT · ปกส. · ภาษี · ยอดรวม = ช่องสูตร ระบบคิดให้เอง แก้ที่นี่ไม่ได้</div>',
+    btn('ปิด', 'btn-ghost', 'closeModal()') +
+    btn('ดูก่อนบันทึก', 'btn-primary', 'submitEditRow(' + JSON.stringify(String(seq)) + ')'));
+
+  var live = function () { paintEditLive(x); };
+  document.querySelectorAll('[data-ed]').forEach(function (el) { el.addEventListener('input', live); });
+  live();
+}
+
+/** คำนวณสดให้ดูระหว่างพิมพ์ — ยังไม่บันทึก (ปกส./ภาษี ใช้ค่าเดิม เพราะเป็นสูตรในชีต) */
+function paintEditLive(x) {
+  var box = $('edLive'); if (!box) return;
+  var vals = readEditForm();
+  var income = ['salary', 'posAllow', 'incentive', 'utility', 'attendance', 'backpay', 'incomeOther']
+    .reduce(function (a, k) { return a + (vals[k] === '' ? Number(x[k] || 0) : Number(vals[k] || 0)); }, 0)
+    + Number(x.ot || 0);
+  var deduct = ['otherDed', 'damage', 'insurance', 'studentLoan']
+    .reduce(function (a, k) { return a + (vals[k] === '' ? Number(x[k] || 0) : Number(vals[k] || 0)); }, 0)
+    + Number(x.sso || 0) + Number(x.tax || 0);
+  box.innerHTML =
+    '<div class="ed-live-row"><span>รวมรายรับ</span><b>' + money(income) + '</b></div>' +
+    '<div class="ed-live-row"><span>รวมหัก</span><b class="neg">' + money(deduct) + '</b></div>' +
+    '<div class="ed-live-row big"><span>สุทธิ (ประมาณ)</span><b>' + money(income - deduct) + '</b></div>' +
+    '<div class="ed-live-note">ปกส./ภาษี ใช้ค่าปัจจุบัน — ตัวจริงชีตคำนวณใหม่หลังบันทึก</div>';
+}
+
+function readEditForm() {
+  var out = {};
+  document.querySelectorAll('[data-ed]').forEach(function (el) { out[el.dataset.ed] = el.value.trim(); });
+  return out;
+}
+
+function submitEditRow(seq) {
+  var vals = readEditForm();
+  var fields = {};
+  Object.keys(vals).forEach(function (k) { if (vals[k] !== '') fields[k] = vals[k]; });
+  if (!Object.keys(fields).length) return toast('ยังไม่ได้กรอกอะไรค่ะ');
+  preview('editRegister', stepOf('editRegister'), { rows: JSON.stringify([{ seq: seq, fields: fields }]) });
+}
+
+
 // ════════════ EXPORT ════════════
 // เปิดเฉพาะที่ปุ่ม onclick กับคอนโซลต้องเรียก — ที่เหลือปิดไว้ในโมดูล
 return {
@@ -1476,6 +1603,9 @@ return {
   askPeriodLock: askPeriodLock,
   checkCalcDrift: checkCalcDrift,
   submitPeriodLock: submitPeriodLock,
+  askEditRegister: askEditRegister,
+  submitEditPaste: submitEditPaste,
+  submitEditRow: submitEditRow,
   closeModal: closeModal,
 };
 
