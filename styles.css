@@ -909,6 +909,7 @@ textarea:focus,input[type=time]:focus{border-color:var(--red)}
   background:var(--slate-tint);color:var(--slate);white-space:nowrap}
 .pill.ok{background:var(--green-tint);color:var(--green)}
 .pill.warn{background:var(--ot-tint);color:var(--ot)}
+.pill.err{background:var(--red-tint);color:var(--red)}
 .emp-thead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
 .btn.btn-sm{width:auto;padding:7px 14px;font-size:13px;border-radius:12px;flex:none}
 .sal-old{color:var(--muted);text-decoration:line-through}

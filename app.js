@@ -3315,6 +3315,7 @@ var EMP_TABS = [
   { key:'info',   label:'📄 ข้อมูลหลัก' },
   { key:'salary', label:'💹 เงินเดือน' },
   { key:'job',    label:'📋 ประวัติการทำงาน' },
+  { key:'tax',    label:'🧾 ลดหย่อนภาษี' },
 ];
 
 function openEmpPage(lineUserId){
@@ -3352,6 +3353,7 @@ function paintEmpTab(){
   if(tab==='info')   return paintEmpInfo(box, u);
   if(tab==='salary') return paintEmpSalary(box, u);
   if(tab==='job')    return paintEmpJob(box, u);
+  if(tab==='tax')    return paintEmpTax(box, u);
 }
 
 function empRow(k,v){ return '<div class="pf-row"><span class="k">'+esc(k)+'</span><span class="v">'+esc(v==null||v===''?'—':v)+'</span></div>'; }
@@ -3472,6 +3474,180 @@ function openJobAdd(u, events){
         if(!r.ok){ toast(r.error||'บันทึกไม่สำเร็จ','err'); return; }
         closeConfirm(); toast(r.summary||'บันทึกแล้ว'); paintEmpTab();
       }).catch(function(e){ toast(String(e.message||e),'err'); });
+    } });
+}
+
+// ════════════ 🧾 ค่าลดหย่อนภาษี (ทะเบียนพนักงาน เฟส 2) ════════════
+// รอบนี้ HR กรอกแทนพนักงานจากแฟ้ม ล.ย.01 → บันทึกแล้วอนุมัติในคราวเดียว
+// แก้ = เพิ่มใบใหม่เสมอ (ของเดิมไม่หาย) · ระบบ cap เพดานให้ ไม่ต้องคิดเอง
+
+// ช่องในฟอร์ม — [key, ป้าย, คำใบ้]  (key ตรงกับ al_<key> ที่ API รับ)
+var TAX_FORM = [
+  { g:'👨‍👩‍👧 ครอบครัว', f:[
+    ['childYears', 'ปีเกิดบุตร (พ.ศ. คั่นด้วย ,)', 'เช่น 2559, 2563 — ระบบแยกสิทธิ์ 30,000/60,000 ให้เอง', 'text'],
+    ['parent',     'บิดามารดาในอุปการะ (คน)',      'อายุ 60+ รายได้ไม่เกิน 30,000 · รวมของคู่สมรส สูงสุด 4 คน'],
+    ['disabled',   'อุปการะคนพิการ (คน)',          '60,000 ต่อคน'],
+    ['maternity',  'ค่าฝากครรภ์/คลอดบุตร (บาท)',   'ไม่เกิน 60,000 ต่อครรภ์'],
+  ]},
+  { g:'🛡️ ประกัน', f:[
+    ['lifeIns',      'เบี้ยประกันชีวิต (บาท)',        'รวมกับประกันสุขภาพตนเอง ไม่เกิน 100,000'],
+    ['healthSelf',   'ประกันสุขภาพตนเอง (บาท)',       'ไม่เกิน 25,000 (อยู่ในวง 100,000)'],
+    ['healthParent', 'ประกันสุขภาพบิดามารดา (บาท)',   'ไม่เกิน 15,000'],
+    ['spouseLife',   'ประกันชีวิตคู่สมรส (บาท)',      'คู่สมรสไม่มีเงินได้ · ไม่เกิน 10,000'],
+    ['pensionIns',   'ประกันชีวิตแบบบำนาญ (บาท)',     'ไม่เกิน 15% ของเงินได้ และ 200,000'],
+  ]},
+  { g:'📈 กองทุน/การลงทุน', f:[
+    ['pvd', 'กองทุนสำรองเลี้ยงชีพ / กบข. (บาท)', 'ไม่เกิน 15% ของค่าจ้าง'],
+    ['rmf', 'RMF (บาท)',     'ไม่เกิน 30% ของเงินได้'],
+    ['ssf', 'SSF (บาท)',     'ไม่เกิน 30% ของเงินได้ และ 200,000'],
+    ['esg', 'ThaiESG (บาท)', 'ไม่เกิน 30% ของเงินได้ และ 300,000 (แยกวง)'],
+  ]},
+  { g:'🏠 อื่นๆ', f:[
+    ['homeInterest',    'ดอกเบี้ยบ้าน (บาท)',              'ไม่เกิน 100,000'],
+    ['donate',          'เงินบริจาคทั่วไป (บาท)',           'หักได้ไม่เกิน 10% ของเงินได้หลังหักลดหย่อน'],
+    ['donate2x',        'บริจาคการศึกษา/กีฬา (บาท)',        'หักได้ 2 เท่า แต่ไม่เกิน 10%'],
+    ['donatePolitical', 'บริจาคพรรคการเมือง (บาท)',         'ไม่เกิน 10,000'],
+    ['otherAmt',        'ลดหย่อนอื่น (บาท)',                'เช่นมาตรการรัฐรายปี'],
+    ['otherName',       'ชื่อรายการลดหย่อนอื่น',            'เช่น Easy E-Receipt', 'text'],
+  ]},
+];
+
+function taxStatusPill(st){
+  if(st==='อนุมัติ')   return '<span class="pill ok">อนุมัติแล้ว</span>';
+  if(st==='รออนุมัติ') return '<span class="pill warn">รออนุมัติ</span>';
+  if(st==='ปฏิเสธ')    return '<span class="pill err">ปฏิเสธ</span>';
+  if(st==='ยกเลิก')    return '<span class="pill err">ยกเลิกสิทธิ์</span>';
+  return '<span class="pill">ยังไม่มีใบ</span>';
+}
+
+function paintEmpTax(box, u){
+  box.innerHTML = '<div class="card"><div class="skel" style="height:120px"></div></div>';
+  var year = S.empTaxYear || (new Date().getFullYear()+543);
+  api('emAllowGet',{empId:u.empId||'',name:u.name||'',taxYear:year}).then(function(r){
+    if(!r.ok){ box.innerHTML = emptyBox('⚠️', r.error||'โหลดไม่สำเร็จ'); return; }
+    S.empTax = r;
+    renderEmpTax(box, u, r);
+  }).catch(function(e){ box.innerHTML = emptyBox('⚠️', String(e.message||e)); });
+}
+
+function renderEmpTax(box, u, r){
+  var yrs = [r.taxYear-1, r.taxYear, r.taxYear+1].map(function(y){
+    return '<option value="'+y+'"'+(y===r.taxYear?' selected':'')+'>ปีภาษี '+y+'</option>'; }).join('');
+
+  var items = (r.preview.items||[]).map(function(it){
+    return '<div class="pf-row"><span class="k">'+esc(it.label)+'</span><span class="v">'+baht0(it.amount)+'</span></div>'; }).join('');
+  var notes = (r.preview.notes||[]).map(function(n){
+    return '<div class="hist-meta">⚠️ '+esc(n)+'</div>'; }).join('');
+
+  var hist = (r.history||[]).slice().reverse().map(function(h){
+    return '<tr class="mg-tr">'+
+      '<td class="ce">'+taxStatusPill(h.status)+'</td>'+
+      '<td class="lft">'+esc(h.by||'-')+'</td>'+
+      '<td class="ce mg-sub2">'+esc(h.at||'-')+'</td>'+
+      '<td class="lft">'+esc(h.approver||'-')+'</td>'+
+      '<td class="ce mg-sub2">'+esc(h.approvedAt||'-')+'</td>'+
+      '<td class="lft mg-sub2">'+esc(h.reason||'')+'</td></tr>'; }).join('');
+
+  box.innerHTML =
+    '<div class="card">'+
+      '<div class="emp-thead"><div class="card-title" style="margin:0"><span class="ic"></span>ค่าลดหย่อนภาษี</div>'+
+        '<select id="taxYearSel" class="hr-fsel">'+yrs+'</select></div>'+
+      '<div class="pf-row"><span class="k">สถานะใบล่าสุด</span><span class="v">'+taxStatusPill(r.status)+'</span></div>'+
+      '<div class="pf-row"><span class="k">ยอดลดหย่อนที่ใช้คิดภาษี</span><span class="v"><b>'+baht0(r.preview.total)+'</b> / ปี</span></div>'+
+      (r.approved ? '' : '<div class="mg-sub2">ยังไม่มีใบที่อนุมัติ — ระบบหักให้เฉพาะลดหย่อนส่วนตัว + ประกันสังคม</div>')+
+      items+
+      (notes ? '<div class="paste-help" style="text-align:left">'+notes+'</div>' : '')+
+      '<div class="emp-thead" style="margin-top:10px">'+
+        '<button class="btn btn-primary btn-sm" data-taxedit>✏️ '+(r.approved?'แก้ไขค่าลดหย่อน':'กรอกค่าลดหย่อน')+'</button>'+
+        (r.approved ? '<button class="btn btn-sm" data-taxrevoke>🚫 ยกเลิกสิทธิ์</button>' : '')+
+      '</div>'+
+      '<div class="paste-help">ประมาณการจากฐาน '+(r.basis.rate?baht0(r.basis.rate)+'/เดือน':'— ยังไม่มีในทะเบียน')+
+        ' · ยอดจริงคิดใหม่ทุกเดือนตอนปิดเงินเดือน</div>'+
+    '</div>'+
+
+    (hist ? '<div class="card"><div class="card-title"><span class="ic"></span>ประวัติการยื่น/อนุมัติ</div>'+
+      '<div class="mg-tbwrap"><table class="mg-table mg-rpt"><thead><tr>'+
+        '<th class="ce">สถานะ</th><th class="lft">ผู้ยื่น</th><th class="ce">ยื่นเมื่อ</th>'+
+        '<th class="lft">ผู้อนุมัติ</th><th class="ce">อนุมัติเมื่อ</th><th class="lft">หมายเหตุ</th>'+
+      '</tr></thead><tbody>'+hist+'</tbody></table></div>'+
+      '<div class="paste-help">ทุกการแก้ไขเก็บเป็นแถวใหม่ — ตรวจย้อนได้ว่าใครกรอก ใครอนุมัติ</div></div>' : '');
+
+  var sel = document.getElementById('taxYearSel');
+  if(sel) sel.addEventListener('change', function(){ S.empTaxYear = parseInt(sel.value,10); paintEmpTab(); });
+  var eb = box.querySelector('[data-taxedit]');
+  if(eb) eb.addEventListener('click', function(){ openTaxForm(u, r); });
+  var rb = box.querySelector('[data-taxrevoke]');
+  if(rb) rb.addEventListener('click', function(){ openTaxRevoke(u, r); });
+}
+
+function openTaxForm(u, r){
+  var cur = r.approved || r.current || {};
+  var body = '<div class="cfm-row"><span class="cfm-k">ปีภาษี</span><span class="cfm-v"><b>'+r.taxYear+'</b></span></div>'+
+    '<label class="field-lb">💍 คู่สมรสไม่มีเงินได้</label>'+
+    '<select id="tx_spouse" class="hr-fsel mg-full">'+
+      '<option value="0"'+(cur.spouse?'':' selected')+'>ไม่มี / คู่สมรสมีเงินได้</option>'+
+      '<option value="1"'+(cur.spouse?' selected':'')+'>มี (หักได้ 60,000)</option>'+
+    '</select>';
+
+  TAX_FORM.forEach(function(grp){
+    body += '<div class="field-lb" style="margin-top:12px"><b>'+grp.g+'</b></div>';
+    grp.f.forEach(function(f){
+      var key = f[0], label = f[1], hint = f[2], type = f[3]||'number';
+      var val = (key==='childYears') ? (cur.childYears||'') : (key==='otherName' ? (cur.otherName||'') : (cur[key]||''));
+      body += '<label class="field-lb">'+esc(label)+'</label>'+
+        (type==='text'
+          ? '<input type="text" class="hr-fdate mg-full" id="tx_'+key+'" maxlength="60" value="'+esc(val)+'">'
+          : '<input type="number" class="hr-fdate mg-full" id="tx_'+key+'" min="0" step="100" value="'+esc(val===0?'':val)+'">')+
+        '<div class="hist-meta">'+esc(hint)+'</div>';
+    });
+  });
+
+  body += '<label class="field-lb" style="margin-top:12px">🔗 ลิงก์หลักฐาน (โฟลเดอร์ Drive)</label>'+
+    '<input type="text" class="hr-fdate mg-full" id="tx_evidence" value="'+esc(cur.evidence||'')+'" placeholder="วางลิงก์โฟลเดอร์ ลดหย่อนภาษี/'+r.taxYear+'/'+esc(u.name||'')+'">'+
+    '<label class="field-lb">📝 หมายเหตุ</label>'+
+    '<textarea id="tx_note" rows="2" placeholder="เช่น รับ ล.ย.01 ฉบับจริงแล้ว">'+esc(cur.note||'')+'</textarea>'+
+    '<div class="cfm-note">กรอกยอดตามเอกสารจริง — ระบบตัดเพดานให้เอง กรอกเกินไม่ทำให้ภาษีผิด<br>'+
+      'บันทึกแล้วมีผลกับการคิดภาษีเดือนถัดไปทันที (ส่วนที่หักเกินไปแล้วจะเกลี่ยคืนในเดือนที่เหลือ)</div>';
+
+  modalForm({ title:'ค่าลดหย่อนภาษี · '+(u.name||''), emoji:'🧾', body:body,
+    okLabel:'✅ บันทึกและอนุมัติ',
+    onOk:function(c){
+      var p = { empId:u.empId||'', name:u.name||'', taxYear:r.taxYear, approve:'1' };
+      p.al_spouse = c.querySelector('#tx_spouse').value;
+      TAX_FORM.forEach(function(grp){ grp.f.forEach(function(f){
+        var el = c.querySelector('#tx_'+f[0]); if(!el) return;
+        var v = String(el.value||'').trim();
+        if(v) p['al_'+f[0]] = v;
+      }); });
+      var ev = c.querySelector('#tx_evidence').value.trim();
+      var nt = c.querySelector('#tx_note').value.trim();
+      if(ev) p.al_evidence = ev;
+      if(nt) p.al_note = nt;
+      toast('กำลังบันทึก…');
+      api('emAllowSave', p).then(function(res){
+        if(!res.ok){ toast(res.error||'บันทึกไม่สำเร็จ','err'); return; }
+        closeConfirm(); toast(res.summary||'บันทึกแล้ว'); paintEmpTab();
+      }).catch(function(e){ toast(String(e.message||e),'err'); });
+    } });
+}
+
+function openTaxRevoke(u, r){
+  modalForm({ title:'ยกเลิกสิทธิ์ลดหย่อน · '+(u.name||''), emoji:'🚫',
+    body:'<div class="cfm-row"><span class="cfm-k">ปีภาษี</span><span class="cfm-v"><b>'+r.taxYear+'</b></span></div>'+
+         '<label class="field-lb">📝 เหตุผล</label>'+
+         '<textarea id="txRevReason" rows="2" placeholder="เช่น หลักฐานไม่ครบ / ตรวจพบข้อมูลไม่ตรง"></textarea>'+
+         '<div class="cfm-note">ยกเลิกแล้ว ระบบจะกลับไปหักเฉพาะลดหย่อนส่วนตัว + ประกันสังคม<br>'+
+           'ใบเดิมยังอยู่ในประวัติ — ยื่นใบใหม่ทับได้ทุกเมื่อ</div>',
+    okLabel:'🚫 ยกเลิกสิทธิ์',
+    onOk:function(c){
+      var reason = c.querySelector('#txRevReason').value.trim();
+      if(!reason){ toast('ใส่เหตุผลก่อนนะคะ','err'); return; }
+      toast('กำลังบันทึก…');
+      api('emAllowDecide',{empId:u.empId||'',name:u.name||'',taxYear:r.taxYear,status:'ยกเลิก',reason:reason})
+        .then(function(res){
+          if(!res.ok){ toast(res.error||'ไม่สำเร็จ','err'); return; }
+          closeConfirm(); toast(res.summary||'ยกเลิกแล้ว'); paintEmpTab();
+        }).catch(function(e){ toast(String(e.message||e),'err'); });
     } });
 }
 
