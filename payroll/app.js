@@ -412,7 +412,9 @@ function loadLocks() {
       S.locks = r;
       if (S.steps.length) renderSteps({ steps: S.steps, next: S.next });
     })
-    .catch(function () {});   // อ่านสถานะไม่ได้ = ไม่โชว์ขั้นนี้ ไม่ขวางการปิดเดือน
+    .catch(function (e) {     // อ่านสถานะไม่ได้ = ไม่ขวางการปิดเดือน แต่ต้องบอก ไม่งั้นจอค้างค่าเก่าแบบเงียบๆ
+      toast('อ่านสถานะปิดรอบไม่ได้ — ' + String(e && e.message || e));
+    });
 }
 
 /** ขั้นทั้งหมดที่จะวาด = ขั้นจาก backend + ขั้น "ปิดรอบ" ที่ทำงานฝั่งระบบลา */
@@ -524,7 +526,19 @@ function submitPeriodLock() {
     if (on.length)  msg.push('🔒 ปิดรอบ ' + on.join(' + '));
     if (off.length) msg.push('🔓 ปลดล็อก ' + off.join(' + '));
     toast(msg.join(' · ') + ' — ' + (res[0] && res[0].period ? res[0].period : ''));
-    loadLocks();
+
+    // อัปเดตจอทันทีจากผลลัพธ์ที่ backend ตอบกลับ (ไม่รอรอบอ่านใหม่)
+    // ถ้าเน็ตสะดุดตอน loadLocks จอจะได้ไม่ค้างค่าเก่าจนพี่คิดว่าปิดไม่สำเร็จ
+    S.locks = S.locks || { leave: {}, ot: {} };
+    res.forEach(function (r, i) {
+      if (!r || !r.ok) return;
+      var kind = jobs[i].kind;
+      S.locks[kind] = { locked: !!r.locked, at: 'เมื่อสักครู่', by: '' };   // ชื่อผู้ปิดของจริงมาจาก loadLocks
+      if (r.period) S.locks.period = r.period;
+    });
+    if (S.steps.length) renderSteps({ steps: S.steps, next: S.next });
+
+    loadLocks();   // แล้วค่อยอ่านของจริงมาทับ (ได้ชื่อผู้ปิด/เวลาที่ถูกต้อง)
   }).catch(function (e) { S.busy = false; showError('ปิดรอบ', String(e && e.message || e)); });
 }
 
