@@ -831,12 +831,31 @@ function renderPayslip(r){
     '<div class="slip-net">'+baht(s.net)+'</div>'+
     '<div class="slip-cap">รายได้สุทธิ</div>'+pdfBtn+'</div>';
 
+  // รายรับ/รายการหักแยกช่อง — โชว์เฉพาะช่องที่มียอด (ไม่งั้นรกด้วยเลข 0)
+  // ต้องครบทุกช่อง ไม่งั้นยอด "รวมรายการหัก" ไม่ตรงกับรายการที่โชว์
+  // (เคสจริง 27 ส.ค. 69: กยศ. 902 ไม่โชว์ พนักงานเห็นหัก 1,777 แต่มีแค่ ปกส. 875)
+  var INCOME_ROWS = [
+    ['เงินเดือน', 'salary'], ['OT', 'ot'], ['ค่าประจำตำแหน่ง', 'posAllow'],
+    ['Incentive', 'incentive'], ['ค่าน้ำ-ไฟ', 'utility'], ['เบี้ยขยัน', 'attendance'],
+    ['ค่าตกเบิก', 'backpay'], ['รายรับอื่นๆ', 'incomeOther'],
+  ];
+  var DEDUCT_ROWS = [
+    ['ประกันสังคม', 'sso'], ['ภาษีหัก ณ ที่จ่าย', 'tax'], ['หัก กยศ.', 'studentLoan'],
+    ['หักอื่นๆ', 'otherDed'], ['หักค่าเสียหาย', 'damage'], ['ประกันการทำงาน', 'insurance'],
+  ];
+  var subRows = function (rows, sign) {
+    return rows.map(function (f) {
+      var v = Number(s[f[1]] || 0);
+      if (!v) return '';
+      return slipRow('   • ' + f[0], (sign || '') + baht(v), 'sub');
+    }).join('');
+  };
+
   var breakdown = '<div class="card"><div class="card-title"><span class="ic"></span>รายละเอียด</div>'+
     slipRow('รวมรายรับ', baht(s.income), '') +
-    (s.ot ? slipRow('   • OT', baht(s.ot), 'sub') : '') +
-    slipRow('ประกันสังคม', '−'+baht(s.sso), 'ded') +
-    slipRow('ภาษีหัก ณ ที่จ่าย', '−'+baht(s.tax), 'ded') +
+    subRows(INCOME_ROWS, '') +
     slipRow('รวมรายการหัก', '−'+baht(s.deduct), 'ded') +
+    subRows(DEDUCT_ROWS, '−') +
     '<div class="slip-row total"><span>รายได้สุทธิ</span><span>'+baht(s.net)+'</span></div></div>';
 
   var ytd = '<div class="card"><div class="card-title"><span class="ic"></span>สะสมทั้งปี (YTD)</div>'+
