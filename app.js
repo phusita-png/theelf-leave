@@ -2520,7 +2520,7 @@ function renderSettings(r){
   var rows=r.users.map(function(u){
     var isSelf=u.lineUserId===r.callerId;
     return '<div class="set-emp"><div class="set-emp-top"><div class="hist-ic">👤</div><div class="hist-main">'+
-      '<div class="hist-type">'+esc(u.name)+(isSelf?' <span class="re-badge">คุณ</span>':'')+'</div>'+
+      '<div class="hist-type"><a class="emp-link" data-eopen="'+esc(u.lineUserId)+'">'+esc(u.name)+'</a>'+(isSelf?' <span class="re-badge">คุณ</span>':'')+'</div>'+
       '<div class="hist-meta">'+esc(u.empId||'-')+' · '+esc(u.dept||'-')+' · บทบาท <b>'+esc(u.role)+'</b></div></div></div>'+
       '<div class="set-acts">'+
         '<button class="set-btn" data-srole="'+esc(u.lineUserId)+'">👤 บทบาท</button>'+
@@ -2540,6 +2540,7 @@ function wireSettings(){
   document.querySelectorAll('[data-squota]').forEach(function(el){ el.addEventListener('click',function(){ openQuotaModal(el.dataset.squota); }); });
   document.querySelectorAll('[data-sinfo]').forEach(function(el){ el.addEventListener('click',function(){ openInfoModal(el.dataset.sinfo); }); });
   document.querySelectorAll('[data-ssalary]').forEach(function(el){ el.addEventListener('click',function(){ openSalaryHistory(el.dataset.ssalary, el.dataset.sname); }); });
+  document.querySelectorAll('[data-eopen]').forEach(function(el){ el.addEventListener('click',function(){ openEmpPage(el.dataset.eopen); }); });
 }
 // ➕ body ฟอร์มเพิ่มพนักงาน (reuse ได้ทั้งหน้าตั้งค่า + การ์ดคำขอลงทะเบียน) · prefill ชื่อ/นามสกุลได้
 function _addEmpFormBody_(pfName, pfLast){
@@ -2962,6 +2963,11 @@ function mockApi(action, params){
       {from:'26/12/2568',rate:10000,reason:'ยกมา (จากทะเบียน 01-2569)',by:'seed'},
       {from:'26/02/2569',rate:23000,reason:'ปรับฐาน (จากทะเบียน 03-2569)',by:'seed'}]});
     else if(action==='emAddSalary') resolve({ok:true,summary:'บันทึกแล้ว (mock)'});
+    else if(action==='emJobHistory') resolve({ok:true,employed:true,serviceDays:400,serviceText:'1 ปี 1 เดือน 5 วัน',
+      events:['เข้างาน','ผ่านทดลองงาน','ย้ายแผนก','เลื่อนตำแหน่ง','ตักเตือน','พักงาน','กลับเข้าทำงาน','ลาออก','เลิกจ้าง'],
+      jobs:[{date:'15/07/2568',event:'เข้างาน',detail:'ตำแหน่ง Developers',by:'seed'},
+            {date:'15/10/2568',event:'ผ่านทดลองงาน',detail:'',by:'พี่กี้'}]});
+    else if(action==='emAddJob') resolve({ok:true,summary:'บันทึกแล้ว (mock)'});
     else if(action==='adminBootstrap') resolve({ok:true,callerId:'MOCK',ownerCount:1,
       schedules:[{code:'S01',desc:'จ-ศ 09:00-18:00'},{code:'S02',desc:'จ-ส 08:00-17:00'},{code:'RM01',desc:'Remote'}],
       roles:['EMPLOYEE','REVIEWER','APPROVER','ADMIN','OWNER'],leaveTypes:MOCK_LT,
@@ -3215,6 +3221,147 @@ function openSalarySet(empId, name, curRate){
       api('emAddSalary',{empId:empId,name:name||'',from:from,rate:rate,reason:reason}).then(function(r){
         if(!r.ok){ toast(r.error||'บันทึกไม่สำเร็จ','err'); return; }
         closeConfirm(); toast(r.summary||'บันทึกแล้ว');
+      }).catch(function(e){ toast(String(e.message||e),'err'); });
+    } });
+}
+
+// ════════════ 👤 หน้ารายบุคคล + แท็บด้านบน ════════════
+// รายชื่อ → กดชื่อ → หน้าคนนี้ทั้งหน้า (แท็บอยู่ด้านบน)
+// แท็บที่ข้อมูลพร้อมแล้ว: ข้อมูลหลัก · เงินเดือน · ประวัติการจ้าง
+var EMP_TABS = [
+  { key:'info',   label:'📄 ข้อมูลหลัก' },
+  { key:'salary', label:'💹 เงินเดือน' },
+  { key:'job',    label:'📋 ประวัติการจ้าง' },
+];
+
+function openEmpPage(lineUserId){
+  var u = (S.adminUsers||[]).filter(function(x){ return x.lineUserId===lineUserId; })[0];
+  if(!u){ toast('ไม่พบพนักงานคนนี้','err'); return; }
+  S.empPage = { user:u, tab:(S.empPage && S.empPage.tab) || 'info' };
+  renderEmpPage();
+}
+
+function renderEmpPage(){
+  var m = document.getElementById('main'); if(!m || !S.empPage) return;
+  var u = S.empPage.user;
+  var tabs = EMP_TABS.map(function(t){
+    return '<button class="mg-tab'+(S.empPage.tab===t.key?' on':'')+'" data-etab="'+t.key+'">'+t.label+'</button>'; }).join('');
+
+  m.innerHTML =
+    '<button class="backbar" data-eback="1">‹ กลับรายชื่อพนักงาน</button>'+
+    '<div class="card emp-hd"><div class="emp-hd-top"><div class="hist-ic">👤</div><div class="hist-main">'+
+      '<div class="hist-type">'+esc(u.name)+'</div>'+
+      '<div class="hist-meta">'+esc(u.empId||'-')+' · '+esc(u.dept||'-')+' · '+esc(u.role||'EMPLOYEE')+'</div>'+
+    '</div></div></div>'+
+    '<div class="mg-tabs">'+tabs+'</div>'+
+    '<div id="empTab"><div class="card"><div class="skel" style="height:120px"></div></div></div>';
+
+  var b = document.querySelector('[data-eback]');
+  if(b) b.addEventListener('click', function(){ S.empPage=null; loadSettings(); });
+  document.querySelectorAll('[data-etab]').forEach(function(el){
+    el.addEventListener('click', function(){ S.empPage.tab = el.dataset.etab; renderEmpPage(); }); });
+  paintEmpTab();
+}
+
+function paintEmpTab(){
+  var box = document.getElementById('empTab'); if(!box || !S.empPage) return;
+  var u = S.empPage.user, tab = S.empPage.tab;
+  if(tab==='info')   return paintEmpInfo(box, u);
+  if(tab==='salary') return paintEmpSalary(box, u);
+  if(tab==='job')    return paintEmpJob(box, u);
+}
+
+function empRow(k,v){ return '<div class="pf-row"><span class="k">'+esc(k)+'</span><span class="v">'+esc(v==null||v===''?'—':v)+'</span></div>'; }
+
+function paintEmpInfo(box, u){
+  var q = u.quota||{};
+  box.innerHTML =
+    '<div class="card"><div class="card-title"><span class="ic"></span>ข้อมูลพื้นฐาน</div>'+
+      empRow('รหัสพนักงาน (เลขบัตร)', u.empId)+
+      empRow('ชื่อ-สกุล', u.name)+
+      empRow('แผนก', u.dept)+
+      empRow('สาขา', u.branch)+
+      empRow('อีเมล', u.email)+
+      empRow('วันที่เริ่มงาน', u.startDate)+
+      empRow('สถานะ', u.status)+
+      empRow('บทบาทในระบบ', u.role)+
+    '</div>'+
+    '<div class="card"><div class="card-title"><span class="ic"></span>โควต้าลาปีนี้</div>'+
+      '<div class="chips">'+
+        '<div class="chip"><div class="chip-v">'+(q.sick!=null?q.sick:'—')+'</div><div class="chip-l">ลาป่วย</div></div>'+
+        '<div class="chip"><div class="chip-v">'+(q.biz!=null?q.biz:'—')+'</div><div class="chip-l">ลากิจ</div></div>'+
+        '<div class="chip"><div class="chip-v">'+(q.vac!=null?q.vac:'—')+'</div><div class="chip-l">พักร้อน</div></div>'+
+      '</div></div>';
+}
+
+function paintEmpSalary(box, u){
+  box.innerHTML = '<div class="card"><div class="skel" style="height:100px"></div></div>';
+  api('emSalaryHistory',{empId:u.empId||'',name:u.name||''}).then(function(r){
+    if(!r.ok){ box.innerHTML = emptyBox('⚠️', r.error||'โหลดไม่สำเร็จ'); return; }
+    var rows = (r.history||[]).map(function(h){
+      return '<div class="hist"><div class="hist-ic">💹</div><div class="hist-main">'+
+        '<div class="hist-type">'+baht0(h.rate)+' <span class="hist-meta">ตั้งแต่ '+esc(h.from)+'</span></div>'+
+        '<div class="hist-meta">'+esc(h.reason||'-')+(h.by?' · โดย '+esc(h.by):'')+'</div></div></div>'; }).join('');
+    box.innerHTML = '<div class="card">'+
+      '<div class="card-title"><span class="ic"></span>ฐานเงินเดือน</div>'+
+      '<div class="pf-row"><span class="k">ฐานปัจจุบัน</span><span class="v"><b>'+
+        (r.current==null?'— (ยังไม่มีในทะเบียน)':baht0(r.current))+'</b></span></div>'+
+      '<button class="btn btn-primary" data-esalset style="width:100%;margin:10px 0">💹 ปรับฐานใหม่</button>'+
+      (rows||'<div class="mg-sub2">ยังไม่มีประวัติ</div>')+
+      '<div class="paste-help">ปรับได้หลายครั้งในงวดเดียวกัน · แก้ = เพิ่มแถวใหม่ ของเดิมไม่หาย</div></div>';
+    var b = box.querySelector('[data-esalset]');
+    if(b) b.addEventListener('click', function(){ openSalarySet(u.empId||'', u.name, r.current); });
+  }).catch(function(e){ box.innerHTML = emptyBox('😿', String(e.message||e)); });
+}
+
+function paintEmpJob(box, u){
+  box.innerHTML = '<div class="card"><div class="skel" style="height:100px"></div></div>';
+  api('emJobHistory',{empId:u.empId||'',name:u.name||''}).then(function(r){
+    if(!r.ok){ box.innerHTML = emptyBox('⚠️', r.error||'โหลดไม่สำเร็จ'); return; }
+    var rows = (r.jobs||[]).map(function(j){
+      return '<div class="hist"><div class="hist-ic">'+jobEmoji(j.event)+'</div><div class="hist-main">'+
+        '<div class="hist-type">'+esc(j.event)+' <span class="hist-meta">'+esc(j.date)+'</span></div>'+
+        (j.detail?'<div class="hist-meta">'+esc(j.detail)+'</div>':'')+
+        (j.by?'<div class="hist-meta">โดย '+esc(j.by)+'</div>':'')+'</div></div>'; }).join('');
+    box.innerHTML = '<div class="card">'+
+      '<div class="card-title"><span class="ic"></span>ประวัติการจ้าง</div>'+
+      '<div class="pf-row"><span class="k">สถานะตอนนี้</span><span class="v"><b>'+
+        (r.employed===null?'—':(r.employed?'ทำงานอยู่':'พ้นสภาพแล้ว'))+'</b></span></div>'+
+      '<div class="pf-row"><span class="k">อายุงาน</span><span class="v">'+esc(r.serviceText||'—')+'</span></div>'+
+      '<button class="btn btn-primary" data-ejobadd style="width:100%;margin:10px 0">➕ บันทึกเหตุการณ์</button>'+
+      (rows||'<div class="mg-sub2">ยังไม่มีประวัติ — กดปุ่มข้างบนเพื่อบันทึกวันเข้างาน</div>')+'</div>';
+    var b = box.querySelector('[data-ejobadd]');
+    if(b) b.addEventListener('click', function(){ openJobAdd(u, r.events||[]); });
+  }).catch(function(e){ box.innerHTML = emptyBox('😿', String(e.message||e)); });
+}
+
+function jobEmoji(ev){
+  return {'เข้างาน':'🎉','ผ่านทดลองงาน':'✅','ย้ายแผนก':'🔀','เลื่อนตำแหน่ง':'⬆️',
+          'ตักเตือน':'⚠️','พักงาน':'⏸️','กลับเข้าทำงาน':'🔄','ลาออก':'👋','เลิกจ้าง':'📕'}[ev] || '📌';
+}
+
+function openJobAdd(u, events){
+  var iso = dkeyISO(new Date());
+  var list = (events && events.length) ? events : ['เข้างาน','ลาออก'];
+  var opts = list.map(function(e){ return '<option value="'+esc(e)+'">'+esc(e)+'</option>'; }).join('');
+  modalForm({ title:'บันทึกเหตุการณ์ · '+u.name, emoji:'📋',
+    body:'<label class="field-lb">📌 เหตุการณ์</label>'+
+         '<select id="jobEvent" class="hr-fsel mg-full">'+opts+'</select>'+
+         '<label class="field-lb">📅 วันที่</label>'+
+         '<input type="date" class="hr-fdate mg-full" id="jobDate" value="'+esc(iso)+'">'+
+         '<label class="field-lb">📝 รายละเอียด</label>'+
+         '<textarea id="jobDetail" rows="2" placeholder="เช่น ตำแหน่ง / เหตุผลลาออก"></textarea>'+
+         '<div class="cfm-note">วันลาออก = ยังนับว่าทำงานวันนั้น (จ่ายค่าจ้างถึงวันสุดท้าย)</div>',
+    okLabel:'✅ บันทึก',
+    onOk:function(c){
+      var ev = c.querySelector('#jobEvent').value;
+      var dt = isoToThai(c.querySelector('#jobDate').value);
+      if(!dt){ toast('ใส่วันที่ก่อนนะคะ','err'); return; }
+      toast('กำลังบันทึก…');
+      api('emAddJob',{empId:u.empId||'',name:u.name||'',date:dt,event:ev,
+                      detail:c.querySelector('#jobDetail').value.trim()}).then(function(r){
+        if(!r.ok){ toast(r.error||'บันทึกไม่สำเร็จ','err'); return; }
+        closeConfirm(); toast(r.summary||'บันทึกแล้ว'); paintEmpTab();
       }).catch(function(e){ toast(String(e.message||e),'err'); });
     } });
 }
