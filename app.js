@@ -3075,6 +3075,9 @@ function mockApi(action, params){
       notCounted:1, noLine:2,
       joins:[1,1,1,0,1,2,2,1,0,0,0,0], exits:[0,0,0,1,0,2,1,1,0,0,0,0], joinTotal:9, exitTotal:5});
     else if(action==='emSetCount') resolve({ok:true, summary:'บันทึกแล้ว (mock)'});
+    else if(action==='emPayrollSet') resolve({ok:true, changed:['หักภาษี'], summary:'แก้ 1 ช่อง',
+      values:{bank:params&&params.bank, bankAcc:params&&params.bankAcc,
+              ssoFlag:params&&params.ssoFlag, taxFlag:params&&params.taxFlag}});
     else if(action==='emLeaveSummary') resolve({ok:true, empId:params&&params.empId, hasQuota:true, yearBE:2569,
       rows:[{key:'vac',name:'ลาพักร้อน',emoji:'🌴',quota:6,used:2.5,remain:3.5},
             {key:'biz',name:'ลากิจ',emoji:'🏠',quota:3,used:3,remain:0},
@@ -3552,17 +3555,54 @@ function paintEmpSalary(box, u){
         (r.current==null?'— (ยังไม่มีในทะเบียน)':baht0(r.current))+'</b></span></div>'+
       table+
       '<div class="paste-help">ปรับได้หลายครั้งในงวดเดียวกัน · แก้ = เพิ่มแถวใหม่ ของเดิมไม่หาย</div></div>'+
-      '<div class="card"><div class="card-title"><span class="ic"></span>การคิดเงินเดือน</div>'+
+      '<div class="card">'+
+        '<div class="emp-thead"><div class="card-title" style="margin:0"><span class="ic"></span>การคิดเงินเดือน</div>'+
+          '<button class="btn btn-primary btn-sm" data-epayset>✏️ แก้ไข</button></div>'+
         empRow('หักประกันสังคม', u.ssoFlag || '—')+
         empRow('หักภาษี ณ ที่จ่าย', u.taxFlag || '—')+
         empRow('วิธีคิดภาษี', 'คำนวณใหม่ทุกเดือน (จากรายได้สะสมทั้งปี)')+
         empRow('ธนาคาร', u.bank)+
         empRow('เลขบัญชี', u.bankAcc)+
-        '<div class="paste-help">ตั้งค่าหัก ปกส./ภาษี ที่ชีตพนักงาน (คอลัมน์ M/N) — ระบบใช้ตัดสินตอนปิดเงินเดือน</div>'+
+        '<div class="paste-help">ค่าเหล่านี้อยู่ในชีตพนักงานฝั่ง payroll — ระบบใช้ตัดสินตอนปิดเงินเดือน</div>'+
       '</div>';
     var b = box.querySelector('[data-esalset]');
     if(b) b.addEventListener('click', function(){ openSalarySet(u.empId||'', u.name, r.current); });
+    var pb = box.querySelector('[data-epayset]');
+    if(pb) pb.addEventListener('click', function(){ openPayrollSet(u); });
   }).catch(function(e){ box.innerHTML = emptyBox('😿', String(e.message||e)); });
+}
+
+/** ✏️ แก้ตั้งค่าคิดเงินเดือน (ปกส./ภาษี/ธนาคาร/เลขบัญชี) — เขียนลงชีตพนักงานฝั่ง payroll */
+function openPayrollSet(u){
+  var yn = function(v){ return String(v||'').trim()==='ใช่' ? 'ใช่' : 'ไม่ใช่'; };
+  var sel = function(id,label,cur){
+    return '<label class="field-lb">'+label+'</label>'+
+      '<select id="'+id+'" class="hr-fsel mg-full">'+
+        '<option value="ใช่"'+(cur==='ใช่'?' selected':'')+'>ใช่ — หัก</option>'+
+        '<option value="ไม่ใช่"'+(cur!=='ใช่'?' selected':'')+'>ไม่ใช่ — ไม่หัก</option>'+
+      '</select>'; };
+
+  modalForm({ emoji:'💹', title:'ตั้งค่าคิดเงินเดือน · '+esc(u.name), okLabel:'💾 บันทึก',
+    body: sel('psSso','🏥 หักประกันสังคม', yn(u.ssoFlag))+
+          sel('psTax','🧾 หักภาษี ณ ที่จ่าย', yn(u.taxFlag))+
+          '<label class="field-lb">🏦 ธนาคาร</label>'+
+          '<input id="psBank" class="hr-fdate mg-full" value="'+esc(u.bank||'')+'" placeholder="เช่น ธนาคารไทยพาณิชย์">'+
+          '<label class="field-lb">💳 เลขบัญชี</label>'+
+          '<input id="psAcc" class="hr-fdate mg-full" value="'+esc(u.bankAcc||'')+'" placeholder="เลขบัญชีรับเงินเดือน">'+
+          '<div class="cfm-note">ฐานเงินเดือนแก้ที่ "การปรับฐานเงินเดือน" ด้านบน (เก็บประวัติให้)</div>',
+    onOk:function(c){
+      var btn=c.querySelector('[data-cfm-ok]'); if(btn){btn.disabled=true;btn.textContent='กำลังบันทึก…';}
+      api('emPayrollSet',{ empId:u.empId||'', name:u.name||'',
+        ssoFlag:c.querySelector('#psSso').value, taxFlag:c.querySelector('#psTax').value,
+        bank:c.querySelector('#psBank').value, bankAcc:c.querySelector('#psAcc').value
+      }).then(function(r){
+        if(!r.ok){ if(btn){btn.disabled=false;btn.textContent='💾 บันทึก';} return toast(r.error||'บันทึกไม่สำเร็จ','err'); }
+        closeConfirm();
+        toast(r.changed&&r.changed.length ? '✅ แก้แล้ว: '+r.changed.join(', ') : 'ไม่มีอะไรเปลี่ยน','ok');
+        if(r.values) Object.assign(u, r.values);
+        afterEmpEdit();
+      }).catch(function(e){ if(btn){btn.disabled=false;btn.textContent='💾 บันทึก';} toast(String(e.message||e),'err'); });
+    } });
 }
 
 function paintEmpJob(box, u){
