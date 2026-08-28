@@ -962,8 +962,10 @@ textarea:focus,input[type=time]:focus{border-color:var(--red)}
 
 /* ── แดชบอร์ดเอกสาร (หน้าอนุมัติทั้งหมด) ── */
 .doc-dash{display:grid;grid-template-columns:1fr;gap:12px;margin-bottom:14px}
-@media (min-width:1000px){.doc-dash{grid-template-columns:minmax(300px,380px) 1fr;align-items:start}}
-.doc-card{margin-bottom:0}
+/* stretch = การ์ดสองใบสูงเท่ากัน (พี่กี้ขอให้โดนัทสูงเท่ากล่อง 4 ช่อง) */
+@media (min-width:1000px){.doc-dash{grid-template-columns:minmax(300px,380px) 1fr;align-items:stretch}}
+.doc-card{margin-bottom:0;display:flex;flex-direction:column}
+.doc-card>.donut-wrap{flex:1;align-items:center}
 .doc-sel{display:flex;gap:6px;flex-wrap:wrap}
 .doc-pgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
 @media (min-width:760px){.doc-pgrid{grid-template-columns:repeat(4,1fr)}}
