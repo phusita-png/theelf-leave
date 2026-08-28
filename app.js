@@ -1287,7 +1287,85 @@ function hrDecide(kind, id, decision, reason){
     loadHr();
   }).catch(function(e){ toast(String(e.message||e),'err'); });
 }
+/**
+ * renderDocDash — แดชบอร์ดเอกสารในหน้าอนุมัติ (ตามแบบที่พี่กี้ส่งมา)
+ *   โดนัทซ้าย = เอกสารทั้งหมดแยกตามประเภท · ขวาบน = ที่ยังไม่อนุมัติ · ขวาล่าง = ใบลาแยกประเภท
+ * ระบบเรามีเอกสาร 4 ชนิด (ลา · OT · ลงทะเบียน · ขอสิทธิ์ลาไม่รับค่าจ้าง)
+ * ไม่มี "เพิ่มเวลา/เปลี่ยนกะ/เบิกเงินล่วงหน้า" แบบตัวอย่าง จึงไม่ใส่ช่องเปล่าให้รก
+ */
+function renderDocDash(ds, label){
+  if(!ds) return '';
+  var KIND = [
+    ['leave',     '📋 ใบลา',                    '#2f80ed'],
+    ['ot',        '⏰ ใบ OT',                   '#f2994a'],
+    ['register',  '📝 คำขอลงทะเบียน',           '#27ae60'],
+    ['unpaidReq', '📄 ขอสิทธิ์ลาไม่รับค่าจ้าง', '#9b51e0'],
+  ];
+  var parts = KIND.map(function(k){
+    return { name: k[1], count: (ds.byKind && ds.byKind[k[0]]) || 0, color: k[2] };
+  });
+  var totalDocs = ds.total || 0;
+
+  var pendCards = KIND.map(function(k){
+    var n = (ds.pendingByKind && ds.pendingByKind[k[0]]) || 0;
+    return '<div class="doc-p'+(n?' on':'')+'"><div class="doc-p-t">'+k[1]+'</div>'+
+      '<div class="doc-p-n">'+n+'</div><div class="doc-p-u">ฉบับ</div></div>';
+  }).join('');
+
+  var LEAVE_COLOR = ['#2f80ed','#f2994a','#27ae60','#9b51e0','#e91e8c','#00b8a9','#8d6e63','#5c6bc0'];
+  var lt = (ds.leaveByType || []).map(function(x,i){
+    return { name: x.name, count: x.count, color: LEAVE_COLOR[i % LEAVE_COLOR.length] };
+  });
+
+  return '<div class="doc-dash">'+
+    '<div class="card doc-card">'+
+      '<div class="card-title"><span class="ic"></span>เอกสารทั้งหมด</div>'+
+      '<div class="mg-sub2" style="margin-bottom:8px">'+esc(label||'')+'</div>'+
+      docDonut(parts, totalDocs, 'เอกสาร')+
+    '</div>'+
+    '<div class="doc-right">'+
+      '<div class="card doc-card">'+
+        '<div class="card-title"><span class="ic"></span>เอกสารที่ยังไม่ได้รับการอนุมัติ</div>'+
+        '<div class="doc-pgrid">'+pendCards+'</div>'+
+      '</div>'+
+      '<div class="card doc-card">'+
+        '<div class="card-title"><span class="ic"></span>เอกสารลางาน แยกตามประเภท</div>'+
+        (lt.length ? docDonut(lt, (ds.byKind&&ds.byKind.leave)||0, 'ใบลา')
+                   : '<div class="mg-sub2">ยังไม่มีใบลาในรอบนี้</div>')+
+      '</div>'+
+    '</div>'+
+  '</div>';
+}
+
+/** โดนัท + รายการข้างๆ (ใช้ซ้ำได้ทั้งเอกสารรวมและใบลาแยกประเภท) */
+function docDonut(list, total, centerLabel){
+  var items = (list||[]).filter(function(x){ return x.count > 0; });
+  if(!items.length) return '<div class="mg-sub2">ยังไม่มีเอกสารในรอบนี้</div>';
+  // วาดสัดส่วนจากผลรวมของรายการเสมอ วงจะได้เต็มพอดี (total ที่ส่งมาอาจนับคนละฐาน)
+  total = items.reduce(function(a,x){ return a + x.count; }, 0);
+  if(!total) return '<div class="mg-sub2">ยังไม่มีเอกสารในรอบนี้</div>';
+  var R = 54, C = 2*Math.PI*R, off = 0;
+  var arcs = items.map(function(d){
+    var len = C * (d.count/total);
+    var seg = '<circle cx="70" cy="70" r="'+R+'" fill="none" stroke="'+d.color+'" stroke-width="22"'+
+      ' stroke-dasharray="'+len.toFixed(2)+' '+(C-len).toFixed(2)+'" stroke-dashoffset="'+(-off).toFixed(2)+'"'+
+      ' transform="rotate(-90 70 70)"></circle>';
+    off += len; return seg;
+  }).join('');
+  var legend = items.map(function(d){
+    return '<div class="lg-row"><span class="lg-dot" style="background:'+d.color+'"></span>'+
+      '<span class="lg-name">'+esc(d.name)+'</span><span class="lg-num">'+d.count+' ฉบับ</span></div>';
+  }).join('');
+  return '<div class="donut-wrap">'+
+    '<svg viewBox="0 0 140 140" class="donut">'+arcs+
+      '<text x="70" y="64" text-anchor="middle" class="donut-n">'+total+'</text>'+
+      '<text x="70" y="82" text-anchor="middle" class="donut-l">'+esc(centerLabel||'')+'</text>'+
+    '</svg><div class="donut-lg">'+legend+'</div></div>';
+}
+
 function renderHr(r){
+  var docDash = renderDocDash(r.docStats, r.monthLabel);
+
   // การ์ดสรุป (ลา+OT) + แถบตัวกรอง (รอบ/เดือน/ปี/ช่วงวันที่) — ค่าเริ่มจาก hrDashboard (รอบ 26–25)
   var sumCard='<div class="card hr-sum-card"><div class="card-title"><span class="ic"></span>สรุปการลา &amp; OT</div>'+
     hrSumFilterBar()+
@@ -1344,7 +1422,7 @@ function renderHr(r){
     '</div>'+
     '<div id="hrHistBody"><div class="skel" style="height:64px"></div></div></div>';
 
-  return sumCard+pendCard+histCard;
+  return docDash + sumCard+pendCard+histCard;
 }
 
 // ════════════ แผง HR: ตัวกรองสรุป (รอบ/เดือน/ปี/ช่วงวันที่) ════════════
@@ -3117,6 +3195,7 @@ function mockApi(action, params){
       notCounted:1, noLine:2,
       joins:[1,1,1,0,1,2,2,1,0,0,0,0], exits:[0,0,0,1,0,2,1,1,0,0,0,0], joinTotal:9, exitTotal:5});
     else if(action==='emSetCount') resolve({ok:true, summary:'บันทึกแล้ว (mock)'});
+    else if(action==='hrDocStatsMock') resolve({ok:true});
     else if(action==='emPhotoSync') resolve({ok:true, updated:9, failed:1, summary:'อัปเดตรูป 9 คน · ดึงไม่ได้ 1 คน'});
     else if(action==='emPhotoUpload') resolve({ok:true, url:(params&&params.dataUrl)||'', summary:'อัปโหลดรูปเรียบร้อย (mock)'});
     else if(action==='emPhotoClear') resolve({ok:true, summary:'ลบรูปที่อัปแล้ว (mock)'});
@@ -3210,7 +3289,11 @@ function mockApi(action, params){
     else if(action==='mgEditOt') resolve({ok:true,otId:(params&&params.otId)||'OT-MOCK',hours:1.5,wasApproved:true,warn:''});
     else if(action==='approve') resolve({ok:true,id:'(mock)',status:'✅'});
     else if(action==='hrDashboard') resolve({ok:true,monthLabel:'มิถุนายน 2569',
-      leave:{total:8,approved:5,pending:2,rejected:1},ot:{hours:24.5,count:6,pending:1},
+      leave:{total:8,approved:5,pending:2,rejected:1},ot:{hours:24.5,count:6,approved:4,pending:1,rejected:1},
+      docStats:{total:17, byKind:{leave:8,ot:6,register:2,unpaidReq:1},
+        pendingByKind:{leave:2,ot:1,register:2,unpaidReq:0},
+        leaveByType:[{name:'ลาป่วย',count:3},{name:'ลากิจ',count:2},{name:'ลาพักร้อน',count:2},
+                     {name:'ลาวันเกิด',count:1}]},
       employees:[{name:'นางสาวชนัญชิดา โชคธนอนันต์',dept:'สำนักงานใหญ่',vac:16,biz:10,sick:29,used:5,status:'✅ ปกติ'},
         {name:'นายตัวอย่าง ทดสอบ',dept:'ฝ่ายขาย',vac:6,biz:0,sick:28,used:12,status:'⚠️ เกินสิทธิ์'}],
       pending:[{kind:'leave',id:'LV-003',name:'นางสาวชนัญชิดา โชคธนอนันต์',type:'ลากิจ',date:'02/06/2569',endDate:'03/06/2569',days:2,reason:'ไปทำธุระที่ต่างจังหวัด',remaining:8,userId:'MOCK',empId:'EMP-001'},
