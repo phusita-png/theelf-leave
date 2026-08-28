@@ -104,6 +104,7 @@ var TEMPLATE = [
 
     // ══ มุมมอง: ปิดเดือน ══
     '<div class="wrap" id="pay-viewClose">',
+      '<div id="pay-dash"></div>',
       '<div class="pre">',
         '<span>⚠️</span>',
         '<div>',
@@ -372,6 +373,7 @@ function onMonthChange() {
 
 // ════════════ โหลดข้อมูลเดือนที่เลือก ════════════
 function loadMonth() {
+  loadPayDash();     // แดชบอร์ดทั้งปี — โหลดคู่กับข้อมูลเดือน (ตอนนี้ S.cur มีปีแล้วแน่นอน)
   if (!S.cur) return;
   $('stepList').innerHTML = skeleton(9);
   $('tableWrap').innerHTML = '<div class="empty">กำลังโหลด…</div>';
@@ -1142,6 +1144,114 @@ function goTab(tab) {
   // เลือกเดือนใช้เฉพาะหน้าปิดเดือน — หน้ารายงานเลือกเป็น "ปี" แทน
   $('monthSel').classList.toggle('hidden', isReports);
   if (isReports) loadReports();
+}
+
+// ════════════ แดชบอร์ดภาพรวมทั้งปี ════════════
+// ใช้ข้อมูลชุดเดียวกับหน้ารายงาน (yearSummary) — ไม่คิดเลขเองซ้ำ เลขสองที่จะได้ไม่เพี้ยนกัน
+function loadPayDash() {
+  var box = $('dash'); if (!box) return;
+  var year = (S.cur && S.cur.yearBE) || new Date().getFullYear() + 543;
+  if (S.dashYear) year = S.dashYear;
+
+  api('yearSummary', { yearBE: year }).then(function (r) {
+    if (!r.ok) { box.innerHTML = ''; return; }
+    S.dash = r; S.dashYear = r.yearBE;
+    renderPayDash(r);
+  }).catch(function () { box.innerHTML = ''; });
+}
+
+function renderPayDash(r) {
+  var box = $('dash'); if (!box) return;
+  var MO = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  var byMonth = {};
+  (r.months || []).forEach(function (m) { byMonth[m.month] = m; });
+
+  var series = function (key) {
+    var out = [];
+    for (var i = 1; i <= 12; i++) out.push(byMonth[i] ? (Number(byMonth[i][key]) || 0) : 0);
+    return out;
+  };
+  var sum = function (a) { return a.reduce(function (x, y) { return x + y; }, 0); };
+
+  var income = series('income'), tax = series('tax'), sso = series('sso');
+  var last = (r.months || []).length ? r.months[r.months.length - 1] : null;
+
+  var yrs = (r.years || [r.yearBE]).slice();
+  if (yrs.indexOf(r.yearBE) < 0) yrs.unshift(r.yearBE);
+  var yrSel = '<select id="pay-dashYear" class="hd-month">' + yrs.map(function (y) {
+    return '<option value="' + y + '"' + (y === r.yearBE ? ' selected' : '') + '>ปี ' + y + '</option>';
+  }).join('') + '</select>';
+
+  // ยุบได้ — บางวัน HR แค่มาปิดเดือน ไม่อยากให้กราฟดันงานหลักลงไป (จำไว้ในเครื่อง)
+  var hidden = false;
+  try { hidden = localStorage.getItem('payDashHide') === '1'; } catch (e) {}
+
+  box.innerHTML =
+    '<div class="dash-bar"><button class="btn btn-ghost sm" id="pay-dashToggle">' +
+      (hidden ? '▸ แสดงภาพรวมทั้งปี' : '▾ ซ่อนภาพรวมทั้งปี') + '</button></div>' +
+    '<div id="pay-dashBody"' + (hidden ? ' class="hidden"' : '') + '>' +
+    '<div class="dash-row">' +
+      '<div class="card dcard wide">' +
+        '<div class="card-hd"><h2>💰 เงินเดือนทั้งปี</h2>' +
+          '<span class="sub">รวม ' + money(sum(income)) + ' บาท' +
+          (last ? ' · ล่าสุด ' + pad2(last.month) + '/' + last.yearBE + ' = ' + money(last.income) + ' บาท' : '') +
+          '</span>' + yrSel + '</div>' +
+        '<div class="card-bd">' + barChart(income, MO, '#2f80ed') + '</div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="dash-row two">' +
+      '<div class="card dcard">' +
+        '<div class="card-hd"><h2>🧾 ภาษีหัก ณ ที่จ่าย (ภ.ง.ด.1)</h2>' +
+          '<span class="sub">รวมทั้งปี (ภ.ง.ด.1ก) ' + money(sum(tax)) + ' บาท</span></div>' +
+        '<div class="card-bd">' + barChart(tax, MO, '#cc1019') + '</div>' +
+      '</div>' +
+      '<div class="card dcard">' +
+        '<div class="card-hd"><h2>🏥 เงินสมทบประกันสังคม</h2>' +
+          '<span class="sub">พนักงาน ' + money(sum(sso)) + ' + บริษัท ' + money(sum(sso)) +
+            ' = ' + money(sum(sso) * 2) + ' บาท</span></div>' +
+        '<div class="card-bd">' + barChart(sso, MO, '#27ae60') + '</div>' +
+      '</div>' +
+    '</div>' +
+    '</div>';
+
+  var ys = $('dashYear');
+  if (ys) ys.addEventListener('change', function () { S.dashYear = parseInt(ys.value, 10); loadPayDash(); });
+  var tg = $('dashToggle');
+  if (tg) tg.addEventListener('click', function () {
+    var body = $('dashBody'); if (!body) return;
+    var nowHidden = body.classList.toggle('hidden');
+    tg.textContent = nowHidden ? '▸ แสดงภาพรวมทั้งปี' : '▾ ซ่อนภาพรวมทั้งปี';
+    try { localStorage.setItem('payDashHide', nowHidden ? '1' : '0'); } catch (e) {}
+  });
+}
+
+/** กราฟแท่ง 12 เดือน วาดด้วย SVG เอง — ไม่พึ่ง library (โหลดเร็ว + เน็ตบริษัทบล็อก CDN ไม่ได้) */
+function barChart(vals, labels, color) {
+  var max = Math.max.apply(null, vals.concat([1]));
+  var W = 640, H = 190, padB = 24, padT = 16, gap = 6;
+  var bw = (W - gap * (vals.length + 1)) / vals.length;
+  var bars = vals.map(function (v, i) {
+    var h = max > 0 ? (H - padB - padT) * (v / max) : 0;
+    var x = gap + i * (bw + gap), y = H - padB - h;
+    var lbl = v > 0
+      ? '<text x="' + (x + bw / 2) + '" y="' + (y - 4) + '" text-anchor="middle" class="bc-v">' + shortNum(v) + '</text>'
+      : '';
+    return '<rect x="' + x + '" y="' + y + '" width="' + bw + '" height="' + Math.max(h, v > 0 ? 2 : 0) +
+             '" rx="3" fill="' + color + '" opacity="' + (v > 0 ? 0.85 : 0.15) + '"></rect>' + lbl +
+           '<text x="' + (x + bw / 2) + '" y="' + (H - 7) + '" text-anchor="middle" class="bc-x">' +
+             labels[i] + '</text>';
+  }).join('');
+  return '<div class="bc-wrap"><svg viewBox="0 0 ' + W + ' ' + H + '" class="bc">' +
+    '<line x1="0" y1="' + (H - padB) + '" x2="' + W + '" y2="' + (H - padB) + '" class="bc-axis"></line>' +
+    bars + '</svg></div>';
+}
+
+/** 1,850,000 → 1.9M · 4,942 → 4.9K (ตัวเลขบนหัวแท่งต้องสั้น ไม่งั้นทับกัน) */
+function shortNum(v) {
+  v = Number(v) || 0;
+  if (v >= 1000000) return (v / 1000000).toFixed(1) + 'M';
+  if (v >= 1000)    return (v / 1000).toFixed(1) + 'K';
+  return String(Math.round(v));
 }
 
 // ════════════ รายงานย้อนหลัง ════════════

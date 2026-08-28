@@ -401,3 +401,16 @@
 .ed-live-row { display: flex; justify-content: space-between; font-size: 13.5px; padding: 2px 0; }
 .ed-live-row.big { border-top: 1px solid var(--line); margin-top: 6px; padding-top: 6px; font-size: 15px; }
 .ed-live-note { margin-top: 6px; font-size: 12px; color: var(--muted); }
+
+/* ── แดชบอร์ดภาพรวมทั้งปี (หน้าปิดเดือน) ── */
+.pay-scope .dash-row{margin-bottom:12px}
+.pay-scope .dash-row.two{display:grid;grid-template-columns:1fr;gap:12px}
+@media (min-width:1100px){.pay-scope .dash-row.two{grid-template-columns:1fr 1fr}}
+.pay-scope .dcard .card-hd{flex-wrap:wrap;gap:8px}
+.pay-scope .dcard .card-hd .sub{flex:1;min-width:180px}
+.pay-scope .bc-wrap{width:100%;overflow-x:auto}
+.pay-scope .bc{width:100%;min-width:520px;height:190px;display:block}
+.pay-scope .bc-axis{stroke:var(--line);stroke-width:1}
+.pay-scope .bc-v{font-size:10px;fill:var(--ink-2);font-weight:600}
+.pay-scope .bc-x{font-size:10px;fill:var(--ink-3)}
+.pay-scope .dash-bar{display:flex;justify-content:flex-end;margin-bottom:8px}
