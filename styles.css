@@ -872,7 +872,8 @@ textarea:focus,input[type=time]:focus{border-color:var(--red)}
 .nb-box:disabled{cursor:not-allowed;opacity:.35}
 
 /* หน้ารายบุคคล (แท็บด้านบน) */
-.emp-link { color: var(--red); cursor: pointer; text-decoration: underline dotted; }
+.emp-link { color: var(--red); cursor: pointer; text-decoration: none; }
+.emp-link:hover { text-decoration: underline; }
 .emp-hd { margin-bottom: 10px; }
 .emp-hd-top { display: flex; align-items: center; gap: 12px; }
 
@@ -949,3 +950,12 @@ textarea:focus,input[type=time]:focus{border-color:var(--red)}
   font-weight:700;line-height:1;vertical-align:middle}
 .emp-ava img{width:100%;height:100%;object-fit:cover;display:block}
 .emp-name-cell{display:inline-flex;align-items:center;gap:9px}
+
+/* ปุ่ม 📷 เปลี่ยนรูป — เกาะมุมล่างขวาของรูป */
+.ava-wrap{position:relative;display:inline-flex;flex:none}
+.pf-ava{position:relative}
+.ava-edit{position:absolute;right:-4px;bottom:-4px;width:24px;height:24px;border-radius:50%;
+  border:2px solid #fff;background:var(--red);color:#fff;font-size:11px;line-height:1;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;
+  box-shadow:0 2px 6px rgba(0,0,0,.2)}
+.ava-edit:active{transform:scale(.92)}

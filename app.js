@@ -297,7 +297,7 @@ function render(){
   else if (S.view==='emps'){ m.innerHTML = '<div class="card"><div class="skel" style="height:120px"></div></div>'; loadSettings(); }
   else if (S.view==='unpaidreq'){ m.innerHTML = viewUnpaidReq(); wireUnpaidReq(); }
   else if (S.view==='history'){ m.innerHTML = viewHistory(); wireHistory(); }
-  else if (S.view==='profile') m.innerHTML = viewProfile();
+  else if (S.view==='profile'){ m.innerHTML = viewProfile(); wireMyPhotoBtn(); }
 }
 
 // ════════════ VIEW: จัดการ Payroll (โมดูล window.PAY) ════════════
@@ -783,7 +783,8 @@ function viewProfile(){
   var bal = function(k){ var v=b[k]&&b[k].remaining; return v==null?'—':(Number.isInteger(v)?v:v.toFixed(1)); };
   var roleChip = p.canApprove ? '<span class="role-chip">⭐ '+esc(p.role)+'</span>' : esc(p.role||'EMPLOYEE');
   return ''+
-  '<div class="pf-head"><div class="pf-ava">'+(S.avatar?'<img src="'+S.avatar+'">':'🙂')+'</div>'+
+  '<div class="pf-head"><div class="pf-ava">'+(S.avatar?'<img src="'+S.avatar+'">':'🙂')+
+      '<button class="ava-edit" data-myphoto title="เปลี่ยนรูป">📷</button></div>'+
     '<div><div class="pf-hname">'+esc(p.name)+'</div><div class="pf-hdept">'+esc(p.dept||'')+'</div></div></div>'+
 
   '<div class="card"><div class="card-title"><span class="ic"></span>วันลาคงเหลือ</div>'+
@@ -2894,6 +2895,15 @@ function otHours(s,e){
   if(em<sm) em+=1440;
   return Math.round((em-sm)/60*100)/100;
 }
+/** ปุ่ม 📷 ในหน้าโปรไฟล์ตัวเอง — พนักงานเปลี่ยนรูปเองได้ ไม่ต้องรอ HR */
+function wireMyPhotoBtn(){
+  var b = document.querySelector('[data-myphoto]'); if(!b) return;
+  b.addEventListener('click', function(ev){
+    ev.stopPropagation();
+    pickAndUploadPhoto('', function(url){ S.avatar = url; paintAvatar(); render(); });
+  });
+}
+
 function paintAvatar(){ if(!S.avatar)return; var img='<img src="'+S.avatar+'">';
   var a=document.getElementById('hd-avatar'); if(a) a.innerHTML=img;
   var t=document.getElementById('tb-avatar'); if(t) t.innerHTML=img; }
@@ -3108,6 +3118,8 @@ function mockApi(action, params){
       joins:[1,1,1,0,1,2,2,1,0,0,0,0], exits:[0,0,0,1,0,2,1,1,0,0,0,0], joinTotal:9, exitTotal:5});
     else if(action==='emSetCount') resolve({ok:true, summary:'บันทึกแล้ว (mock)'});
     else if(action==='emPhotoSync') resolve({ok:true, updated:9, failed:1, summary:'อัปเดตรูป 9 คน · ดึงไม่ได้ 1 คน'});
+    else if(action==='emPhotoUpload') resolve({ok:true, url:(params&&params.dataUrl)||'', summary:'อัปโหลดรูปเรียบร้อย (mock)'});
+    else if(action==='emPhotoClear') resolve({ok:true, summary:'ลบรูปที่อัปแล้ว (mock)'});
     else if(action==='emAllowGet') resolve({ok:true, taxYear:2569, status:'อนุมัติ',
       approved:{spouse:1, childYears:'2559,2563', parent:2, disabled:0, maternity:0,
                 lifeIns:80000, healthSelf:20000, healthParent:10000, spouseLife:0,
@@ -3423,6 +3435,70 @@ var EMP_TABS = [
 ];
 
 /**
+ * pickAndUploadPhoto — เลือกรูป → ย่อในเครื่อง → ส่งขึ้นระบบ
+ *
+ * ย่อก่อนส่งเสมอ: รูปจากกล้องมือถือ 3–5 MB แต่ที่จอแสดงจริงแค่ 32–46px
+ *   ส่งดิบ = ช้า เปลือง Drive และ POST พังง่าย
+ * ต้องใช้ POST เพราะ base64 ยัดใน URL (JSONP/GET) ยาวเกินที่ Apps Script รับ
+ *
+ * @param {string} targetUserId ว่าง = รูปของตัวเอง
+ * @param {Function} done       เรียกเมื่อสำเร็จ พร้อม url ใหม่
+ */
+function pickAndUploadPhoto(targetUserId, done){
+  var inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = 'image/*';
+  inp.addEventListener('change', function(){
+    var f = inp.files && inp.files[0]; if(!f) return;
+    if(!/^image\//.test(f.type)) return toast('เลือกได้เฉพาะไฟล์รูป','err');
+    toast('กำลังย่อรูป…');
+    shrinkImage(f, 256, function(dataUrl){
+      if(!dataUrl) return toast('อ่านไฟล์รูปไม่สำเร็จ','err');
+      toast('กำลังอัปโหลด…');
+      postApi('emPhotoUpload', { targetUserId: targetUserId||'', dataUrl: dataUrl })
+        .then(function(r){
+          if(!r.ok) return toast(r.error||'อัปโหลดไม่สำเร็จ','err');
+          toast('✅ อัปโหลดรูปแล้ว','ok');
+          if(done) done(r.url);
+        }).catch(function(e){ toast(String(e.message||e),'err'); });
+    });
+  });
+  inp.click();
+}
+
+/** ย่อรูปเป็นสี่เหลี่ยมจัตุรัส (crop กลาง) แล้วคืน dataUrl JPEG */
+function shrinkImage(file, size, cb){
+  var fr = new FileReader();
+  fr.onload = function(){
+    var img = new Image();
+    img.onload = function(){
+      var side = Math.min(img.width, img.height);
+      var cv = document.createElement('canvas');
+      cv.width = size; cv.height = size;
+      cv.getContext('2d').drawImage(img,
+        (img.width-side)/2, (img.height-side)/2, side, side, 0, 0, size, size);
+      try { cb(cv.toDataURL('image/jpeg', 0.82)); } catch(e){ cb(null); }
+    };
+    img.onerror = function(){ cb(null); };
+    img.src = fr.result;
+  };
+  fr.onerror = function(){ cb(null); };
+  fr.readAsDataURL(file);
+}
+
+/** postApi — เรียก API ด้วย POST (ข้อมูลก้อนใหญ่) · text/plain กัน preflight */
+function postApi(action, payload){
+  var body = Object.assign({}, S.auth || {}, payload || {});   // auth ชุดเดียวกับ api() (idToken/userId)
+  if(CFG.MOCK) return mockApi(action, body);
+  if(!CFG.API_URL || CFG.API_URL.indexOf('PASTE') === 0)
+    return Promise.reject(new Error('ยังไม่ได้ตั้งค่า API_URL ใน config.js'));
+  return fetch(CFG.API_URL + '?action=' + encodeURIComponent(action), {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },   // text/plain = ไม่มี preflight (Apps Script ไม่ตอบ OPTIONS)
+    body: JSON.stringify(body)
+  }).then(function(res){ return res.json(); });
+}
+
+/**
  * empAvatar — รูปโปรไฟล์พนักงาน (จาก LINE) · ไม่มีรูปก็แสดงอักษรแรกของชื่อแทน
  * ใส่ onerror ไว้เพราะลิงก์รูป LINE หมดอายุได้เมื่อเจ้าตัวเปลี่ยนรูป — ไม่ให้จอเป็นไอคอนรูปแตก
  */
@@ -3457,7 +3533,10 @@ function renderEmpPage(){
 
   m.innerHTML =
     '<button class="backbar" data-eback="1">‹ กลับรายชื่อพนักงาน</button>'+
-    '<div class="card emp-hd"><div class="emp-hd-top">'+empAvatar(u, 46)+'<div class="hist-main">'+
+    '<div class="card emp-hd"><div class="emp-hd-top">'+
+      '<span class="ava-wrap">'+empAvatar(u, 46)+
+        (u.hasLine===false?'':'<button class="ava-edit" data-ephoto title="เปลี่ยนรูป">📷</button>')+'</span>'+
+      '<div class="hist-main">'+
       '<div class="hist-type">'+esc(u.name)+'</div>'+
       '<div class="hist-meta">'+esc(u.empId||'-')+' · '+esc(u.dept||'-')+' · '+esc(u.role||'EMPLOYEE')+'</div>'+
     '</div></div></div>'+
@@ -3466,6 +3545,9 @@ function renderEmpPage(){
 
   var b = document.querySelector('[data-eback]');
   if(b) b.addEventListener('click', function(){ S.empPage=null; loadSettings(); });
+  var ph = document.querySelector('[data-ephoto]');
+  if(ph) ph.addEventListener('click', function(){
+    pickAndUploadPhoto(u.lineUserId, function(url){ u.photo = url; renderEmpPage(); }); });
   document.querySelectorAll('[data-etab]').forEach(function(el){
     el.addEventListener('click', function(){ S.empPage.tab = el.dataset.etab; renderEmpPage(); }); });
   paintEmpTab();
