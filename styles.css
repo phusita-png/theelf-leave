@@ -942,3 +942,10 @@ textarea:focus,input[type=time]:focus{border-color:var(--red)}
 .tax-foot-l{flex:1;min-width:160px}
 .tax-foot-r{display:flex;gap:8px;flex-wrap:wrap}
 .tax-total{font-size:22px;font-weight:800;color:var(--red)}
+
+/* ── รูปโปรไฟล์พนักงาน (จาก LINE) ── */
+.emp-ava{display:inline-flex;align-items:center;justify-content:center;flex:none;
+  border-radius:50%;overflow:hidden;background:var(--red-tint);color:var(--red);
+  font-weight:700;line-height:1;vertical-align:middle}
+.emp-ava img{width:100%;height:100%;object-fit:cover;display:block}
+.emp-name-cell{display:inline-flex;align-items:center;gap:9px}

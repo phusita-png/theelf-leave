@@ -97,7 +97,11 @@ function initLiff() {
       S.pendingEdit = qs.get('edit') || (st && st.get('edit'));
       S.pendingView = qs.get('view') || (st && st.get('view'));   // deep-link ?view=hr (จากการ์ดแจ้งคำขอ)
     } catch(e){}
-    liff.getProfile().then(function(p){ S.avatar = p.pictureUrl; S.displayName = p.displayName || ''; paintAvatar(); }).catch(function(){});
+    liff.getProfile().then(function(p){
+      S.avatar = p.pictureUrl; S.displayName = p.displayName || ''; paintAvatar();
+      // ส่งรูปไปเก็บในชีตด้วย — พอทุกคนเปิดเว็บครบ HR ก็ได้รูปทั้งบริษัทโดยไม่ต้องยิง API ทีละคน
+      if(S.avatar) api('bootstrap',{photo:S.avatar}).catch(function(){});
+    }).catch(function(){});
     bootstrap();
   }).catch(function(e){ fail('LIFF init ล้มเหลว: ' + e); });
 }
@@ -1306,7 +1310,7 @@ function renderHr(r){
     return '<div class="pend">'+
       '<div class="pend-l">'+
         '<div class="pend-kind'+(x.kind==='ot'?' ot':'')+'">'+(x.kind==='ot'?'⏰ คำขอ OT':'📋 คำขอลา')+'</div>'+
-        '<div class="pend-top"><div class="hist-ic">'+emo+'</div><div class="hist-main">'+
+        '<div class="pend-top">'+(x.photo?empAvatar(x,34):'<div class="hist-ic">'+emo+'</div>')+'<div class="hist-main">'+
           '<div class="hist-type">'+esc(x.name)+(x.resubmit?' <span class="re-badge">🔄 แก้ไขส่งใหม่</span>':'')+'</div>'+
           '<div class="hist-meta">'+esc(x.type)+' · '+when+' · <b>'+amt+'</b> · '+esc(x.id)+'</div></div></div>'+
         info+
@@ -2571,7 +2575,8 @@ function paintEmpTable(){
     return '<tr class="mg-tr">'+
       '<td class="ce mg-sub2">'+(i+1)+'</td>'+
       '<td class="ce"><span class="emp-code">'+esc(u.empId||'-')+'</span></td>'+
-      '<td class="lft"><a class="emp-link" data-eopen="'+esc(okey)+'"><b>'+esc(u.name)+'</b></a>'+
+      '<td class="lft"><span class="emp-name-cell">'+empAvatar(u, 30)+
+        '<a class="emp-link" data-eopen="'+esc(okey)+'"><b>'+esc(u.name)+'</b></a></span>'+
         (isSelf?' <span class="re-badge">คุณ</span>':'')+
         (u.notCounted?' <span class="pill" title="'+esc(u.notCountedReason||'ไม่นับเป็นพนักงาน')+'">ไม่นับ</span>':'')+
         (u.hasLine===false?'<div class="mg-sub2">ยังไม่ผูก LINE</div>':'')+'</td>'+
@@ -2592,8 +2597,26 @@ function paintEmpTable(){
       '<th class="ce">ลำดับ</th><th class="ce">รหัสพนักงาน</th><th class="lft">ชื่อ-นามสกุล</th>'+
       '<th class="lft">ตำแหน่ง</th><th class="lft">แผนก</th><th class="ce">สถานะ</th><th class="ce">จัดการ</th>'+
     '</tr></thead><tbody>'+rows+'</tbody></table></div>'+
-    '<div class="mg-sub2" style="margin-top:8px">แสดง '+list.length+' คน</div>';
+    '<div class="emp-thead" style="margin-top:8px">'+
+      '<span class="mg-sub2">แสดง '+list.length+' คน</span>'+
+      '<button class="mg-ib" data-photosync>📸 ดึงรูปจาก LINE</button></div>';
   wireEmpTable();
+  var ps = document.querySelector('[data-photosync]');
+  if(ps) ps.addEventListener('click', function(){ syncEmpPhotos(ps); });
+}
+
+/** 📸 ดึงรูปโปรไฟล์ LINE ของทุกคนมาเก็บ (กดเป็นรอบๆ พอ — รูปไม่ได้เปลี่ยนบ่อย) */
+function syncEmpPhotos(btn){
+  if(btn){ btn.disabled = true; btn.textContent = 'กำลังดึงรูป…'; }
+  api('emPhotoSync',{}).then(function(r){
+    if(btn){ btn.disabled = false; btn.textContent = '📸 ดึงรูปจาก LINE'; }
+    if(!r.ok) return toast(r.error||'ดึงรูปไม่สำเร็จ','err');
+    toast(r.summary||'ดึงรูปแล้ว','ok');
+    loadSettings();
+  }).catch(function(e){
+    if(btn){ btn.disabled = false; btn.textContent = '📸 ดึงรูปจาก LINE'; }
+    toast(String(e.message||e),'err');
+  });
 }
 
 function wireEmpTable(){
@@ -3075,6 +3098,7 @@ function mockApi(action, params){
       notCounted:1, noLine:2,
       joins:[1,1,1,0,1,2,2,1,0,0,0,0], exits:[0,0,0,1,0,2,1,1,0,0,0,0], joinTotal:9, exitTotal:5});
     else if(action==='emSetCount') resolve({ok:true, summary:'บันทึกแล้ว (mock)'});
+    else if(action==='emPhotoSync') resolve({ok:true, updated:9, failed:1, summary:'อัปเดตรูป 9 คน · ดึงไม่ได้ 1 คน'});
     else if(action==='emAllowGet') resolve({ok:true, taxYear:2569, status:'อนุมัติ',
       approved:{spouse:1, childYears:'2559,2563', parent:2, disabled:0, maternity:0,
                 lifeIns:80000, healthSelf:20000, healthParent:10000, spouseLife:0,
@@ -3118,7 +3142,7 @@ function mockApi(action, params){
         {lineUserId:'MOCK',name:'นางสาวชนัญชิดา โชคธนอนันต์',empId:'1100100100101',dept:'สำนักงานใหญ่',email:'mock@theelf.co',role:'OWNER',startDate:'01/01/2566',branch:'สนญ.',status:'ทำงานอยู่',statusSource:'ประวัติการจ้าง',hasLine:true,notCounted:true,notCountedReason:'เจ้าของบริษัท',position:'CEO',ssoFlag:'ไม่ใช่',taxFlag:'ใช่',bank:'ไทยพาณิชย์',bankAcc:'1234567890',quota:{sick:30,biz:3,vac:6,bday:1,special:1,unpaid:3}},
         // คนที่ยังไม่ผูก LINE (รปภ./แม่บ้าน) — ต้องขึ้นในรายชื่อได้แม้ไม่มี LineUserID
         {lineUserId:'',name:'นายวิชาญ จันทร์นวล',empId:'3330900441374',dept:'ปฏิบัติการ',email:'',role:'EMPLOYEE',startDate:'26/12/2568',branch:'สนญ.',status:'ทำงานอยู่',statusSource:'ชีตพนักงาน',hasLine:false,notCounted:false,position:'รักษาความปลอดภัย',ssoFlag:'ใช่',taxFlag:'ใช่',bank:'ไทยพาณิชย์',bankAcc:'4291934333',quota:{sick:30,biz:3,vac:6,bday:1,special:1,unpaid:3}},
-        {lineUserId:'MOCK2',name:'นายพงศกร วัฒนไพศาล',empId:'1100200200202',dept:'Developers',email:'mock2@theelf.co',role:'ADMIN',startDate:'15/03/2567',branch:'สนญ.',status:'ปกติ',position:'Tech Lead',ssoFlag:'ใช่',taxFlag:'ใช่',bank:'กสิกรไทย',bankAcc:'9876543210',quota:{sick:30,biz:3,vac:6,bday:1,special:1,unpaid:3}},
+        {lineUserId:'MOCK2',name:'นายพงศกร วัฒนไพศาล',empId:'1100200200202',dept:'Developers',email:'mock2@theelf.co',role:'ADMIN',startDate:'15/03/2567',branch:'สนญ.',status:'ปกติ',photo:'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" fill="%232f80ed"/><text x="32" y="42" font-size="28" fill="white" text-anchor="middle">พ</text></svg>',position:'Tech Lead',ssoFlag:'ใช่',taxFlag:'ใช่',bank:'กสิกรไทย',bankAcc:'9876543210',quota:{sick:30,biz:3,vac:6,bday:1,special:1,unpaid:3}},
         {lineUserId:'MOCK3',name:'นางสาวปิยะฉัตร ทองแท้',empId:'1100300300303',dept:'CRM & Telesale',email:'mock3@theelf.co',role:'APPROVER',startDate:'01/06/2567',branch:'สนญ.',status:'ปกติ',position:'หัวหน้าทีม CRM',ssoFlag:'ใช่',taxFlag:'ใช่',bank:'กสิกรไทย',bankAcc:'1112223330',quota:{sick:30,biz:3,vac:6,bday:1,special:1,unpaid:3}},
         {lineUserId:'MOCK4',name:'นายอรรถพล ศรีสุวรรณ',empId:'1100400400404',dept:'CRM & Telesale',email:'mock4@theelf.co',role:'EMPLOYEE',startDate:'16/09/2567',branch:'สนญ.',status:'ปกติ',position:'Telesale',ssoFlag:'ใช่',taxFlag:'ไม่ใช่',bank:'กรุงไทย',bankAcc:'2223334440',quota:{sick:30,biz:3,vac:6,bday:1,special:1,unpaid:3}},
         {lineUserId:'MOCK5',name:'นางสาวธัญชนก พูนทรัพย์',empId:'1100500500505',dept:'Content Creator',email:'mock5@theelf.co',role:'EMPLOYEE',startDate:'01/11/2567',branch:'สนญ.',status:'ปกติ',position:'Content Creator',ssoFlag:'ใช่',taxFlag:'ไม่ใช่',bank:'กสิกรไทย',bankAcc:'3334445550',quota:{sick:30,biz:3,vac:6,bday:1,special:1,unpaid:3}},
@@ -3389,6 +3413,20 @@ var EMP_TABS = [
   { key:'tax',    label:'🧾 ลดหย่อนภาษี' },
 ];
 
+/**
+ * empAvatar — รูปโปรไฟล์พนักงาน (จาก LINE) · ไม่มีรูปก็แสดงอักษรแรกของชื่อแทน
+ * ใส่ onerror ไว้เพราะลิงก์รูป LINE หมดอายุได้เมื่อเจ้าตัวเปลี่ยนรูป — ไม่ให้จอเป็นไอคอนรูปแตก
+ */
+function empAvatar(u, size){
+  var px = size || 32;
+  var ini = String(u.name||'?').replace(/^(นาย|นาง|นางสาว)\s*/,'').trim().charAt(0) || '?';
+  var st = 'width:'+px+'px;height:'+px+'px;font-size:'+Math.round(px*0.42)+'px';
+  return u.photo
+    ? '<span class="emp-ava" style="'+st+'"><img src="'+esc(u.photo)+'" alt="" '+
+        'onerror="this.parentNode.innerHTML=\''+esc(ini)+'\'"></span>'
+    : '<span class="emp-ava noimg" style="'+st+'">'+esc(ini)+'</span>';
+}
+
 /** กุญแจอ้างพนักงาน — มี LINE ใช้ lineUserId · ไม่มีก็ใช้เลขบัตร (ไม่งั้นคนไม่มี LINE ชนกันหมด) */
 function empKeyOf(u){ return u.lineUserId || ('emp:'+(u.empId||'')); }
 
@@ -3410,7 +3448,7 @@ function renderEmpPage(){
 
   m.innerHTML =
     '<button class="backbar" data-eback="1">‹ กลับรายชื่อพนักงาน</button>'+
-    '<div class="card emp-hd"><div class="emp-hd-top"><div class="hist-ic">👤</div><div class="hist-main">'+
+    '<div class="card emp-hd"><div class="emp-hd-top">'+empAvatar(u, 46)+'<div class="hist-main">'+
       '<div class="hist-type">'+esc(u.name)+'</div>'+
       '<div class="hist-meta">'+esc(u.empId||'-')+' · '+esc(u.dept||'-')+' · '+esc(u.role||'EMPLOYEE')+'</div>'+
     '</div></div></div>'+
