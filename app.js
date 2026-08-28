@@ -2611,7 +2611,16 @@ function syncEmpPhotos(btn){
   api('emPhotoSync',{}).then(function(r){
     if(btn){ btn.disabled = false; btn.textContent = '📸 ดึงรูปจาก LINE'; }
     if(!r.ok) return toast(r.error||'ดึงรูปไม่สำเร็จ','err');
-    toast(r.summary||'ดึงรูปแล้ว','ok');
+    if(r.failed){
+      // ดึงไม่ได้ = มีอะไรต้องแก้ (โทเคน/เพื่อนบอท) — บอกให้ครบ ไม่ใช่ toast วูบเดียว
+      noticeBox('📸 ผลการดึงรูปจาก LINE',
+        'อัปเดตรูปสำเร็จ '+r.updated+' คน'+
+        (r.noPic?'\nไม่ได้ตั้งรูปโปรไฟล์ใน LINE '+r.noPic+' คน':'')+
+        '\nดึงไม่ได้ '+r.failed+' คน\n\nสาเหตุ: '+(r.why||'-')+
+        (r.samples&&r.samples.length?'\nตัวอย่าง: '+r.samples.join(', '):''));
+    } else {
+      toast(r.summary||'ดึงรูปแล้ว','ok');
+    }
     loadSettings();
   }).catch(function(e){
     if(btn){ btn.disabled = false; btn.textContent = '📸 ดึงรูปจาก LINE'; }
