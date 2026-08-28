@@ -1210,22 +1210,15 @@ function renderPayDash(r) {
 
     // ── ตัวเลขก้อนโต: เดือนที่เลือก + สะสมทั้งปี (อ่านเร็วกว่าไล่อ่านจากกราฟ) ──
     '<div class="dash-row stats">' +
-      '<div class="card dstat">' +
-        '<div class="ds-hd"><span class="ds-t">💰 เงินเดือน</span>' + pick('salary') + '</div>' +
-        '<div class="ds-v">' + money(valOf('salary', income)) + ' <small>บาท</small></div>' +
-        '<div class="ds-sub">สะสมทั้งปี ' + r.yearBE + ' · <b>' + money(sum(income)) + '</b> บาท</div>' +
-      '</div>' +
-      '<div class="card dstat">' +
-        '<div class="ds-hd"><span class="ds-t">🧾 ภาษี ภ.ง.ด.1</span>' + pick('tax') + '</div>' +
-        '<div class="ds-v red">' + money(valOf('tax', tax)) + ' <small>บาท</small></div>' +
-        '<div class="ds-sub">ภ.ง.ด.1ก ทั้งปี ' + r.yearBE + ' · <b>' + money(sum(tax)) + '</b> บาท</div>' +
-      '</div>' +
-      '<div class="card dstat">' +
-        '<div class="ds-hd"><span class="ds-t">🏥 ประกันสังคม</span>' + pick('sso') + '</div>' +
-        '<div class="ds-v green">' + money(valOf('sso', sso) * 2) + ' <small>บาท</small></div>' +
-        '<div class="ds-sub">พนักงาน ' + money(valOf('sso', sso)) + ' + บริษัท ' + money(valOf('sso', sso)) +
-          ' · สะสมทั้งปี <b>' + money(sum(sso) * 2) + '</b></div>' +
-      '</div>' +
+      statCard('💰', 'เงินเดือน', pick('salary'), '',
+        'ประจำเดือน ' + MO[(S.dashM.salary || 1) - 1], money(valOf('salary', income)),
+        'สะสมทั้งปี ' + r.yearBE, money(sum(income))) +
+      statCard('🧾', 'ภาษี ภ.ง.ด.1', pick('tax'), 'red',
+        'ประจำเดือน ' + MO[(S.dashM.tax || 1) - 1], money(valOf('tax', tax)),
+        'ภ.ง.ด.1ก ประจำปี ' + r.yearBE, money(sum(tax))) +
+      statCard('🏥', 'เงินสมทบประกันสังคม', pick('sso'), 'green',
+        'ประจำเดือน ' + MO[(S.dashM.sso || 1) - 1] + ' (พนักงาน+บริษัท)', money(valOf('sso', sso) * 2),
+        'สะสมทั้งปี ' + r.yearBE, money(sum(sso) * 2)) +
     '</div>' +
 
     '<div class="dash-row">' +
@@ -1268,6 +1261,20 @@ function renderPayDash(r) {
     tg.textContent = nowHidden ? '▸ แสดงภาพรวมทั้งปี' : '▾ ซ่อนภาพรวมทั้งปี';
     try { localStorage.setItem('payDashHide', nowHidden ? '1' : '0'); } catch (e) {}
   });
+}
+
+/**
+ * statCard — กล่องตัวเลข 2 ชั้น: ประจำเดือน (บน) · สะสมทั้งปี (ล่าง)
+ * ตัวเลขใหญ่ทั้งคู่ตามที่พี่กี้ขอ — เทียบเดือนนี้กับทั้งปีได้ในตาเดียว
+ */
+function statCard(emo, title, picker, tone, lbl1, val1, lbl2, val2) {
+  return '<div class="card dstat">' +
+    '<div class="ds-hd"><span class="ds-t">' + emo + ' ' + title + '</span>' + picker + '</div>' +
+    '<div class="ds-blk"><div class="ds-l">' + lbl1 + '</div>' +
+      '<div class="ds-v ' + (tone || '') + '">' + val1 + ' <small>บาท</small></div></div>' +
+    '<div class="ds-blk"><div class="ds-l">' + lbl2 + '</div>' +
+      '<div class="ds-v ' + (tone || '') + '">' + val2 + ' <small>บาท</small></div></div>' +
+  '</div>';
 }
 
 /** กราฟแท่ง 12 เดือน วาดด้วย SVG เอง — ไม่พึ่ง library (โหลดเร็ว + เน็ตบริษัทบล็อก CDN ไม่ได้) */
