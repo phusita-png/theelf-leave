@@ -964,7 +964,7 @@ textarea:focus,input[type=time]:focus{border-color:var(--red)}
 .doc-dash{display:grid;grid-template-columns:1fr;gap:12px;margin-bottom:14px}
 @media (min-width:1000px){.doc-dash{grid-template-columns:minmax(300px,380px) 1fr;align-items:start}}
 .doc-card{margin-bottom:0}
-.doc-right{display:flex;flex-direction:column;gap:12px;min-width:0}
+.doc-sel{display:flex;gap:6px;flex-wrap:wrap}
 .doc-pgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
 @media (min-width:760px){.doc-pgrid{grid-template-columns:repeat(4,1fr)}}
 .doc-p{border:1px solid var(--line);border-radius:12px;padding:10px 8px;text-align:center;background:var(--bg)}

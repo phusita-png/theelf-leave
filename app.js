@@ -1046,7 +1046,7 @@ function loadHr(){
   api('hrDashboard',{}).then(function(r){
     var m=document.getElementById('main'); if(!m) return;
     if(!r.ok){ m.innerHTML = backBar()+emptyBox('🔒', r.error||'ไม่มีสิทธิ์'); bindBack(); return; }
-    m.innerHTML = backBar()+'<div id="pendRegSlot"></div><div id="unpaidReqSlot"></div>'+renderHr(r); bindBack(); wireHrPending(); wireHrHistTabs(); wireHrSumFilter();
+    m.innerHTML = backBar()+'<div id="pendRegSlot"></div><div id="unpaidReqSlot"></div>'+renderHr(r); bindBack(); wireHrPending(); wireHrHistTabs(); wireHrSumFilter(); loadDocDash();
     loadPendingRegs(); loadUnpaidReqs(); loadHrHistory();
   }).catch(function(e){ var m=document.getElementById('main'); if(m){ m.innerHTML=backBar()+emptyBox('😿',String(e.message||e)); bindBack(); } });
 }
@@ -1288,13 +1288,22 @@ function hrDecide(kind, id, decision, reason){
   }).catch(function(e){ toast(String(e.message||e),'err'); });
 }
 /**
- * renderDocDash — แดชบอร์ดเอกสารในหน้าอนุมัติ (ตามแบบที่พี่กี้ส่งมา)
- *   โดนัทซ้าย = เอกสารทั้งหมดแยกตามประเภท · ขวาบน = ที่ยังไม่อนุมัติ · ขวาล่าง = ใบลาแยกประเภท
- * ระบบเรามีเอกสาร 4 ชนิด (ลา · OT · ลงทะเบียน · ขอสิทธิ์ลาไม่รับค่าจ้าง)
- * ไม่มี "เพิ่มเวลา/เปลี่ยนกะ/เบิกเงินล่วงหน้า" แบบตัวอย่าง จึงไม่ใส่ช่องเปล่าให้รก
+ * แดชบอร์ดเอกสาร (หน้าอนุมัติ) — โหลดแยกจาก hrDashboard เพราะเลือกเดือนได้เอง
+ *   ซ้าย = เอกสารทั้งหมดในระบบ (สะสม ไม่จำกัดช่วง)
+ *   ขวา = ที่ยังไม่อนุมัติ ของ "เดือนที่เลือก"
  */
-function renderDocDash(ds, label){
-  if(!ds) return '';
+function loadDocDash(){
+  var box = document.getElementById('docDash'); if(!box) return;
+  var now = new Date();
+  S.docM = S.docM || { month: now.getMonth()+1, yearBE: now.getFullYear()+543 };
+  api('hrDocStats', { month:S.docM.month, yearBE:S.docM.yearBE }).then(function(r){
+    if(!r.ok){ box.innerHTML=''; return; }
+    renderDocDash(box, r);
+  }).catch(function(){ box.innerHTML=''; });
+}
+
+function renderDocDash(box, ds){
+  var MO = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
   var KIND = [
     ['leave',     '📋 ใบลา',                    '#2f80ed'],
     ['ot',        '⏰ ใบ OT',                   '#f2994a'],
@@ -1302,9 +1311,16 @@ function renderDocDash(ds, label){
     ['unpaidReq', '📄 ขอสิทธิ์ลาไม่รับค่าจ้าง', '#9b51e0'],
   ];
   var parts = KIND.map(function(k){
-    return { name: k[1], count: (ds.byKind && ds.byKind[k[0]]) || 0, color: k[2] };
+    return { name:k[1], count:(ds.byKind && ds.byKind[k[0]]) || 0, color:k[2] };
   });
-  var totalDocs = ds.total || 0;
+
+  var yrs = [];
+  for(var y = ds.yearBE + 1; y >= ds.yearBE - 2; y--) yrs.push(y);
+  var monthSel =
+    '<select id="docMonthSel" class="hr-fsel">' + MO.map(function(nm,i){
+      return '<option value="'+(i+1)+'"'+(ds.month===i+1?' selected':'')+'>'+nm+'</option>'; }).join('') + '</select>' +
+    '<select id="docYearSel" class="hr-fsel">' + yrs.map(function(y){
+      return '<option value="'+y+'"'+(y===ds.yearBE?' selected':'')+'>'+y+'</option>'; }).join('') + '</select>';
 
   var pendCards = KIND.map(function(k){
     var n = (ds.pendingByKind && ds.pendingByKind[k[0]]) || 0;
@@ -1312,29 +1328,30 @@ function renderDocDash(ds, label){
       '<div class="doc-p-n">'+n+'</div><div class="doc-p-u">ฉบับ</div></div>';
   }).join('');
 
-  var LEAVE_COLOR = ['#2f80ed','#f2994a','#27ae60','#9b51e0','#e91e8c','#00b8a9','#8d6e63','#5c6bc0'];
-  var lt = (ds.leaveByType || []).map(function(x,i){
-    return { name: x.name, count: x.count, color: LEAVE_COLOR[i % LEAVE_COLOR.length] };
-  });
-
-  return '<div class="doc-dash">'+
-    '<div class="card doc-card">'+
-      '<div class="card-title"><span class="ic"></span>เอกสารทั้งหมด</div>'+
-      '<div class="mg-sub2" style="margin-bottom:8px">'+esc(label||'')+'</div>'+
-      docDonut(parts, totalDocs, 'เอกสาร')+
-    '</div>'+
-    '<div class="doc-right">'+
+  box.innerHTML =
+    '<div class="doc-dash">'+
       '<div class="card doc-card">'+
-        '<div class="card-title"><span class="ic"></span>เอกสารที่ยังไม่ได้รับการอนุมัติ</div>'+
+        '<div class="card-title"><span class="ic"></span>เอกสารทั้งหมดในระบบ</div>'+
+        docDonut(parts, ds.total, 'เอกสาร')+
+      '</div>'+
+      '<div class="card doc-card">'+
+        '<div class="emp-thead"><div class="card-title" style="margin:0"><span class="ic"></span>'+
+          'เอกสารที่ยังไม่ได้รับการอนุมัติ</div>'+
+          '<div class="doc-sel">'+monthSel+'</div></div>'+
         '<div class="doc-pgrid">'+pendCards+'</div>'+
+        '<div class="paste-help">ใบลา/ใบ OT นับตามเดือนที่เลือก · คำขอลงทะเบียนและขอสิทธิ์ลา'+
+          'ไม่มีเดือนกำกับ จึงนับที่ค้างทั้งหมด</div>'+
       '</div>'+
-      '<div class="card doc-card">'+
-        '<div class="card-title"><span class="ic"></span>เอกสารลางาน แยกตามประเภท</div>'+
-        (lt.length ? docDonut(lt, (ds.byKind&&ds.byKind.leave)||0, 'ใบลา')
-                   : '<div class="mg-sub2">ยังไม่มีใบลาในรอบนี้</div>')+
-      '</div>'+
-    '</div>'+
-  '</div>';
+    '</div>';
+
+  var ms = document.getElementById('docMonthSel');
+  var ys = document.getElementById('docYearSel');
+  var onChange = function(){
+    S.docM = { month: parseInt(ms.value,10), yearBE: parseInt(ys.value,10) };
+    loadDocDash();
+  };
+  if(ms) ms.addEventListener('change', onChange);
+  if(ys) ys.addEventListener('change', onChange);
 }
 
 /** โดนัท + รายการข้างๆ (ใช้ซ้ำได้ทั้งเอกสารรวมและใบลาแยกประเภท) */
@@ -1364,8 +1381,6 @@ function docDonut(list, total, centerLabel){
 }
 
 function renderHr(r){
-  var docDash = renderDocDash(r.docStats, r.monthLabel);
-
   // การ์ดสรุป (ลา+OT) + แถบตัวกรอง (รอบ/เดือน/ปี/ช่วงวันที่) — ค่าเริ่มจาก hrDashboard (รอบ 26–25)
   var sumCard='<div class="card hr-sum-card"><div class="card-title"><span class="ic"></span>สรุปการลา &amp; OT</div>'+
     hrSumFilterBar()+
@@ -1422,7 +1437,7 @@ function renderHr(r){
     '</div>'+
     '<div id="hrHistBody"><div class="skel" style="height:64px"></div></div></div>';
 
-  return docDash + sumCard+pendCard+histCard;
+  return '<div id="docDash"></div>' + sumCard+pendCard+histCard;
 }
 
 // ════════════ แผง HR: ตัวกรองสรุป (รอบ/เดือน/ปี/ช่วงวันที่) ════════════
@@ -3195,7 +3210,9 @@ function mockApi(action, params){
       notCounted:1, noLine:2,
       joins:[1,1,1,0,1,2,2,1,0,0,0,0], exits:[0,0,0,1,0,2,1,1,0,0,0,0], joinTotal:9, exitTotal:5});
     else if(action==='emSetCount') resolve({ok:true, summary:'บันทึกแล้ว (mock)'});
-    else if(action==='hrDocStatsMock') resolve({ok:true});
+    else if(action==='hrDocStats') resolve({ok:true, month:(params&&params.month)||8, yearBE:(params&&params.yearBE)||2569,
+      total:642, byKind:{leave:412,ot:198,register:24,unpaidReq:8},
+      pendingByKind:{leave:2,ot:1,register:2,unpaidReq:0}});
     else if(action==='emPhotoSync') resolve({ok:true, updated:9, failed:1, summary:'อัปเดตรูป 9 คน · ดึงไม่ได้ 1 คน'});
     else if(action==='emPhotoUpload') resolve({ok:true, url:(params&&params.dataUrl)||'', summary:'อัปโหลดรูปเรียบร้อย (mock)'});
     else if(action==='emPhotoClear') resolve({ok:true, summary:'ลบรูปที่อัปแล้ว (mock)'});
@@ -3290,10 +3307,6 @@ function mockApi(action, params){
     else if(action==='approve') resolve({ok:true,id:'(mock)',status:'✅'});
     else if(action==='hrDashboard') resolve({ok:true,monthLabel:'มิถุนายน 2569',
       leave:{total:8,approved:5,pending:2,rejected:1},ot:{hours:24.5,count:6,approved:4,pending:1,rejected:1},
-      docStats:{total:17, byKind:{leave:8,ot:6,register:2,unpaidReq:1},
-        pendingByKind:{leave:2,ot:1,register:2,unpaidReq:0},
-        leaveByType:[{name:'ลาป่วย',count:3},{name:'ลากิจ',count:2},{name:'ลาพักร้อน',count:2},
-                     {name:'ลาวันเกิด',count:1}]},
       employees:[{name:'นางสาวชนัญชิดา โชคธนอนันต์',dept:'สำนักงานใหญ่',vac:16,biz:10,sick:29,used:5,status:'✅ ปกติ'},
         {name:'นายตัวอย่าง ทดสอบ',dept:'ฝ่ายขาย',vac:6,biz:0,sick:28,used:12,status:'⚠️ เกินสิทธิ์'}],
       pending:[{kind:'leave',id:'LV-003',name:'นางสาวชนัญชิดา โชคธนอนันต์',type:'ลากิจ',date:'02/06/2569',endDate:'03/06/2569',days:2,reason:'ไปทำธุระที่ต่างจังหวัด',remaining:8,userId:'MOCK',empId:'EMP-001'},
