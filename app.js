@@ -1295,15 +1295,51 @@ function hrDecide(kind, id, decision, reason){
 function loadDocDash(){
   var box = document.getElementById('docDash'); if(!box) return;
   var now = new Date();
-  S.docM = S.docM || { month: now.getMonth()+1, yearBE: now.getFullYear()+543 };
-  api('hrDocStats', { month:S.docM.month, yearBE:S.docM.yearBE }).then(function(r){
+  S.docF = S.docF || { mode:'period', year:now.getFullYear()+543, month:now.getMonth()+1, from:'', to:'' };
+  var f = S.docF;
+  api('hrDocStats', { mode:f.mode, year:f.year, month:f.month, from:f.from, to:f.to }).then(function(r){
     if(!r.ok){ box.innerHTML=''; return; }
     renderDocDash(box, r);
   }).catch(function(){ box.innerHTML=''; });
 }
 
+/** แถบตัวกรองของแดชบอร์ดเอกสาร — ชุดเดียวกับ "สรุปการลา & OT" (รอบ/เดือน/ปี/ช่วงวันที่) */
+function docFilterBar(){
+  var f=S.docF, now=new Date(), curY=now.getFullYear()+543;
+  var modeSel='<select class="hr-fsel" id="docMode">'+
+    [['period','รอบเดือนนี้ (26–25)'],['month','เลือกเดือน'],['year','เลือกปี'],['range','ช่วงวันที่']]
+      .map(function(o){ return '<option value="'+o[0]+'"'+(f.mode===o[0]?' selected':'')+'>'+o[1]+'</option>'; }).join('')+'</select>';
+  var years=[]; for(var y=curY;y>=curY-4;y--) years.push(y);
+  var yearOpts=years.map(function(y){ return '<option value="'+y+'"'+((f.year||curY)===y?' selected':'')+'>'+y+'</option>'; }).join('');
+  var monthOpts=TH_MO_SHORT.map(function(m,i){ return '<option value="'+(i+1)+'"'+((f.month||(now.getMonth()+1))===(i+1)?' selected':'')+'>'+m+'</option>'; }).join('');
+  var inputs='';
+  if(f.mode==='month') inputs='<select class="hr-fsel" id="docMonth">'+monthOpts+'</select><select class="hr-fsel" id="docYear">'+yearOpts+'</select>';
+  else if(f.mode==='year') inputs='<select class="hr-fsel" id="docYear">'+yearOpts+'</select>';
+  else if(f.mode==='range') inputs='<input type="date" class="hr-fdate" id="docFrom" value="'+esc(f.from)+'"><span class="hr-fdash">–</span><input type="date" class="hr-fdate" id="docTo" value="'+esc(f.to)+'">';
+  return '<div class="hr-filter">🔎 '+modeSel+inputs+'<button class="hr-fbtn" id="docGo">ดูข้อมูล</button></div>';
+}
+
+function wireDocFilter(){
+  var mode=document.getElementById('docMode');
+  if(mode) mode.addEventListener('change', function(){
+    S.docF.mode=mode.value;
+    var bar=document.querySelector('#docDash .hr-filter');
+    if(bar){ bar.outerHTML=docFilterBar(); wireDocFilter(); }
+  });
+  var go=document.getElementById('docGo');
+  if(go) go.addEventListener('click', function(){
+    var m=document.getElementById('docMonth'), y=document.getElementById('docYear');
+    var fr=document.getElementById('docFrom'), to=document.getElementById('docTo');
+    if(m) S.docF.month=parseInt(m.value,10);
+    if(y) S.docF.year=parseInt(y.value,10);
+    if(fr) S.docF.from=fr.value;
+    if(to) S.docF.to=to.value;
+    if(S.docF.mode==='range' && (!S.docF.from || !S.docF.to)) return toast('เลือกช่วงวันที่ให้ครบค่ะ','err');
+    loadDocDash();
+  });
+}
+
 function renderDocDash(box, ds){
-  var MO = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
   var KIND = [
     ['leave',     '📋 ใบลา',                    '#2f80ed'],
     ['ot',        '⏰ ใบ OT',                   '#f2994a'],
@@ -1313,16 +1349,6 @@ function renderDocDash(box, ds){
   var parts = KIND.map(function(k){
     return { name:k[1], count:(ds.byKind && ds.byKind[k[0]]) || 0, color:k[2] };
   });
-
-  var yrs = [];
-  for(var y = ds.yearBE + 1; y >= ds.yearBE - 2; y--) yrs.push(y);
-  var monthSel =
-    '<span class="mg-sub2" style="align-self:center">รอบ</span>'+
-    '<select id="docMonthSel" class="hr-fsel">' + MO.map(function(nm,i){
-      return '<option value="'+(i+1)+'"'+(ds.month===i+1?' selected':'')+'>'+nm+'</option>'; }).join('') + '</select>' +
-    '<select id="docYearSel" class="hr-fsel">' + yrs.map(function(y){
-      return '<option value="'+y+'"'+(y===ds.yearBE?' selected':'')+'>'+y+'</option>'; }).join('') + '</select>';
-
   var pendCards = KIND.map(function(k){
     var n = (ds.pendingByKind && ds.pendingByKind[k[0]]) || 0;
     return '<div class="doc-p'+(n?' on':'')+'"><div class="doc-p-t">'+k[1]+'</div>'+
@@ -1336,24 +1362,15 @@ function renderDocDash(box, ds){
         docDonut(parts, ds.total, 'เอกสาร')+
       '</div>'+
       '<div class="card doc-card">'+
-        '<div class="emp-thead"><div class="card-title" style="margin:0"><span class="ic"></span>'+
-          'เอกสารที่ยังไม่ได้รับการอนุมัติ</div>'+
-          '<div class="doc-sel">'+monthSel+'</div></div>'+
-        (ds.periodLabel ? '<div class="mg-sub2" style="margin-bottom:8px">📅 '+esc(ds.periodLabel)+'</div>' : '')+
+        '<div class="card-title"><span class="ic"></span>เอกสารที่ยังไม่ได้รับการอนุมัติ</div>'+
+        docFilterBar()+
+        '<div class="hr-sum-lb">📅 '+esc(ds.periodLabel||'')+'</div>'+
         '<div class="doc-pgrid">'+pendCards+'</div>'+
-        '<div class="paste-help">นับตามรอบ 26–25 เกณฑ์เดียวกับทั้งระบบ (ใบลา = วันเริ่มลา · OT = วันที่ทำ)'+
-          ' · คำขอลงทะเบียนและขอสิทธิ์ลาไม่มีรอบกำกับ จึงนับที่ค้างทั้งหมด</div>'+
+        '<div class="paste-help">ใบลานับตามวันเริ่มลา · OT นับตามวันที่ทำ · '+
+          'คำขอลงทะเบียนและขอสิทธิ์ลาไม่มีช่วงเวลากำกับ จึงนับที่ค้างทั้งหมด</div>'+
       '</div>'+
     '</div>';
-
-  var ms = document.getElementById('docMonthSel');
-  var ys = document.getElementById('docYearSel');
-  var onChange = function(){
-    S.docM = { month: parseInt(ms.value,10), yearBE: parseInt(ys.value,10) };
-    loadDocDash();
-  };
-  if(ms) ms.addEventListener('change', onChange);
-  if(ys) ys.addEventListener('change', onChange);
+  wireDocFilter();
 }
 
 /** โดนัท + รายการข้างๆ (ใช้ซ้ำได้ทั้งเอกสารรวมและใบลาแยกประเภท) */
@@ -3212,8 +3229,10 @@ function mockApi(action, params){
       notCounted:1, noLine:2,
       joins:[1,1,1,0,1,2,2,1,0,0,0,0], exits:[0,0,0,1,0,2,1,1,0,0,0,0], joinTotal:9, exitTotal:5});
     else if(action==='emSetCount') resolve({ok:true, summary:'บันทึกแล้ว (mock)'});
-    else if(action==='hrDocStats') resolve({ok:true, month:(params&&params.month)||8, yearBE:(params&&params.yearBE)||2569,
-      periodLabel:'26/7 – 25/8/2569',
+    else if(action==='hrDocStats') resolve({ok:true, mode:(params&&params.mode)||'period',
+      periodLabel:(params&&params.mode==='year') ? 'ปี 2569'
+        : (params&&params.mode==='month') ? 'ส.ค. 2569'
+        : (params&&params.mode==='range') ? '01/08/2569 – 15/08/2569' : '26/7 – 25/8/2569',
       total:642, byKind:{leave:412,ot:198,register:24,unpaidReq:8},
       pendingByKind:{leave:2,ot:1,register:2,unpaidReq:0}});
     else if(action==='emPhotoSync') resolve({ok:true, updated:9, failed:1, summary:'อัปเดตรูป 9 คน · ดึงไม่ได้ 1 คน'});
