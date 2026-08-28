@@ -1186,10 +1186,48 @@ function renderPayDash(r) {
   var hidden = false;
   try { hidden = localStorage.getItem('payDashHide') === '1'; } catch (e) {}
 
+  // เดือนที่การ์ดตัวเลขกำลังโชว์ — ตั้งต้นที่เดือนล่าสุดที่มีทะเบียน แล้ว HR เลือกย้อนเองได้
+  var monthsWith = (r.months || []).map(function (m) { return m.month; });
+  var defM = monthsWith.length ? monthsWith[monthsWith.length - 1] : (new Date().getMonth() + 1);
+  S.dashM = S.dashM || {};
+  ['salary', 'tax', 'sso'].forEach(function (k) {
+    if (!S.dashM[k] || monthsWith.indexOf(S.dashM[k]) < 0) S.dashM[k] = defM;
+  });
+  var pick = function (key) {
+    return '<select class="ds-sel" data-dashm="' + key + '">' +
+      MO.map(function (nm, i) {
+        var mm = i + 1, has = monthsWith.indexOf(mm) >= 0;
+        return '<option value="' + mm + '"' + (S.dashM[key] === mm ? ' selected' : '') +
+               (has ? '' : ' disabled') + '>' + nm + ' ' + r.yearBE + '</option>';
+      }).join('') + '</select>';
+  };
+  var valOf = function (key, arr) { return arr[(S.dashM[key] || 1) - 1] || 0; };
+
   box.innerHTML =
     '<div class="dash-bar"><button class="btn btn-ghost sm" id="pay-dashToggle">' +
       (hidden ? '▸ แสดงภาพรวมทั้งปี' : '▾ ซ่อนภาพรวมทั้งปี') + '</button></div>' +
     '<div id="pay-dashBody"' + (hidden ? ' class="hidden"' : '') + '>' +
+
+    // ── ตัวเลขก้อนโต: เดือนที่เลือก + สะสมทั้งปี (อ่านเร็วกว่าไล่อ่านจากกราฟ) ──
+    '<div class="dash-row stats">' +
+      '<div class="card dstat">' +
+        '<div class="ds-hd"><span class="ds-t">💰 เงินเดือน</span>' + pick('salary') + '</div>' +
+        '<div class="ds-v">' + money(valOf('salary', income)) + ' <small>บาท</small></div>' +
+        '<div class="ds-sub">สะสมทั้งปี ' + r.yearBE + ' · <b>' + money(sum(income)) + '</b> บาท</div>' +
+      '</div>' +
+      '<div class="card dstat">' +
+        '<div class="ds-hd"><span class="ds-t">🧾 ภาษี ภ.ง.ด.1</span>' + pick('tax') + '</div>' +
+        '<div class="ds-v red">' + money(valOf('tax', tax)) + ' <small>บาท</small></div>' +
+        '<div class="ds-sub">ภ.ง.ด.1ก ทั้งปี ' + r.yearBE + ' · <b>' + money(sum(tax)) + '</b> บาท</div>' +
+      '</div>' +
+      '<div class="card dstat">' +
+        '<div class="ds-hd"><span class="ds-t">🏥 ประกันสังคม</span>' + pick('sso') + '</div>' +
+        '<div class="ds-v green">' + money(valOf('sso', sso) * 2) + ' <small>บาท</small></div>' +
+        '<div class="ds-sub">พนักงาน ' + money(valOf('sso', sso)) + ' + บริษัท ' + money(valOf('sso', sso)) +
+          ' · สะสมทั้งปี <b>' + money(sum(sso) * 2) + '</b></div>' +
+      '</div>' +
+    '</div>' +
+
     '<div class="dash-row">' +
       '<div class="card dcard wide">' +
         '<div class="card-hd"><h2>💰 เงินเดือนทั้งปี</h2>' +
@@ -1216,6 +1254,13 @@ function renderPayDash(r) {
 
   var ys = $('dashYear');
   if (ys) ys.addEventListener('change', function () { S.dashYear = parseInt(ys.value, 10); loadPayDash(); });
+  box.querySelectorAll('[data-dashm]').forEach(function (el) {
+    el.addEventListener('change', function () {
+      S.dashM[el.dataset.dashm] = parseInt(el.value, 10);
+      renderPayDash(S.dash);          // มีข้อมูลทั้งปีอยู่แล้ว ไม่ต้องยิง API ใหม่
+    });
+  });
+
   var tg = $('dashToggle');
   if (tg) tg.addEventListener('click', function () {
     var body = $('dashBody'); if (!body) return;

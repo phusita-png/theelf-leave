@@ -414,3 +414,16 @@
 .pay-scope .bc-v{font-size:10px;fill:var(--ink-2);font-weight:600}
 .pay-scope .bc-x{font-size:10px;fill:var(--ink-3)}
 .pay-scope .dash-bar{display:flex;justify-content:flex-end;margin-bottom:8px}
+.pay-scope .dash-row.stats{display:grid;grid-template-columns:1fr;gap:12px}
+@media (min-width:820px){.pay-scope .dash-row.stats{grid-template-columns:repeat(3,1fr)}}
+.pay-scope .dstat{padding:14px 16px}
+.pay-scope .ds-hd{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.pay-scope .ds-t{font-weight:700;font-size:13.5px;color:var(--ink-2)}
+/* dropdown ในการ์ดตัวเลข — ห้ามใช้ .hd-month (ตัวนั้นทำมาสำหรับพื้นแดงบน header ตัวหนังสือขาว) */
+.pay-scope .ds-sel{font-family:inherit;font-size:12px;padding:5px 8px;max-width:150px;
+  border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);cursor:pointer}
+.pay-scope .ds-v{font-size:26px;font-weight:800;color:#2f80ed;line-height:1.15}
+.pay-scope .ds-v small{font-size:13px;font-weight:600;color:var(--ink-3)}
+.pay-scope .ds-v.red{color:var(--red)}
+.pay-scope .ds-v.green{color:#1e8e3e}
+.pay-scope .ds-sub{margin-top:6px;font-size:12px;color:var(--ink-3)}
