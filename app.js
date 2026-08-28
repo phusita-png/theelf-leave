@@ -2573,7 +2573,9 @@ function paintEmpTable(){
         (isSelf?' <span class="re-badge">คุณ</span>':'')+'</td>'+
       '<td class="lft">'+esc(u.position||'-')+'</td>'+
       '<td class="lft">'+esc(u.dept||'-')+'</td>'+
-      '<td class="ce">'+(isLeft?'<span class="pill">ลาออก</span>':'<span class="pill ok">ทำงานอยู่</span>')+'</td>'+
+      '<td class="ce">'+(isLeft
+          ? '<span class="pill">ลาออก</span>'+(u.resignDate?'<div class="mg-sub2">'+esc(u.resignDate)+'</div>':'')
+          : '<span class="pill ok">ทำงานอยู่</span>')+'</td>'+
       '<td class="mg-actcell"><div class="mg-acts2">'+
         '<button class="mg-ib edit" data-eopen="'+esc(u.lineUserId)+'">✏️ เปิด</button>'+
         '<button class="mg-ib" data-srole="'+esc(u.lineUserId)+'">👤 บทบาท</button>'+
@@ -3039,10 +3041,15 @@ function mockApi(action, params){
       jobs:[{date:'15/07/2568',event:'เข้างาน',detail:'ตำแหน่ง Developers',by:'seed'},
             {date:'15/10/2568',event:'ผ่านทดลองงาน',detail:'',by:'พี่กี้'}]});
     else if(action==='emAddJob') resolve({ok:true,summary:'บันทึกแล้ว (mock)'});
-    else if(action==='emStats') resolve({ok:true,yearBE:2569,total:28,active:24,left:4,hasJobs:true,
-      byDept:[{name:'CRM & Telesale',count:8},{name:'Content Creator',count:5},{name:'Developers',count:3},
-              {name:'Live Sale',count:3},{name:'Graphic Design',count:2},{name:'บัญชี',count:3}],
-      joins:[14,9,1,3,6,5,5,6,0,0,0,0], exits:[2,4,2,4,5,4,4,1,0,0,0,0], joinTotal:49, exitTotal:26});
+    // แผนกเยอะเท่าของจริง (16 แผนก) — ไว้เช็คว่า legend ไม่ล้น/ไม่ถูกตัด
+    else if(action==='emStats') resolve({ok:true,yearBE:2569,total:28,active:23,left:5,hasJobs:true,
+      byDept:[{name:'CRM & Telesale',count:6},{name:'Content Creator',count:3},{name:'Live Sale',count:3},
+              {name:'Marketing',count:3},{name:'Developers',count:2},{name:'CEO & MD',count:1},
+              {name:'ธุรการประสานงานบัญชี',count:1},{name:'senior Graphic Designer',count:1},
+              {name:'Graphic Design',count:1},{name:'คลังสินค้า',count:1},{name:'จัดซื้อ',count:1},
+              {name:'บัญชี',count:1},{name:'บุคคล',count:1},{name:'ผู้ช่วยผู้บริหาร',count:1},
+              {name:'ยิงแอด',count:1},{name:'แอดมินเพจ',count:1}],
+      joins:[1,1,1,0,1,2,2,1,0,0,0,0], exits:[0,0,0,1,0,2,1,1,0,0,0,0], joinTotal:9, exitTotal:5});
     else if(action==='adminBootstrap') resolve({ok:true,callerId:'MOCK',ownerCount:1,
       schedules:[{code:'S01',desc:'จ-ศ 09:00-18:00'},{code:'S02',desc:'จ-ส 08:00-17:00'},{code:'RM01',desc:'Remote'}],
       roles:['EMPLOYEE','REVIEWER','APPROVER','ADMIN','OWNER'],leaveTypes:MOCK_LT,
@@ -3695,23 +3702,27 @@ function paintEmpDash(){
 /** โดนัทแยกตามแผนก (วาดด้วย SVG stroke-dasharray) */
 function deptDonut(list, total){
   if(!list.length || !total) return '<div class="mg-sub2">ยังไม่มีข้อมูลแผนก</div>';
-  var COLORS = ['#cc1019','#f2994a','#2f80ed','#27ae60','#9b51e0','#e91e8c','#00b8a9','#8d6e63'];
+  // 12 สี + วนซ้ำได้ — แสดง "ทุกแผนก" ไม่ตัดที่ 8 อีกแล้ว (บริษัทมี 16 แผนก)
+  var COLORS = ['#cc1019','#f2994a','#2f80ed','#27ae60','#9b51e0','#e91e8c','#00b8a9','#8d6e63',
+                '#5c6bc0','#ef5350','#26a69a','#ab47bc'];
+  var many = list.length > 8;
   var R = 54, C = 2*Math.PI*R, off = 0;
-  var arcs = list.slice(0,8).map(function(d,i){
+  var arcs = list.map(function(d,i){
     var frac = d.count/total, len = C*frac;
     var seg = '<circle cx="70" cy="70" r="'+R+'" fill="none" stroke="'+COLORS[i%COLORS.length]+'" stroke-width="22"'+
       ' stroke-dasharray="'+len.toFixed(2)+' '+(C-len).toFixed(2)+'" stroke-dashoffset="'+(-off).toFixed(2)+'"'+
       ' transform="rotate(-90 70 70)"></circle>';
     off += len; return seg;
   }).join('');
-  var legend = list.slice(0,8).map(function(d,i){
-    return '<div class="lg-row"><span class="lg-dot" style="background:'+COLORS[i%COLORS.length]+'"></span>'+
+  var legend = list.map(function(d,i){
+    return '<div class="lg-row" title="'+esc(d.name)+' — '+d.count+' คน">'+
+      '<span class="lg-dot" style="background:'+COLORS[i%COLORS.length]+'"></span>'+
       '<span class="lg-name">'+esc(d.name)+'</span><span class="lg-num">'+d.count+' คน</span></div>'; }).join('');
-  return '<div class="donut-wrap">'+
+  return '<div class="donut-wrap'+(many?' many':'')+'">'+
     '<svg viewBox="0 0 140 140" class="donut">'+arcs+
       '<text x="70" y="66" text-anchor="middle" class="donut-n">'+total+'</text>'+
       '<text x="70" y="84" text-anchor="middle" class="donut-l">คน</text>'+
-    '</svg><div class="donut-lg">'+legend+'</div></div>';
+    '</svg><div class="donut-lg'+(many?' cols2':'')+'">'+legend+'</div></div>';
 }
 
 /** กราฟแท่งเข้าใหม่(บวก)/ลาออก(ลบ) รายเดือน */

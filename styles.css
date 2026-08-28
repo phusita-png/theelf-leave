@@ -875,7 +875,10 @@ textarea:focus,input[type=time]:focus{border-color:var(--red)}
 
 /* ── 📊 แดชบอร์ดหน้าพนักงาน ─────────────────────────────── */
 .dash-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
-@media (min-width: 900px) { .dash-grid { grid-template-columns: 360px 1fr; } }
+/* การ์ดซ้ายเคยตรึงไว้ 360px — พอมี 16 แผนก ชื่อกับจำนวนคนโดนตัด ("6 คน" เหลือ "6 ค")
+   จอกว้างขึ้นก็ให้การ์ดกว้างตาม แล้ว legend แตกเป็น 2 คอลัมน์เมื่อแผนกเยอะ */
+@media (min-width: 900px)  { .dash-grid { grid-template-columns: minmax(360px, 420px) 1fr; } }
+@media (min-width: 1280px) { .dash-grid { grid-template-columns: minmax(440px, 520px) 1fr; } }
 .dash-card { margin-bottom: 0; }
 
 .donut-wrap { display: flex; align-items: center; gap: 14px; margin-top: 10px; }
@@ -888,7 +891,13 @@ textarea:focus,input[type=time]:focus{border-color:var(--red)}
 .lg-dot.j { background: #2f80ed; }
 .lg-dot.e { background: #f2994a; }
 .lg-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lg-num { color: var(--muted); }
+.lg-num { color: var(--muted); white-space: nowrap; flex: none; }
+
+/* แผนกเยอะ → 2 คอลัมน์ (โดนัทขึ้นบน legend เต็มความกว้างข้างล่าง) */
+.donut-wrap.many { flex-direction: column; align-items: stretch; }
+.donut-wrap.many .donut { align-self: center; }
+.donut-lg.cols2 { display: grid; grid-template-columns: 1fr 1fr; column-gap: 14px; }
+@media (max-width: 560px) { .donut-lg.cols2 { grid-template-columns: 1fr; } }
 
 .chart-lg { font-size: 12.5px; color: var(--muted); margin: 6px 0 10px; }
 .barchart { display: flex; align-items: flex-end; gap: 4px; height: 190px; overflow-x: auto; padding-bottom: 4px; }
