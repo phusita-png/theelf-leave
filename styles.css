@@ -756,8 +756,9 @@ textarea:focus,input[type=time]:focus{border-color:var(--red)}
   .toast{bottom:24px;left:auto;right:24px;transform:translateY(20px)}
   .toast.show{transform:translateY(0)}
   /* FAB คู่มือ: ไม่มี bottom nav → ขยับลงมุม + เหนือ toast */
-  /* เดสก์ท็อปมี sidebar 248px → เลี่ยงไปเริ่มหลัง sidebar */
-  .help-fab{bottom:20px;left:272px;right:auto;font-size:15px;padding:12px 18px}
+  /* วางในแถบเมนูซ้าย ใต้รายการเมนู (พี่กี้เลือกจุดนี้ 28 ส.ค.) — z-index สูงกว่า .nav (20) */
+  .help-fab{bottom:20px;left:16px;right:auto;font-size:14px;padding:11px 16px;
+    max-width:216px;z-index:46}
 }
 
 /* ════════════════ ปฏิทินการลารวม (HR) v.70 ════════════════ */
