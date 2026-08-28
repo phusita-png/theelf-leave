@@ -1203,50 +1203,53 @@ function renderPayDash(r) {
   };
   var valOf = function (key, arr) { return arr[(S.dashM[key] || 1) - 1] || 0; };
 
+  // เลย์เอาต์ 2 คอลัมน์ตามที่พี่กี้จัด:
+  //   ซ้าย = กราฟเงินเดือน (บน) + กราฟภาษี (ล่าง) — กว้างเท่ากัน ขอบตรงกัน
+  //   ขวา  = การ์ดตัวเลข 3 ใบ (บน) + กราฟประกันสังคม (ล่าง)
   box.innerHTML =
     '<div class="dash-bar"><button class="btn btn-ghost sm" id="pay-dashToggle">' +
       (hidden ? '▸ แสดงภาพรวมทั้งปี' : '▾ ซ่อนภาพรวมทั้งปี') + '</button></div>' +
     '<div id="pay-dashBody"' + (hidden ? ' class="hidden"' : '') + '>' +
+    '<div class="dash-2col">' +
 
-    // ── ตัวเลขก้อนโต: เดือนที่เลือก + สะสมทั้งปี (อ่านเร็วกว่าไล่อ่านจากกราฟ) ──
-    '<div class="dash-row stats">' +
-      statCard('💰', 'เงินเดือน', pick('salary'), '',
-        'ประจำเดือน ' + MO[(S.dashM.salary || 1) - 1], money(valOf('salary', income)),
-        'สะสมทั้งปี ' + r.yearBE, money(sum(income))) +
-      statCard('🧾', 'ภาษี ภ.ง.ด.1', pick('tax'), 'red',
-        'ประจำเดือน ' + MO[(S.dashM.tax || 1) - 1], money(valOf('tax', tax)),
-        'ภ.ง.ด.1ก ประจำปี ' + r.yearBE, money(sum(tax))) +
-      statCard('🏥', 'เงินสมทบประกันสังคม', pick('sso'), 'green',
-        'ประจำเดือน ' + MO[(S.dashM.sso || 1) - 1] + ' (พนักงาน+บริษัท)', money(valOf('sso', sso) * 2),
-        'สะสมทั้งปี ' + r.yearBE, money(sum(sso) * 2)) +
-    '</div>' +
+      '<div class="dcol">' +
+        '<div class="card dcard">' +
+          '<div class="card-hd"><h2>💰 เงินเดือนทั้งปี</h2>' +
+            '<span class="sub">รวม ' + money(sum(income)) + ' บาท' +
+            (last ? ' · ล่าสุด ' + pad2(last.month) + '/' + last.yearBE + ' = ' + money(last.income) + ' บาท' : '') +
+            '</span>' + yrSel + '</div>' +
+          '<div class="card-bd">' + barChart(income, MO, '#2f80ed') + '</div>' +
+        '</div>' +
+        '<div class="card dcard">' +
+          '<div class="card-hd"><h2>🧾 ภาษีหัก ณ ที่จ่าย (ภ.ง.ด.1)</h2>' +
+            '<span class="sub">รวมทั้งปี (ภ.ง.ด.1ก) ' + money(sum(tax)) + ' บาท</span></div>' +
+          '<div class="card-bd">' + barChart(tax, MO, '#cc1019') + '</div>' +
+        '</div>' +
+      '</div>' +
 
-    '<div class="dash-row">' +
-      '<div class="card dcard wide">' +
-        '<div class="card-hd"><h2>💰 เงินเดือนทั้งปี</h2>' +
-          '<span class="sub">รวม ' + money(sum(income)) + ' บาท' +
-          (last ? ' · ล่าสุด ' + pad2(last.month) + '/' + last.yearBE + ' = ' + money(last.income) + ' บาท' : '') +
-          '</span>' + yrSel + '</div>' +
-        '<div class="card-bd">' + barChart(income, MO, '#2f80ed') + '</div>' +
+      '<div class="dcol">' +
+        '<div class="stat-3">' +
+          statCard('💰', 'เงินเดือน', pick('salary'), '',
+            'ประจำเดือน ' + MO[(S.dashM.salary || 1) - 1], money(valOf('salary', income)),
+            'สะสมทั้งปี ' + r.yearBE, money(sum(income))) +
+          statCard('🧾', 'ภาษี ภ.ง.ด.1', pick('tax'), 'red',
+            'ประจำเดือน ' + MO[(S.dashM.tax || 1) - 1], money(valOf('tax', tax)),
+            'ภ.ง.ด.1ก ประจำปี ' + r.yearBE, money(sum(tax))) +
+          statCard('🏥', 'ประกันสังคม', pick('sso'), 'green',
+            'ประจำเดือน ' + MO[(S.dashM.sso || 1) - 1], money(valOf('sso', sso) * 2),
+            'สะสมทั้งปี ' + r.yearBE, money(sum(sso) * 2)) +
+        '</div>' +
+        '<div class="card dcard">' +
+          '<div class="card-hd"><h2>🏥 เงินสมทบประกันสังคม</h2>' +
+            '<span class="sub">พนักงาน ' + money(sum(sso)) + ' + บริษัท ' + money(sum(sso)) +
+              ' = ' + money(sum(sso) * 2) + ' บาท</span></div>' +
+          '<div class="card-bd">' + barChart(sso, MO, '#27ae60') + '</div>' +
+        '</div>' +
       '</div>' +
-    '</div>' +
-    '<div class="dash-row two">' +
-      '<div class="card dcard">' +
-        '<div class="card-hd"><h2>🧾 ภาษีหัก ณ ที่จ่าย (ภ.ง.ด.1)</h2>' +
-          '<span class="sub">รวมทั้งปี (ภ.ง.ด.1ก) ' + money(sum(tax)) + ' บาท</span></div>' +
-        '<div class="card-bd">' + barChart(tax, MO, '#cc1019') + '</div>' +
-      '</div>' +
-      '<div class="card dcard">' +
-        '<div class="card-hd"><h2>🏥 เงินสมทบประกันสังคม</h2>' +
-          '<span class="sub">พนักงาน ' + money(sum(sso)) + ' + บริษัท ' + money(sum(sso)) +
-            ' = ' + money(sum(sso) * 2) + ' บาท</span></div>' +
-        '<div class="card-bd">' + barChart(sso, MO, '#27ae60') + '</div>' +
-      '</div>' +
+
     '</div>' +
     '</div>';
 
-  var ys = $('dashYear');
-  if (ys) ys.addEventListener('change', function () { S.dashYear = parseInt(ys.value, 10); loadPayDash(); });
   box.querySelectorAll('[data-dashm]').forEach(function (el) {
     el.addEventListener('change', function () {
       S.dashM[el.dataset.dashm] = parseInt(el.value, 10);
