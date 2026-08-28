@@ -1349,9 +1349,12 @@ function renderDocDash(box, ds){
   var parts = KIND.map(function(k){
     return { name:k[1], count:(ds.byKind && ds.byKind[k[0]]) || 0, color:k[2] };
   });
+  var TIP = { leave:'นับตามวันเริ่มลา', ot:'นับตามวันที่ทำ OT',
+              register:'ไม่มีช่วงเวลากำกับ — นับที่ค้างทั้งหมด',
+              unpaidReq:'ไม่มีช่วงเวลากำกับ — นับที่ค้างทั้งหมด' };
   var pendCards = KIND.map(function(k){
     var n = (ds.pendingByKind && ds.pendingByKind[k[0]]) || 0;
-    return '<div class="doc-p'+(n?' on':'')+'"><div class="doc-p-t">'+k[1]+'</div>'+
+    return '<div class="doc-p'+(n?' on':'')+'" title="'+esc(TIP[k[0]]||'')+'"><div class="doc-p-t">'+k[1]+'</div>'+
       '<div class="doc-p-n">'+n+'</div><div class="doc-p-u">ฉบับ</div></div>';
   }).join('');
 
@@ -1366,8 +1369,6 @@ function renderDocDash(box, ds){
         docFilterBar()+
         '<div class="hr-sum-lb">📅 '+esc(ds.periodLabel||'')+'</div>'+
         '<div class="doc-pgrid">'+pendCards+'</div>'+
-        '<div class="paste-help">ใบลานับตามวันเริ่มลา · OT นับตามวันที่ทำ · '+
-          'คำขอลงทะเบียนและขอสิทธิ์ลาไม่มีช่วงเวลากำกับ จึงนับที่ค้างทั้งหมด</div>'+
       '</div>'+
     '</div>';
   wireDocFilter();
