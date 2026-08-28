@@ -1212,7 +1212,6 @@ function renderPayDash(r) {
     '<div id="pay-dashBody"' + (hidden ? ' class="hidden"' : '') + '>' +
     '<div class="dash-2col">' +
 
-      '<div class="dcol">' +
         '<div class="card dcard">' +
           '<div class="card-hd"><h2>💰 เงินเดือนทั้งปี</h2>' +
             '<span class="sub">รวม ' + money(sum(income)) + ' บาท' +
@@ -1225,9 +1224,7 @@ function renderPayDash(r) {
             '<span class="sub">รวมทั้งปี (ภ.ง.ด.1ก) ' + money(sum(tax)) + ' บาท</span></div>' +
           '<div class="card-bd">' + barChart(tax, MO, '#cc1019') + '</div>' +
         '</div>' +
-      '</div>' +
 
-      '<div class="dcol">' +
         '<div class="stat-3">' +
           statCard('💰', 'เงินเดือน', pick('salary'), '',
             'ประจำเดือน ' + MO[(S.dashM.salary || 1) - 1], money(valOf('salary', income)),
@@ -1245,7 +1242,6 @@ function renderPayDash(r) {
               ' = ' + money(sum(sso) * 2) + ' บาท</span></div>' +
           '<div class="card-bd">' + barChart(sso, MO, '#27ae60') + '</div>' +
         '</div>' +
-      '</div>' +
 
     '</div>' +
     '</div>';

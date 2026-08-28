@@ -432,12 +432,24 @@
 .pay-scope .ds-sub{margin-top:6px;font-size:12px;color:var(--ink-3)}
 
 /* ── เลย์เอาต์แดชบอร์ด 2 คอลัมน์ (ซ้าย: 2 กราฟ · ขวา: การ์ด 3 ใบ + กราฟ) ── */
-.pay-scope .dash-2col{display:grid;grid-template-columns:1fr;gap:12px;align-items:start}
-@media (min-width:1100px){.pay-scope .dash-2col{grid-template-columns:1fr 1fr}}
-.pay-scope .dcol{display:flex;flex-direction:column;gap:12px;min-width:0}
-.pay-scope .dcol .dcard{margin-bottom:0}
+.pay-scope .dash-2col{display:grid;grid-template-columns:1fr;gap:12px}
+.pay-scope .dash-2col>*{min-width:0;margin-bottom:0}
+/* จอกว้าง: แถวบน = กราฟเงินเดือน + การ์ด 3 ใบ · แถวล่าง = กราฟภาษี + กราฟ ปกส.
+   ใช้ grid areas เพื่อให้ "แถวเดียวกันสูงเท่ากัน" — กราฟล่างสองอันจะเริ่มตรงกันพอดี */
+@media (min-width:1100px){
+  .pay-scope .dash-2col{grid-template-columns:1fr 1fr;
+    grid-template-areas:"salary stats" "tax sso";align-items:stretch}
+  .pay-scope .dash-2col>.dcard:nth-of-type(1){grid-area:salary}
+  .pay-scope .dash-2col>.dcard:nth-of-type(2){grid-area:tax}
+  .pay-scope .dash-2col>.stat-3{grid-area:stats}
+  .pay-scope .dash-2col>.dcard:nth-of-type(3){grid-area:sso}
+  .pay-scope .dash-2col>.dcard{display:flex;flex-direction:column}
+  .pay-scope .dash-2col>.dcard .card-bd{flex:1;display:flex;align-items:flex-end}
+  .pay-scope .dash-2col>.dcard .bc-wrap{width:100%}
+}
 .pay-scope .stat-3{display:grid;grid-template-columns:1fr;gap:10px}
-@media (min-width:640px){.pay-scope .stat-3{grid-template-columns:repeat(3,1fr)}}
+@media (min-width:640px){.pay-scope .stat-3{grid-template-columns:repeat(3,1fr);align-items:stretch}}
+.pay-scope .stat-3 .dstat{display:flex;flex-direction:column;justify-content:space-between}
 .pay-scope .stat-3 .dstat{padding:12px 13px}
 .pay-scope .stat-3 .ds-v{font-size:19px}
 .pay-scope .stat-3 .ds-t{font-size:12.5px}
