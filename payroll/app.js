@@ -57,6 +57,7 @@ var STEP_ACTION = {
   importOT:          'importOT',
   importUnpaidLeave: 'importUnpaidLeave',
   calcByDays:        'calcByDays',
+  calcTax:           'calcTax',
   importStudentLoan: 'importStudentLoan',
   audit:             'auditMonth',
   updateYTD:         'updateYTD',
@@ -789,6 +790,7 @@ function startStep(key) {
   if (!step) return;
 
   if (key === 'editRegister')      return askEditRegister();
+  if (key === 'calcTax')           return runCalcTax();
   if (key === 'audit')             return runAudit();
   if (key === 'importStudentLoan') return askStudentLoanData();
   if (key === 'setPayDate')        return askPayDate(S.cur.month, S.cur.yearBE);
@@ -915,6 +917,106 @@ function runBatch(key, step, extra) {
 }
 
 // ════════════ ❻ ด่านตรวจ 13 ข้อ (อ่านอย่างเดียว) ════════════
+// ── 🧾 คิดภาษีหัก ณ ที่จ่าย ─────────────────────────────────────
+// ระบบเดิมคิดภาษีด้วยสูตรยาวใน col T (แก้ยาก · ไม่มีค่าลดหย่อนรายคน)
+// ขั้นนี้ให้ระบบคิดจากค่าลดหย่อนที่ HR อนุมัติแล้ว → ดูก่อน → ค่อยเขียนลงทะเบียน
+function runCalcTax() {
+  openModal('🧾 คิดภาษีหัก ณ ที่จ่าย', 'ดูผลก่อน — ยังไม่มีอะไรถูกแก้',
+    '<div class="empty">กำลังคำนวณ…</div>', '');
+
+  api('calcTax', { month: S.cur.month, yearBE: S.cur.yearBE }).then(function (r) {
+    if (!r.ok) return showError('คิดภาษี', r.error);
+    renderCalcTax(r, false);
+  }).catch(function (e) { showError('คิดภาษี', String(e && e.message || e)); });
+}
+
+function commitCalcTax() {
+  if (S.busy) return;
+  S.busy = true;
+  setModal('🧾 คิดภาษีหัก ณ ที่จ่าย', 'กำลังเขียนลงทะเบียน…',
+    '<div class="empty">กำลังบันทึก… อย่าปิดหน้านี้นะคะ</div>', '');
+
+  api('calcTax', { month: S.cur.month, yearBE: S.cur.yearBE, mode: 'commit' }).then(function (r) {
+    S.busy = false;
+    if (!r.ok) return showError('คิดภาษี', r.error);
+    renderCalcTax(r, true);
+    loadMonthQuiet();
+  }).catch(function (e) { S.busy = false; showError('คิดภาษี', String(e && e.message || e)); });
+}
+
+function renderCalcTax(r, done) {
+  var changed = (r.preview || []).filter(function (x) { return Math.abs(x.diff) >= 0.01; });
+
+  var head =
+    '<div class="audit-sum">' +
+      '<div class="audit-box green"><div class="n">' + r.count + '</div><div class="t">คนในทะเบียน</div></div>' +
+      '<div class="audit-box ' + (r.withAllowance ? 'green' : 'yell') + '">' +
+        '<div class="n">' + (r.withAllowance || 0) + '</div><div class="t">มีใบลดหย่อนที่อนุมัติ</div></div>' +
+      '<div class="audit-box ' + (changed.length ? 'yell' : 'green') + '">' +
+        '<div class="n">' + changed.length + '</div><div class="t">คนที่ยอดเปลี่ยน</div></div>' +
+    '</div>';
+
+  var sum =
+    '<div class="paste-help" style="margin-bottom:10px">' +
+      'ภาษีรวม<b> ' + money(r.totalCurrent) + '</b> → <b>' + money(r.totalExpect) + '</b> บาท' +
+      ' · หักเพิ่ม ' + (r.upCount || 0) + ' คน · หักลดลง ' + (r.downCount || 0) + ' คน' +
+      (r.overWithheldCount ? ' · หักเกินสะสม ' + r.overWithheldCount + ' คน (เดือนนี้หัก 0)' : '') +
+    '</div>';
+
+  var warn = '';
+  if (!done) {
+    if (r.closed)
+      warn += '<div class="finding red">⛔ เดือนนี้ปิดไปแล้ว — ' + esc(r.closedReason) +
+              ' · ดูตัวเลขได้ แต่เขียนทับไม่ได้ (ทะเบียนจะไม่ตรงกับสลิป/ภ.ง.ด.1 ที่ส่งไปแล้ว)</div>';
+    if (r.prevMonthMissing)
+      warn += '<div class="finding yell">⚠️ ไม่พบทะเบียนเดือนก่อน — คิดเสมือนเริ่มปีภาษีที่เดือนนี้</div>';
+    if (r.legacyRelevant && r.legacyMismatch)
+      warn += '<div class="finding red">⛔ โหมดจำลองสูตรเดิมยังไม่ตรงกับ col T อยู่ ' + r.legacyMismatch +
+              ' คน — ต้องดูเมนู 🧾 เทียบภาษี ในชีตก่อน ยังเขียนไม่ได้</div>';
+    else if (r.legacyRelevant)
+      warn += '<div class="finding" style="border-color:#1e8e3e;background:#e6f4ea">' +
+              '✅ ด่านพิสูจน์ผ่าน — โค้ดอ่านค่าจากชีตได้ตรงกับสูตรเดิมทุกคน ' +
+              'ส่วนต่างข้างล่างจึงมาจากกฎที่ตั้งใจเปลี่ยน ไม่ใช่การอ่านผิด</div>';
+  }
+
+  var body = head + sum + warn;
+  if (changed.length) {
+    body +=
+      '<div class="tbl-scroll"><table class="reg plain"><thead><tr>' +
+        '<th>#</th><th class="l">ชื่อ</th><th>เงินได้</th><th>ภาษีเดิม</th><th>ภาษีใหม่</th>' +
+        '<th>ต่าง</th><th class="l">เพราะอะไร</th>' +
+      '</tr></thead><tbody>' +
+      changed.map(function (x) {
+        return '<tr><td>' + x.seq + '</td>' +
+          '<td class="l">' + esc(x.name) + (x.hasAllowance ? ' 🧾' : '') + '</td>' +
+          '<td>' + money(x.income) + '</td>' +
+          '<td>' + money(x.current) + '</td>' +
+          '<td>' + money(x.expect) + '</td>' +
+          '<td>' + (x.diff > 0 ? '+' : '') + money(x.diff) + '</td>' +
+          '<td class="l">' + esc(x.why || '') +
+            (x.overWithheld > 0 ? ' · หักเกินสะสม ' + money(x.overWithheld) : '') + '</td></tr>';
+      }).join('') +
+      '</tbody></table></div>' +
+      (r.preview.length >= 30 ? '<div class="paste-help">แสดง 30 คนที่ยอดขยับมากที่สุด — ดูครบในชีต "เทียบภาษี"</div>' : '');
+  } else {
+    body += '<div class="finding" style="border-color:#1e8e3e;background:#e6f4ea">' +
+            '✅ ภาษีในทะเบียนตรงกับที่ระบบคิดได้แล้วทุกคน — ไม่มีอะไรต้องเขียนทับ</div>';
+  }
+
+  if (done) {
+    body += '<div class="paste-help" style="margin-top:12px">' +
+            '📌 ภาษีเปลี่ยน = ยอดสุทธิและภาษีสะสมเปลี่ยนตาม — กด 📊 อัปเดต YTD สะสม ต่อได้เลยค่ะ</div>';
+    return setModal('🧾 คิดภาษี — ' + esc(r.sheetName), '✅ เขียนลงทะเบียนแล้ว', body,
+      btn('เสร็จสิ้น', 'btn-primary', 'closeModal(); loadMonth();'));
+  }
+
+  // เขียนได้ต่อเมื่อ: เดือนยังไม่ปิด · ผ่านด่านสูตรเดิม · และมีอะไรให้เปลี่ยนจริง
+  var canWrite = !r.closed && !(r.legacyRelevant && r.legacyMismatch) && changed.length > 0;
+  setModal('🧾 คิดภาษี — ' + esc(r.sheetName), 'ดูผลก่อน — ยังไม่มีอะไรถูกแก้', body,
+    btn('ปิด', 'btn-ghost', 'closeModal()') +
+    (canWrite ? btn('ยืนยัน เขียนภาษีลงทะเบียน', 'btn-primary', 'commitCalcTax()') : ''));
+}
+
 function runAudit() {
   openModal('🔍 ตรวจทะเบียน 13 ข้อ', 'อ่านอย่างเดียว — ไม่แก้ข้อมูลใดๆ',
     '<div class="empty">กำลังตรวจ…</div>', '');
@@ -1360,7 +1462,8 @@ function mockResult(action, params) {
       ['importUnpaidLeave', '💸 ดึงวันลาไม่รับเงิน', 'createMonth'],
       ['calcByDays', '💵 คำนวณเงินเดือนตามวัน', 'importUnpaidLeave'],
       ['importStudentLoan', '💳 ดึงยอด กยศ.', 'createMonth'],
-      ['audit', '🔍 ตรวจทะเบียน 13 ข้อ', 'calcByDays'],
+      ['calcTax', '🧾 คิดภาษีหัก ณ ที่จ่าย', 'calcByDays'],
+      ['audit', '🔍 ตรวจทะเบียน 13 ข้อ', 'calcTax'],
       ['updateYTD', '📊 อัปเดต YTD สะสม', 'audit'],
       ['setPayDate', '📅 กำหนดวันที่จ่าย', 'updateYTD'],
       ['genPayslips', '📄 สร้างสลิป PDF', 'setPayDate'],
@@ -1433,6 +1536,25 @@ function mockResult(action, params) {
       yellow: ['#1 สมชาย ใจดี: ภาษี 420.00 ต่างจากที่คำนวณได้ ~455.00 (ฐาน 26,250.00) — ถ้ามีลดหย่อนพิเศษก็ข้ามได้'],
       info: [], passed: false,
       report: '(พรีวิว)', summary: '🔴 1 · 🟡 1 (4 คน)' };
+  }
+
+  if (action === 'calcTax') {
+    var commit = params && params.mode === 'commit';
+    return { ok: true, dryRun: !commit, month: 8, yearBE: 2569, sheetName: 'ทะเบียน 08-2569',
+      count: 4, withAllowance: 2, diffCount: 3,
+      totalCurrent: 1183.90, totalExpect: 1288.15, upCount: 2, downCount: 1,
+      overWithheldCount: 0, prevMonthMissing: false,
+      legacyMismatch: 0, legacyRelevant: !commit, taxColMode: commit ? 'code' : 'formula',
+      closed: false, closedReason: '',
+      preview: [
+        { seq: 1, name: 'สมชาย ใจดี',    income: 26250, current: 420,    expect: 653,    diff: 233,
+          why: 'ฐานรวม ค่าตำแหน่ง/น้ำไฟ/เบี้ยขยัน', hasAllowance: false, overWithheld: 0 },
+        { seq: 2, name: 'สมหญิง รักงาน',  income: 31000, current: 613.90, expect: 420.90, diff: -193,
+          why: 'ค่าลดหย่อนรายคน', hasAllowance: true, overWithheld: 0 },
+        { seq: 3, name: 'ประเสริฐ มั่นคง', income: 22000, current: 150,    expect: 214.25, diff: 64.25,
+          why: 'เกลี่ยส่วนที่เหลือ', hasAllowance: true, overWithheld: 0 },
+      ],
+      report: '(พรีวิว)', summary: (commit ? 'คิดภาษี ' : 'เทียบภาษี ') + '4 คน · ต่าง 3 คน' };
   }
 
   if (action === 'yearSummary') {
@@ -1599,6 +1721,8 @@ return {
   startStep: startStep,
   commitStep: commitStep,
   runAudit: runAudit,
+  runCalcTax: runCalcTax,
+  commitCalcTax: commitCalcTax,
   submitStudentLoan: submitStudentLoan,
   submitPayDate: submitPayDate,
   openMonth: openMonth,
