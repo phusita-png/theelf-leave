@@ -2744,10 +2744,27 @@ function openQuotaModal(empId){
     closeConfirm(); toast('กำลังบันทึก…');
     api('setLeaveQuota',{empId:empId,quota:quota}).then(function(r){
       if(!r.ok) return toast(r.error||'ไม่สำเร็จ','err');
-      toast('✅ แก้โควต้าแล้ว'+(r.changed?' ('+r.changed+' รายการ)':''),'ok'); loadSettings();
+      toast('✅ แก้โควต้าแล้ว'+(r.changed?' ('+r.changed+' รายการ)':''),'ok'); afterEmpEdit();
     }).catch(function(e){ toast(String(e.message||e),'err'); });
   });
 }
+/**
+ * afterEmpEdit — บันทึกเสร็จแล้วรีเฟรชที่ "หน้าเดิม"
+ *   อยู่หน้ารายบุคคล → โหลดรายชื่อใหม่เงียบๆ แล้ววาดหน้าเดิม (เดิมเด้งกลับหน้ารายชื่อทุกครั้ง)
+ */
+function afterEmpEdit(){
+  if(!S.empPage){ loadSettings(); return; }
+  var key = S.empPage.user.empId;
+  api('adminBootstrap',{}).then(function(r){
+    if(!r.ok) return loadSettings();
+    S.adminUsers = r.users;
+    var u = (r.users||[]).filter(function(x){ return String(x.empId)===String(key); })[0];
+    if(!u){ loadSettings(); return; }
+    S.empPage.user = u;
+    renderEmpPage();
+  }).catch(function(){ loadSettings(); });
+}
+
 function openInfoModal(uid){
   var u=_findUser_('lineUserId',uid); if(!u) return;
   var fields=[['dept','แผนก'],['email','Email'],['startDate','วันเริ่มงาน (dd/MM/yyyy)'],['branch','สาขา'],['status','สถานะพนักงาน']];
@@ -2760,7 +2777,7 @@ function openInfoModal(uid){
     closeConfirm(); toast('กำลังบันทึก…');
     api('updateEmployee',payload).then(function(r){
       if(!r.ok) return toast(r.error||'ไม่สำเร็จ','err');
-      toast('✅ แก้ข้อมูลแล้ว'+(r.changed&&r.changed.length?' ('+r.changed.length+' ช่อง)':''),'ok'); loadSettings();
+      toast('✅ แก้ข้อมูลแล้ว'+(r.changed&&r.changed.length?' ('+r.changed.length+' ช่อง)':''),'ok'); afterEmpEdit();
     }).catch(function(e){ toast(String(e.message||e),'err'); });
   });
 }
@@ -3058,6 +3075,13 @@ function mockApi(action, params){
       notCounted:1, noLine:2,
       joins:[1,1,1,0,1,2,2,1,0,0,0,0], exits:[0,0,0,1,0,2,1,1,0,0,0,0], joinTotal:9, exitTotal:5});
     else if(action==='emSetCount') resolve({ok:true, summary:'บันทึกแล้ว (mock)'});
+    else if(action==='emLeaveSummary') resolve({ok:true, empId:params&&params.empId, hasQuota:true, yearBE:2569,
+      rows:[{key:'vac',name:'ลาพักร้อน',emoji:'🌴',quota:6,used:2.5,remain:3.5},
+            {key:'biz',name:'ลากิจ',emoji:'🏠',quota:3,used:3,remain:0},
+            {key:'sick',name:'ลาป่วย',emoji:'🤒',quota:30,used:1,remain:29},
+            {key:'bday',name:'ลาวันเกิด',emoji:'🎂',quota:1,used:0,remain:1},
+            {key:'special',name:'ลาวันเกิดคนพิเศษ',emoji:'💝',quota:1,used:0,remain:1},
+            {key:'unpaid',name:'ลากิจไม่รับค่าจ้าง',emoji:'📄',quota:3,used:4,remain:-1}]});
     else if(action==='adminBootstrap') resolve({ok:true,callerId:'MOCK',ownerCount:1,
       schedules:[{code:'S01',desc:'จ-ศ 09:00-18:00'},{code:'S02',desc:'จ-ส 08:00-17:00'},{code:'RM01',desc:'Remote'}],
       roles:['EMPLOYEE','REVIEWER','APPROVER','ADMIN','OWNER'],leaveTypes:MOCK_LT,
@@ -3382,9 +3406,13 @@ function paintEmpTab(){
 function empRow(k,v){ return '<div class="pf-row"><span class="k">'+esc(k)+'</span><span class="v">'+esc(v==null||v===''?'—':v)+'</span></div>'; }
 
 function paintEmpInfo(box, u){
-  var q = u.quota||{};
   box.innerHTML =
-    '<div class="card"><div class="card-title"><span class="ic"></span>ข้อมูลพื้นฐาน</div>'+
+    '<div class="card">'+
+      '<div class="emp-thead"><div class="card-title" style="margin:0"><span class="ic"></span>ข้อมูลพื้นฐาน</div>'+
+        (u.hasLine===false
+          ? '<span class="mg-sub2">ยังไม่ผูก LINE — แก้ข้อมูลที่ชีตพนักงาน</span>'
+          : '<button class="btn btn-primary btn-sm" data-einfo>✏️ แก้ไข</button>')+
+      '</div>'+
       empRow('รหัสพนักงาน (เลขบัตร)', u.empId)+
       empRow('ชื่อ-สกุล', u.name)+
       empRow('แผนก', u.dept)+
@@ -3402,13 +3430,48 @@ function paintEmpInfo(box, u){
           (u.notCounted?'กลับมานับ':'ตั้งเป็นไม่นับ')+'</button></span></div>'+
     '</div>'+
 
-    '<div class="card"><div class="card-title"><span class="ic"></span>โควต้าลาปีนี้</div>'+
-      '<div class="chips">'+
-        '<div class="chip"><div class="chip-v">'+(q.sick!=null?q.sick:'—')+'</div><div class="chip-l">ลาป่วย</div></div>'+
-        '<div class="chip"><div class="chip-v">'+(q.biz!=null?q.biz:'—')+'</div><div class="chip-l">ลากิจ</div></div>'+
-        '<div class="chip"><div class="chip-v">'+(q.vac!=null?q.vac:'—')+'</div><div class="chip-l">พักร้อน</div></div>'+
-      '</div></div>';
+    '<div class="card" id="empLeaveBox"><div class="card-title"><span class="ic"></span>สิทธิ์การลาปีนี้</div>'+
+      '<div class="skel" style="height:120px"></div></div>';
   wireEmpCountBtn(u);
+  var ib = document.querySelector('[data-einfo]');
+  if(ib) ib.addEventListener('click', function(){ openInfoModal(u.lineUserId); });
+  loadEmpLeave(u);
+}
+
+/** ตารางสิทธิ์ลารายคน — สิทธิ์ประจำปี · ใช้ไป · คงเหลือ ("ใช้ไป" นับจากใบลาจริง) */
+function loadEmpLeave(u){
+  api('emLeaveSummary',{empId:u.empId||''}).then(function(r){
+    var box = document.getElementById('empLeaveBox'); if(!box) return;
+    var head = '<div class="emp-thead"><div class="card-title" style="margin:0"><span class="ic"></span>'+
+      'สิทธิ์การลาปี '+((r&&r.yearBE)||'')+'</div>'+
+      '<button class="btn btn-primary btn-sm" data-equota>✏️ แก้ไขโควต้า</button></div>';
+
+    if(!r.ok || !r.hasQuota){
+      box.innerHTML = head + '<div class="mg-sub2">'+esc((r&&r.note)||(r&&r.error)||'ยังไม่มีข้อมูลโควต้า')+'</div>';
+    } else {
+      var rows = r.rows.map(function(x,i){
+        var neg = x.remain < 0;
+        return '<tr class="mg-tr">'+
+          '<td class="ce mg-sub2">'+(i+1)+'</td>'+
+          '<td class="lft">'+x.emoji+' '+esc(x.name)+'</td>'+
+          '<td class="ce">'+x.quota+' วัน</td>'+
+          '<td class="ce">'+x.used+' วัน</td>'+
+          '<td class="ce'+(neg?' neg':'')+'"><b>'+x.remain+' วัน</b>'+
+            (neg?' <span class="pill err">เกินสิทธิ์</span>':'')+'</td></tr>'; }).join('');
+      box.innerHTML = head +
+        '<div class="mg-tbwrap"><table class="mg-table mg-rpt"><thead><tr>'+
+          '<th class="ce">ลำดับ</th><th class="lft">ประเภทการลา</th><th class="ce">สิทธิ์ประจำปี</th>'+
+          '<th class="ce">ใช้ไป</th><th class="ce">คงเหลือ</th>'+
+        '</tr></thead><tbody>'+rows+'</tbody></table></div>'+
+        '<div class="mg-sub2" style="margin-top:8px">"ใช้ไป" นับจากใบลาที่อนุมัติจริงในปีนี้ · ติดลบ = ใช้เกินสิทธิ์</div>';
+    }
+    var qb = document.querySelector('[data-equota]');
+    if(qb) qb.addEventListener('click', function(){ openQuotaModal(u.empId); });
+  }).catch(function(e){
+    var box = document.getElementById('empLeaveBox'); if(!box) return;
+    box.innerHTML = '<div class="card-title"><span class="ic"></span>สิทธิ์การลาปีนี้</div>'+
+      '<div class="mg-sub2">'+esc(String(e&&e.message||e))+'</div>';
+  });
 }
 
 /** ปุ่ม "ไม่นับเป็นพนักงาน" — เจ้าของ/ที่ปรึกษา ยังใช้ระบบได้ครบ แค่ไม่เข้าสถิติจำนวนคน */
