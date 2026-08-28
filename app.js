@@ -3075,6 +3075,13 @@ function mockApi(action, params){
       notCounted:1, noLine:2,
       joins:[1,1,1,0,1,2,2,1,0,0,0,0], exits:[0,0,0,1,0,2,1,1,0,0,0,0], joinTotal:9, exitTotal:5});
     else if(action==='emSetCount') resolve({ok:true, summary:'บันทึกแล้ว (mock)'});
+    else if(action==='emSchedule') resolve({ok:true, empId:params&&params.empId,
+      schedule:{code:'S01',label:'กะสำนักงาน จ–ศ',workDays:[1,2,3,4,5],off:[0,6],
+                offLabel:'เสาร์–อาทิตย์',start:'9:00',end:'18:00'},
+      schedules:[{code:'S01',desc:'จ-ศ 09:00-18:00'},{code:'S02',desc:'จ-ส 08:00-17:00'},{code:'RM01',desc:'Remote'}],
+      dowNames:['อา','จ','อ','พ','พฤ','ศ','ส']});
+    else if(action==='emSetSchedule') resolve({ok:true, changed:true, code:params&&params.code,
+      summary:'เปลี่ยนกะแล้ว (mock)'});
     else if(action==='emPayrollSet') resolve({ok:true, changed:['หักภาษี'], summary:'แก้ 1 ช่อง',
       values:{bank:params&&params.bank, bankAcc:params&&params.bankAcc,
               ssoFlag:params&&params.ssoFlag, taxFlag:params&&params.taxFlag}});
@@ -3614,16 +3621,89 @@ function paintEmpJob(box, u){
         '<div class="hist-type">'+esc(j.event)+' <span class="hist-meta">'+esc(j.date)+'</span></div>'+
         (j.detail?'<div class="hist-meta">'+esc(j.detail)+'</div>':'')+
         (j.by?'<div class="hist-meta">โดย '+esc(j.by)+'</div>':'')+'</div></div>'; }).join('');
-    box.innerHTML = '<div class="card">'+
-      '<div class="card-title"><span class="ic"></span>ประวัติการทำงาน</div>'+
-      '<div class="pf-row"><span class="k">สถานะ</span><span class="v"><b>'+
-        (r.employed===null?'—':(r.employed?'ทำงานอยู่':'พ้นสภาพแล้ว'))+'</b></span></div>'+
-      '<div class="pf-row"><span class="k">อายุงาน</span><span class="v">'+esc(r.serviceText||'—')+'</span></div>'+
-      '<button class="btn btn-primary" data-ejobadd style="width:100%;margin:10px 0">➕ บันทึกเหตุการณ์</button>'+
-      (rows||'<div class="mg-sub2">ยังไม่มีประวัติ — กดปุ่มข้างบนเพื่อบันทึกวันเข้างาน</div>')+'</div>';
+    // จับวันสำคัญจากประวัติ — เอาครั้งล่าสุดของแต่ละเหตุการณ์
+    var lastOf = function(ev){
+      var hit = (r.jobs||[]).filter(function(j){ return j.event===ev; });
+      return hit.length ? hit[hit.length-1].date : ''; };
+    var dIn = lastOf('เข้างาน'), dPass = lastOf('ผ่านทดลองงาน');
+    var dOut = lastOf('ลาออก') || lastOf('เลิกจ้าง');
+
+    box.innerHTML =
+      // ── สถานะการทำงาน — ตัวเลขที่ระบบอื่นอ้างอิง (OT · payroll · ใบยื่น) ──
+      '<div class="card"><div class="card-title"><span class="ic"></span>สถานะการทำงาน</div>'+
+        empRow('วันที่เริ่มทำงาน', dIn || u.startDate)+
+        empRow('อายุงาน', r.serviceText||'—')+
+        empRow('วันผ่านทดลองงาน', dPass)+
+        empRow('สถานะปัจจุบัน', r.employed===null?'—':(r.employed?'ทำงานอยู่':'พ้นสภาพแล้ว'))+
+        empRow('วันสุดท้ายที่เป็นพนักงาน', dOut)+
+        '<div class="paste-help">วันลาออก = ยังทำงานวันนั้น (พ้นสภาพวันถัดไป) — กฎเดียวกับที่ payroll ใช้คิดเงินตามวัน</div>'+
+      '</div>'+
+
+      // ── กะเวลาทำงาน — ระบบ OT ใช้ตัดสินวันทำงาน/วันหยุด และอัตรา 1x/1.5x/3x ──
+      '<div class="card" id="empSchedBox"><div class="card-title"><span class="ic"></span>กะเวลาทำงาน</div>'+
+        '<div class="skel" style="height:90px"></div></div>'+
+
+      '<div class="card">'+
+        '<div class="emp-thead"><div class="card-title" style="margin:0"><span class="ic"></span>ประวัติการจ้าง</div>'+
+          '<button class="btn btn-primary btn-sm" data-ejobadd>➕ บันทึกเหตุการณ์</button></div>'+
+        (rows||'<div class="mg-sub2">ยังไม่มีประวัติ — กดปุ่มข้างบนเพื่อบันทึกวันเข้างาน</div>')+'</div>';
     var b = box.querySelector('[data-ejobadd]');
     if(b) b.addEventListener('click', function(){ openJobAdd(u, r.events||[]); });
+    loadEmpSchedule(u);
   }).catch(function(e){ box.innerHTML = emptyBox('😿', String(e.message||e)); });
+}
+
+/** กะเวลาทำงานของพนักงาน — ผูกกับระบบ OT (ชีตอัตราค่าจ้าง col E) */
+function loadEmpSchedule(u){
+  api('emSchedule',{empId:u.empId||''}).then(function(r){
+    var box = document.getElementById('empSchedBox'); if(!box) return;
+    var head = '<div class="emp-thead"><div class="card-title" style="margin:0"><span class="ic"></span>'+
+      'กะเวลาทำงาน</div><button class="btn btn-primary btn-sm" data-eschedset>✏️ เปลี่ยนกะ</button></div>';
+    if(!r.ok){ box.innerHTML = head+'<div class="mg-sub2">'+esc(r.error||'โหลดไม่ได้')+'</div>'; return; }
+
+    var sc = r.schedule;
+    if(!sc){
+      box.innerHTML = head+'<div class="mg-sub2">ยังไม่ได้ผูกกะ — ระบบ OT จะใช้ค่าเริ่มต้น (จันทร์–ศุกร์)</div>';
+    } else {
+      var dn = r.dowNames||['อา','จ','อ','พ','พฤ','ศ','ส'];
+      var work = (sc.workDays||[]).map(function(d){ return dn[d]; }).join(' · ');
+      var off  = (sc.off||[]).map(function(d){ return dn[d]; }).join(' · ');
+      box.innerHTML = head +
+        empRow('รหัสกะ', sc.code)+
+        empRow('ชื่อกะ', sc.label)+
+        empRow('วันทำงาน', work||'—')+
+        empRow('เวลาทำงาน', (sc.start&&sc.end) ? sc.start+' – '+sc.end : '—')+
+        empRow('วันหยุดประจำสัปดาห์', sc.offLabel || off || '—')+
+        '<div class="paste-help">ระบบ OT ใช้กะนี้ตัดสินว่าวันไหนเป็นวันทำงาน/วันหยุด แล้วคิดค่าล่วงเวลา 1x · 1.5x · 3x ตามนั้น</div>';
+    }
+    var sb = box.querySelector('[data-eschedset]');
+    if(sb) sb.addEventListener('click', function(){ openScheduleSet(u, r); });
+  }).catch(function(e){
+    var box = document.getElementById('empSchedBox');
+    if(box) box.innerHTML = '<div class="card-title"><span class="ic"></span>กะเวลาทำงาน</div>'+
+      '<div class="mg-sub2">'+esc(String(e&&e.message||e))+'</div>';
+  });
+}
+
+function openScheduleSet(u, r){
+  var cur = (r.schedule && r.schedule.code) || '';
+  var opts = '<option value="">— ไม่ผูกกะ (ใช้ค่าเริ่มต้น จ–ศ) —</option>'+
+    (r.schedules||[]).map(function(s){
+      return '<option value="'+esc(s.code)+'"'+(s.code===cur?' selected':'')+'>'+
+        esc(s.code)+' — '+esc(s.desc||'')+'</option>'; }).join('');
+
+  modalForm({ emoji:'⏰', title:'เปลี่ยนกะทำงาน · '+esc(u.name), okLabel:'💾 บันทึก',
+    body:'<label class="field-lb">🕘 กะเวลาทำงาน</label>'+
+         '<select id="schCode" class="hr-fsel mg-full">'+opts+'</select>'+
+         '<div class="cfm-note">กะมีผลกับการคิด OT ของรอบที่ยังไม่ปิด — เปลี่ยนแล้วให้กด "คำนวณ OT รอบเดือน" ใหม่</div>',
+    onOk:function(c){
+      var btn=c.querySelector('[data-cfm-ok]'); if(btn){btn.disabled=true;btn.textContent='กำลังบันทึก…';}
+      api('emSetSchedule',{ empId:u.empId||'', name:u.name||'', code:c.querySelector('#schCode').value })
+        .then(function(res){
+          if(!res.ok){ if(btn){btn.disabled=false;btn.textContent='💾 บันทึก';} return toast(res.error||'ไม่สำเร็จ','err'); }
+          closeConfirm(); toast(res.summary||'บันทึกแล้ว','ok'); loadEmpSchedule(u);
+        }).catch(function(e){ if(btn){btn.disabled=false;btn.textContent='💾 บันทึก';} toast(String(e.message||e),'err'); });
+    } });
 }
 
 function jobEmoji(ev){
