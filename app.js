@@ -1317,6 +1317,7 @@ function renderDocDash(box, ds){
   var yrs = [];
   for(var y = ds.yearBE + 1; y >= ds.yearBE - 2; y--) yrs.push(y);
   var monthSel =
+    '<span class="mg-sub2" style="align-self:center">รอบ</span>'+
     '<select id="docMonthSel" class="hr-fsel">' + MO.map(function(nm,i){
       return '<option value="'+(i+1)+'"'+(ds.month===i+1?' selected':'')+'>'+nm+'</option>'; }).join('') + '</select>' +
     '<select id="docYearSel" class="hr-fsel">' + yrs.map(function(y){
@@ -1338,9 +1339,10 @@ function renderDocDash(box, ds){
         '<div class="emp-thead"><div class="card-title" style="margin:0"><span class="ic"></span>'+
           'เอกสารที่ยังไม่ได้รับการอนุมัติ</div>'+
           '<div class="doc-sel">'+monthSel+'</div></div>'+
+        (ds.periodLabel ? '<div class="mg-sub2" style="margin-bottom:8px">📅 '+esc(ds.periodLabel)+'</div>' : '')+
         '<div class="doc-pgrid">'+pendCards+'</div>'+
-        '<div class="paste-help">ใบลา/ใบ OT นับตามเดือนที่เลือก · คำขอลงทะเบียนและขอสิทธิ์ลา'+
-          'ไม่มีเดือนกำกับ จึงนับที่ค้างทั้งหมด</div>'+
+        '<div class="paste-help">นับตามรอบ 26–25 เกณฑ์เดียวกับทั้งระบบ (ใบลา = วันเริ่มลา · OT = วันที่ทำ)'+
+          ' · คำขอลงทะเบียนและขอสิทธิ์ลาไม่มีรอบกำกับ จึงนับที่ค้างทั้งหมด</div>'+
       '</div>'+
     '</div>';
 
@@ -3211,6 +3213,7 @@ function mockApi(action, params){
       joins:[1,1,1,0,1,2,2,1,0,0,0,0], exits:[0,0,0,1,0,2,1,1,0,0,0,0], joinTotal:9, exitTotal:5});
     else if(action==='emSetCount') resolve({ok:true, summary:'บันทึกแล้ว (mock)'});
     else if(action==='hrDocStats') resolve({ok:true, month:(params&&params.month)||8, yearBE:(params&&params.yearBE)||2569,
+      periodLabel:'26/7 – 25/8/2569',
       total:642, byKind:{leave:412,ot:198,register:24,unpaidReq:8},
       pendingByKind:{leave:2,ot:1,register:2,unpaidReq:0}});
     else if(action==='emPhotoSync') resolve({ok:true, updated:9, failed:1, summary:'อัปเดตรูป 9 คน · ดึงไม่ได้ 1 คน'});
