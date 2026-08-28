@@ -2565,20 +2565,26 @@ function paintEmpTable(){
 
   var rows = list.map(function(u,i){
     var isLeft = String(u.status||'').indexOf('ลาออก') >= 0;
-    var isSelf = u.lineUserId === S.adminCaller;
+    var isSelf = u.lineUserId && u.lineUserId === S.adminCaller;
+    // คนที่ยังไม่ผูก LINE ไม่มี lineUserId ให้อ้าง — ใช้เลขบัตรเป็นกุญแจแทน
+    var okey = empKeyOf(u);
     return '<tr class="mg-tr">'+
       '<td class="ce mg-sub2">'+(i+1)+'</td>'+
       '<td class="ce"><span class="emp-code">'+esc(u.empId||'-')+'</span></td>'+
-      '<td class="lft"><a class="emp-link" data-eopen="'+esc(u.lineUserId)+'"><b>'+esc(u.name)+'</b></a>'+
-        (isSelf?' <span class="re-badge">คุณ</span>':'')+'</td>'+
+      '<td class="lft"><a class="emp-link" data-eopen="'+esc(okey)+'"><b>'+esc(u.name)+'</b></a>'+
+        (isSelf?' <span class="re-badge">คุณ</span>':'')+
+        (u.notCounted?' <span class="pill" title="'+esc(u.notCountedReason||'ไม่นับเป็นพนักงาน')+'">ไม่นับ</span>':'')+
+        (u.hasLine===false?'<div class="mg-sub2">ยังไม่ผูก LINE</div>':'')+'</td>'+
       '<td class="lft">'+esc(u.position||'-')+'</td>'+
       '<td class="lft">'+esc(u.dept||'-')+'</td>'+
       '<td class="ce">'+(isLeft
           ? '<span class="pill">ลาออก</span>'+(u.resignDate?'<div class="mg-sub2">'+esc(u.resignDate)+'</div>':'')
           : '<span class="pill ok">ทำงานอยู่</span>')+'</td>'+
       '<td class="mg-actcell"><div class="mg-acts2">'+
-        '<button class="mg-ib edit" data-eopen="'+esc(u.lineUserId)+'">✏️ เปิด</button>'+
-        '<button class="mg-ib" data-srole="'+esc(u.lineUserId)+'">👤 บทบาท</button>'+
+        '<button class="mg-ib edit" data-eopen="'+esc(okey)+'">✏️ เปิด</button>'+
+        (u.hasLine===false
+          ? '<button class="mg-ib" disabled title="ต้องผูก LINE ก่อนถึงตั้งบทบาทได้">👤 บทบาท</button>'
+          : '<button class="mg-ib" data-srole="'+esc(u.lineUserId)+'">👤 บทบาท</button>')+
         '<button class="mg-ib" data-squota="'+esc(u.empId)+'">🏖️ โควต้า</button>'+
       '</div></td></tr>'; }).join('');
 
@@ -3049,12 +3055,16 @@ function mockApi(action, params){
               {name:'Graphic Design',count:1},{name:'คลังสินค้า',count:1},{name:'จัดซื้อ',count:1},
               {name:'บัญชี',count:1},{name:'บุคคล',count:1},{name:'ผู้ช่วยผู้บริหาร',count:1},
               {name:'ยิงแอด',count:1},{name:'แอดมินเพจ',count:1}],
+      notCounted:1, noLine:2,
       joins:[1,1,1,0,1,2,2,1,0,0,0,0], exits:[0,0,0,1,0,2,1,1,0,0,0,0], joinTotal:9, exitTotal:5});
+    else if(action==='emSetCount') resolve({ok:true, summary:'บันทึกแล้ว (mock)'});
     else if(action==='adminBootstrap') resolve({ok:true,callerId:'MOCK',ownerCount:1,
       schedules:[{code:'S01',desc:'จ-ศ 09:00-18:00'},{code:'S02',desc:'จ-ส 08:00-17:00'},{code:'RM01',desc:'Remote'}],
       roles:['EMPLOYEE','REVIEWER','APPROVER','ADMIN','OWNER'],leaveTypes:MOCK_LT,
       users:[
-        {lineUserId:'MOCK',name:'นางสาวชนัญชิดา โชคธนอนันต์',empId:'1100100100101',dept:'สำนักงานใหญ่',email:'mock@theelf.co',role:'OWNER',startDate:'01/01/2566',branch:'สนญ.',status:'ปกติ',position:'CEO',ssoFlag:'ไม่ใช่',taxFlag:'ใช่',bank:'ไทยพาณิชย์',bankAcc:'1234567890',quota:{sick:30,biz:3,vac:6,bday:1,special:1,unpaid:3}},
+        {lineUserId:'MOCK',name:'นางสาวชนัญชิดา โชคธนอนันต์',empId:'1100100100101',dept:'สำนักงานใหญ่',email:'mock@theelf.co',role:'OWNER',startDate:'01/01/2566',branch:'สนญ.',status:'ทำงานอยู่',statusSource:'ประวัติการจ้าง',hasLine:true,notCounted:true,notCountedReason:'เจ้าของบริษัท',position:'CEO',ssoFlag:'ไม่ใช่',taxFlag:'ใช่',bank:'ไทยพาณิชย์',bankAcc:'1234567890',quota:{sick:30,biz:3,vac:6,bday:1,special:1,unpaid:3}},
+        // คนที่ยังไม่ผูก LINE (รปภ./แม่บ้าน) — ต้องขึ้นในรายชื่อได้แม้ไม่มี LineUserID
+        {lineUserId:'',name:'นายวิชาญ จันทร์นวล',empId:'3330900441374',dept:'ปฏิบัติการ',email:'',role:'EMPLOYEE',startDate:'26/12/2568',branch:'สนญ.',status:'ทำงานอยู่',statusSource:'ชีตพนักงาน',hasLine:false,notCounted:false,position:'รักษาความปลอดภัย',ssoFlag:'ใช่',taxFlag:'ใช่',bank:'ไทยพาณิชย์',bankAcc:'4291934333',quota:{sick:30,biz:3,vac:6,bday:1,special:1,unpaid:3}},
         {lineUserId:'MOCK2',name:'นายพงศกร วัฒนไพศาล',empId:'1100200200202',dept:'Developers',email:'mock2@theelf.co',role:'ADMIN',startDate:'15/03/2567',branch:'สนญ.',status:'ปกติ',position:'Tech Lead',ssoFlag:'ใช่',taxFlag:'ใช่',bank:'กสิกรไทย',bankAcc:'9876543210',quota:{sick:30,biz:3,vac:6,bday:1,special:1,unpaid:3}},
         {lineUserId:'MOCK3',name:'นางสาวปิยะฉัตร ทองแท้',empId:'1100300300303',dept:'CRM & Telesale',email:'mock3@theelf.co',role:'APPROVER',startDate:'01/06/2567',branch:'สนญ.',status:'ปกติ',position:'หัวหน้าทีม CRM',ssoFlag:'ใช่',taxFlag:'ใช่',bank:'กสิกรไทย',bankAcc:'1112223330',quota:{sick:30,biz:3,vac:6,bday:1,special:1,unpaid:3}},
         {lineUserId:'MOCK4',name:'นายอรรถพล ศรีสุวรรณ',empId:'1100400400404',dept:'CRM & Telesale',email:'mock4@theelf.co',role:'EMPLOYEE',startDate:'16/09/2567',branch:'สนญ.',status:'ปกติ',position:'Telesale',ssoFlag:'ใช่',taxFlag:'ไม่ใช่',bank:'กรุงไทย',bankAcc:'2223334440',quota:{sick:30,biz:3,vac:6,bday:1,special:1,unpaid:3}},
@@ -3325,8 +3335,14 @@ var EMP_TABS = [
   { key:'tax',    label:'🧾 ลดหย่อนภาษี' },
 ];
 
-function openEmpPage(lineUserId){
-  var u = (S.adminUsers||[]).filter(function(x){ return x.lineUserId===lineUserId; })[0];
+/** กุญแจอ้างพนักงาน — มี LINE ใช้ lineUserId · ไม่มีก็ใช้เลขบัตร (ไม่งั้นคนไม่มี LINE ชนกันหมด) */
+function empKeyOf(u){ return u.lineUserId || ('emp:'+(u.empId||'')); }
+
+function openEmpPage(key){
+  var list = S.adminUsers||[];
+  var u = String(key).indexOf('emp:')===0
+    ? list.filter(function(x){ return String(x.empId)===String(key).slice(4); })[0]
+    : list.filter(function(x){ return x.lineUserId===key; })[0];
   if(!u){ toast('ไม่พบพนักงานคนนี้','err'); return; }
   S.empPage = { user:u, tab:(S.empPage && S.empPage.tab) || 'info' };
   renderEmpPage();
@@ -3375,8 +3391,15 @@ function paintEmpInfo(box, u){
       empRow('สาขา', u.branch)+
       empRow('อีเมล', u.email)+
       empRow('วันที่เริ่มงาน', u.startDate)+
-      empRow('สถานะ', u.status)+
+      empRow('สถานะ', u.status + (u.statusSource?' (จาก'+u.statusSource+')':''))+
       empRow('บทบาทในระบบ', u.role)+
+      empRow('ผูก LINE แล้ว', u.hasLine===false ? 'ยัง — ใช้ระบบผ่านมือถือไม่ได้' : 'ผูกแล้ว')+
+      '<div class="pf-row"><span class="k">นับเป็นพนักงาน</span><span class="v">'+
+        (u.notCounted
+          ? '<span class="pill">ไม่นับ</span> '+esc(u.notCountedReason||'')
+          : '<span class="pill ok">นับปกติ</span>')+
+        ' <button class="mg-ib" data-ecount="1" style="margin-left:8px">'+
+          (u.notCounted?'กลับมานับ':'ตั้งเป็นไม่นับ')+'</button></span></div>'+
     '</div>'+
 
     '<div class="card"><div class="card-title"><span class="ic"></span>โควต้าลาปีนี้</div>'+
@@ -3385,6 +3408,53 @@ function paintEmpInfo(box, u){
         '<div class="chip"><div class="chip-v">'+(q.biz!=null?q.biz:'—')+'</div><div class="chip-l">ลากิจ</div></div>'+
         '<div class="chip"><div class="chip-v">'+(q.vac!=null?q.vac:'—')+'</div><div class="chip-l">พักร้อน</div></div>'+
       '</div></div>';
+  wireEmpCountBtn(u);
+}
+
+/** ปุ่ม "ไม่นับเป็นพนักงาน" — เจ้าของ/ที่ปรึกษา ยังใช้ระบบได้ครบ แค่ไม่เข้าสถิติจำนวนคน */
+function wireEmpCountBtn(u){
+  var b = document.querySelector('[data-ecount]'); if(!b) return;
+  b.addEventListener('click', function(){
+    if(!u.empId){ toast('คนนี้ยังไม่มีเลขบัตรในระบบ ตั้งค่านี้ไม่ได้','err'); return; }
+
+    if(u.notCounted){
+      modalForm({ emoji:'🔢', title:'กลับมานับเป็นพนักงาน', okLabel:'✅ นับตามปกติ',
+        body:'<div class="cfm-note">ให้ <b>'+esc(u.name)+'</b> กลับมานับรวมในจำนวนพนักงานอีกครั้ง</div>',
+        onOk:function(){ closeConfirm(); submitEmpCount(u, false, ''); } });
+      return;
+    }
+
+    modalForm({ emoji:'🔢', title:'ไม่นับเป็นพนักงาน', okLabel:'✅ บันทึก',
+      body:'<div class="cfm-note">'+esc(u.name)+' จะยังใช้ระบบได้ทุกอย่าง (ลา · OT · สลิป) '+
+           'แค่ไม่ถูกนับในจำนวนพนักงานหน้าภาพรวม</div>'+
+           '<label class="field-lb">📝 เหตุผล</label>'+
+           '<select id="ecReason" class="hr-fsel mg-full">'+
+             '<option>เจ้าของบริษัท</option><option>ที่ปรึกษา</option>'+
+             '<option>ผู้ดูแลระบบ</option><option value="__other__">อื่นๆ (ระบุเอง)</option>'+
+           '</select>'+
+           '<input id="ecOther" class="hr-fdate mg-full" placeholder="ระบุเหตุผล" style="display:none;margin-top:8px">',
+      onMount:function(c){
+        var sel=c.querySelector('#ecReason'), oth=c.querySelector('#ecOther');
+        sel.addEventListener('change', function(){
+          oth.style.display = sel.value==='__other__' ? 'block' : 'none'; });
+      },
+      onOk:function(c){
+        var sel=c.querySelector('#ecReason'), oth=c.querySelector('#ecOther');
+        var why = sel.value==='__other__' ? String(oth.value||'').trim() : sel.value;
+        if(!why){ toast('ระบุเหตุผลด้วยค่ะ','err'); return; }
+        closeConfirm(); submitEmpCount(u, true, why);
+      } });
+  });
+}
+
+function submitEmpCount(u, exclude, reason){
+  api('emSetCount',{ empId:u.empId, name:u.name, exclude: exclude?'1':'0', reason:reason }).then(function(r){
+    if(!r.ok){ toast(r.error||'บันทึกไม่สำเร็จ','err'); return; }
+    toast(r.summary||'บันทึกแล้ว');
+    u.notCounted = exclude; u.notCountedReason = reason;
+    renderEmpPage();
+    loadEmpDash();                       // ตัวเลขในภาพรวมต้องขยับตามทันที
+  }).catch(function(e){ toast(String(e&&e.message||e),'err'); });
 }
 
 function paintEmpSalary(box, u){
@@ -3684,6 +3754,10 @@ function paintEmpDash(){
           '<div class="chip"><div class="chip-v">'+r.active+'</div><div class="chip-l">ทำงานอยู่</div></div>'+
           '<div class="chip"><div class="chip-v">'+r.left+'</div><div class="chip-l">ลาออกแล้ว</div></div>'+
           '<div class="chip"><div class="chip-v">'+r.byDept.length+'</div><div class="chip-l">แผนก</div></div>'+
+          (r.notCounted ? '<div class="chip"><div class="chip-v">'+r.notCounted+'</div>'+
+            '<div class="chip-l">ไม่นับเป็นพนักงาน</div></div>' : '')+
+          (r.noLine ? '<div class="chip"><div class="chip-v">'+r.noLine+'</div>'+
+            '<div class="chip-l">ยังไม่ผูก LINE</div></div>' : '')+
         '</div>'+
         deptDonut(r.byDept, r.active)+
       '</div>'+
