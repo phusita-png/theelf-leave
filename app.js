@@ -237,8 +237,9 @@ function setupNavRoles(){
 }
 // ════════════ HELP OVERLAY (คู่มือในแอป · ตาม role) ════════════
 function helpUrl(){
-  // HR/ผู้อนุมัติ → คู่มือ HR (ครบ 3 + อนุมัติ) · พนักงานทั่วไป → คู่มือพนักงาน
-  return (S.profile && S.profile.canApprove) ? 'guides/hr/index.html' : 'guides/employee/index.html';
+  // ชี้ไป "หน้ารวมคู่มือ" ทั้ง 2 role — หน้านั้นแยกฝั่งพนักงาน/HR ให้อยู่แล้ว
+  // (ของเดิมชี้ตรงไปเล่มเก่า พอมีเล่มใหม่เพิ่มมาก็ไม่มีใครเห็น ต้องตามแก้ทุกครั้ง)
+  return 'guides/index.html';
 }
 function bindHelp(){
   var fab = document.getElementById('helpFab');
