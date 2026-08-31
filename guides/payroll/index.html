@@ -348,6 +348,19 @@
     <div class="sec-title"><span class="n">฿</span> เข้าใจภาษีหัก ณ ที่จ่าย</div>
     <div class="sec-sub">ทำไมเพิ่มรายได้แล้วภาษีไม่ขยับ — อ่านอันนี้</div>
 
+    <div class="note warn"><span class="ic">🆕</span><div>
+      <b>ตั้งแต่รอบเดือน 8/2569 เป็นต้นไป — ภาษีไม่ได้มาจากสูตรในชีตแล้ว</b><br>
+      ระบบคิดภาษีให้ในโค้ด แล้วเขียน <b>ค่า</b> ลงคอลัมน์ภาษี (col T) แทนสูตรเดิม
+      ผ่านเมนู <b>📂 ภาษี ▸ 🧾 เขียนภาษีลง col T</b> (บนเว็บคือขั้น 🧾 คิดภาษี)<br>
+      ข้อดีคือคิด <b>ค่าลดหย่อนรายคน</b> ได้ (ประกัน กองทุน บุตร ฯลฯ) ไม่ใช่ลดหย่อนส่วนตัวอย่างเดียว
+      — กรอกค่าลดหย่อนที่หน้า 👥 พนักงาน แท็บ 🧾 ลดหย่อนภาษี
+    </div></div>
+    <div class="note tip"><span class="ic">⏰</span><div>
+      <b>ลำดับสำคัญ:</b> คิดภาษี <b>หลัง</b> เงินได้ครบทุกช่อง และ <b>ก่อน</b> ตรวจทะเบียน/อัปเดต YTD
+      · เดือนที่จ่ายเงินหรือส่งสลิปไปแล้ว ระบบจะไม่ยอมเขียนทับให้
+    </div></div>
+
+
     <div class="bd" style="margin-bottom:14px">ระบบคิดภาษีแบบ <b>"คิดทั้งปี แล้วหาร 12"</b> (วิธีหัก ณ ที่จ่ายมาตรฐานสรรพากร):</div>
     <div class="menu-path" style="flex-wrap:wrap">
       <span class="step">(เงินเดือน+OT+incentive+ตกเบิก)×12</span>
@@ -392,9 +405,12 @@
         <tr><td data-label="ลำดับ"><span class="seq b">3</span></td><td data-label="ไฟล์" class="col-a">💰 Payroll</td><td data-label="กดอะไร">❷ ดึง OT จากระบบ OT</td></tr>
         <tr><td data-label="ลำดับ"><span class="seq b">4</span></td><td data-label="ไฟล์" class="col-a">💰 Payroll</td><td data-label="กดอะไร">Pro-rate ▸ 💸 <b>ดึงวันลาไม่รับเงิน</b> <small>(เขียนวันลง col AI)</small></td></tr>
         <tr><td data-label="ลำดับ"><span class="seq b">5</span></td><td data-label="ไฟล์" class="col-a">💰 Payroll</td><td data-label="กดอะไร">Pro-rate ▸ 💵 <b>คำนวณเงินเดือนตามจำนวนวัน</b> <small>(หักเงินจริง — ห้ามข้าม)</small></td></tr>
-        <tr><td data-label="ลำดับ"><span class="seq b">5</span></td><td data-label="ไฟล์" class="col-a">💰 Payroll</td><td data-label="กดอะไร">❸ อัปเดต YTD สะสม</td></tr>
-        <tr><td data-label="ลำดับ"><span class="seq b">6</span></td><td data-label="ไฟล์" class="col-a">💰 Payroll</td><td data-label="กดอะไร">❹ สร้างสลิป PDF → ตรวจ</td></tr>
-        <tr><td data-label="ลำดับ"><span class="seq b">7</span></td><td data-label="ไฟล์" class="col-a">💰 Payroll</td><td data-label="กดอะไร">❺ ส่ง Email + LINE</td></tr>
+        <tr><td data-label="ลำดับ"><span class="seq b">6</span></td><td data-label="ไฟล์" class="col-a">💰 Payroll</td><td data-label="กดอะไร">📂 พนักงาน/ทะเบียน ▸ 💳 <b>ดึงยอด กยศ.</b> <span class="muted">(ทุกเดือน — ช่องนี้ถูกล้างตอนสร้างเดือนใหม่)</span></td></tr>
+        <tr><td data-label="ลำดับ"><span class="seq b">7</span></td><td data-label="ไฟล์" class="col-a">💰 Payroll</td><td data-label="กดอะไร">📂 ภาษี ▸ 🧾 <b>เขียนภาษีลง col T</b> <span class="muted">(หลังเงินได้ครบ · ก่อนตรวจ/YTD)</span></td></tr>
+        <tr><td data-label="ลำดับ"><span class="seq b">8</span></td><td data-label="ไฟล์" class="col-a">💰 Payroll</td><td data-label="กดอะไร">📂 ตรวจสอบก่อนจ่าย ▸ 🔍 <b>ตรวจทะเบียน 13 ข้อ</b> <span class="muted">(🔴 ต้องแก้ก่อนจ่าย)</span></td></tr>
+        <tr><td data-label="ลำดับ"><span class="seq b">9</span></td><td data-label="ไฟล์" class="col-a">💰 Payroll</td><td data-label="กดอะไร">❸ อัปเดต YTD สะสม</td></tr>
+        <tr><td data-label="ลำดับ"><span class="seq b">10</span></td><td data-label="ไฟล์" class="col-a">💰 Payroll</td><td data-label="กดอะไร">❹ สร้างสลิป PDF → ตรวจ</td></tr>
+        <tr><td data-label="ลำดับ"><span class="seq b">11</span></td><td data-label="ไฟล์" class="col-a">💰 Payroll</td><td data-label="กดอะไร">❺ ส่ง Email + LINE</td></tr>
       </tbody>
     </table>
   </div>
@@ -430,8 +446,14 @@
       <tbody>
         <tr><td data-label="งาน" class="t">📦 ส่งออกทะเบียนจ่าย</td><td data-label="ทำอะไร">ออกไฟล์ Excel ทะเบียนจ่ายทั้งปี (3 sheets)</td></tr>
         <tr><td data-label="งาน" class="t">📊 สร้าง ภ.ง.ด.1ก</td><td data-label="ทำอะไร">สรุปภาษีหัก ณ ที่จ่ายรายปี ยื่นสรรพากร</td></tr>
+        <tr><td data-label="งาน" class="t">🧾 ออก 50 ทวิ</td><td data-label="ทำอะไร">หนังสือรับรองหักภาษี ณ ที่จ่ายให้พนักงานไว้ยื่นภาษีบุคคลธรรมดา · ได้ PDF คนละ 2 ฉบับ แล้วส่งให้ทาง Email/LINE ได้เลย<br><span class="muted">คนลาออกกลางปีใช้ “ออก 50 ทวิ รายคน” — ต้องออกภายใน 1 เดือนนับจากวันออกจากงาน</span></td></tr>
+        <tr><td data-label="งาน" class="t">🏭 สร้าง กท.20</td><td data-label="ทำอะไร">แบบแสดงเงินค่าจ้างประจำปี ยื่นประกันสังคมภายใน ก.พ. · ตารางมีทั้งค่าจ้างจริงและค่าจ้างที่ใช้ยื่น (ตัดเพดาน 240,000/คน/ปี)<br><span class="muted">ระบบไม่คำนวณเงินสมทบให้ — HR กรอกอัตราเองในแบบราชการ</span></td></tr>
       </tbody>
     </table>
+    <div class="note tip"><span class="ic">📚</span><div>
+      เอกสารประจำปีทำบน <b>หน้าเว็บ</b> ได้แล้ว (แท็บรายงานย้อนหลัง → การ์ดเอกสารประจำปี) ·
+      ขั้นตอนละเอียดดู <a href="../hr-new/#wht">คู่มือของใหม่ใน HR Console</a>
+    </div></div>
     <div class="note tip"><span class="ic">🔐</span><div>เมนู <b>📂 พนักงาน/ทะเบียน</b> มีเครื่องมือดูแลข้อมูล: ดึงเลขบัตร · ดึง LineUserID · <b>ตรวจการผูก LINE↔พนักงาน</b> (กันสลิปหลุดข้ามคน) — ทำเมื่อมีพนักงานเข้าใหม่/เปลี่ยน LINE</div></div>
   </div>
 
