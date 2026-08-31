@@ -1046,7 +1046,7 @@ function loadHr(){
   api('hrDashboard',{}).then(function(r){
     var m=document.getElementById('main'); if(!m) return;
     if(!r.ok){ m.innerHTML = backBar()+emptyBox('🔒', r.error||'ไม่มีสิทธิ์'); bindBack(); return; }
-    m.innerHTML = backBar()+'<div id="pendRegSlot"></div><div id="unpaidReqSlot"></div>'+renderHr(r); bindBack(); wireHrPending(); wireHrHistTabs(); wireHrSumFilter(); loadDocDash();
+    m.innerHTML = backBar()+'<div id="pendRegSlot"></div><div id="lineChgSlot"></div><div id="unpaidReqSlot"></div>'+renderHr(r); bindBack(); wireHrPending(); wireHrHistTabs(); wireHrSumFilter(); loadDocDash();
     loadPendingRegs(); loadUnpaidReqs(); loadHrHistory();
   }).catch(function(e){ var m=document.getElementById('main'); if(m){ m.innerHTML=backBar()+emptyBox('😿',String(e.message||e)); bindBack(); } });
 }
@@ -1073,6 +1073,63 @@ function loadPendingRegs(){
     slot.innerHTML = renderPendingRegs(r.pending);
     wirePendingRegs();
   }).catch(function(){});
+  loadLineChanges();
+}
+// 📱 คำขอเปลี่ยน LINE (พนักงานคนเดิม เครื่อง/บัญชีใหม่) — แทรกใต้การ์ดลงทะเบียน
+function loadLineChanges(){
+  api('lineChangeList',{}).then(function(r){
+    var slot=document.getElementById('lineChgSlot');
+    if(!slot || !r.ok){ return; }
+    slot.innerHTML = r.count ? renderLineChanges(r.pending) : '';
+    if(r.count) wireLineChanges();
+  }).catch(function(){});
+}
+function renderLineChanges(list){
+  var canAdmin = S.profile && S.profile.canAdmin;
+  var rows = list.map(function(x){
+    var d = 'data-lcuid="'+esc(x.newUserId)+'" data-lcname="'+esc(x.typedName)+'"';
+    // เปลี่ยนตัวตน = ADMIN/OWNER เท่านั้น (backend กันอีกชั้น) · คนอื่นเห็นได้แต่กดไม่ได้
+    var acts = canAdmin
+      ? '<div class="pend-act"><button class="pend-btn no" data-lcno="1" '+d+'>❌ ปฏิเสธ</button>'+
+        '<button class="pend-btn ok" data-lcok="1" '+d+'>✅ อนุมัติ</button></div>'
+      : '<div class="hr-note">ℹ️ ต้องเป็น ADMIN/OWNER ถึงจะอนุมัติการเปลี่ยน LINE ได้</div>';
+    return '<div class="pend"><div class="pend-top"><div class="hist-ic">📱</div><div class="hist-main">'+
+      '<div class="hist-type">'+esc(x.typedName)+'</div>'+
+      '<div class="hist-meta">'+(x.lineDisplay?'LINE ใหม่: '+esc(x.lineDisplay)+' · ':'')+esc(x.submittedAt)+'</div>'+
+      '<div style="margin-top:5px"><span class="badge no">📱 ขอย้ายไป LINE เครื่องใหม่'+
+      (x.empId?' · '+esc(x.empId):'')+'</span></div></div></div>'+acts+'</div>'; }).join('');
+  return '<div class="card"><div class="card-title"><span class="ic"></span>📱 คำขอเปลี่ยน LINE ('+list.length+')</div>'+rows+
+    '<div class="hr-note ok2">⚠️ โทรหรือทักเจ้าตัวยืนยันก่อนอนุมัติทุกครั้ง — ถ้าไม่ใช่เจ้าตัวคือมีคนพยายามสวมรอย</div></div>';
+}
+function wireLineChanges(){
+  document.querySelectorAll('[data-lcok]').forEach(function(el){
+    el.addEventListener('click', function(){ decideLineChange(el.dataset.lcuid, el.dataset.lcname, 'approve'); }); });
+  document.querySelectorAll('[data-lcno]').forEach(function(el){
+    el.addEventListener('click', function(){ decideLineChange(el.dataset.lcuid, el.dataset.lcname, 'reject'); }); });
+}
+function decideLineChange(uid, name, decision){
+  var send = function(){
+    toast('กำลังดำเนินการ…');
+    api('lineChangeDecide',{targetUserId:uid, decision:decision}).then(function(r){
+      if(!r.ok){ if(r.already) loadHr(); return toast(r.error||'ทำรายการไม่สำเร็จ','err'); }
+      toast((decision==='approve'?'✅ เปลี่ยน LINE ให้ ':'❌ ปฏิเสธคำขอของ ')+name+' แล้ว','ok');
+      loadHr();
+    }).catch(function(e){ toast(String(e.message||e),'err'); });
+  };
+  if(decision==='approve'){
+    confirmModal({ title:'ยืนยันเปลี่ยน LINE', emoji:'📱', accent:'leave',
+      onConfirm:send, rows:[
+        {k:'พนักงาน', v:name},
+        {k:'ยืนยันตัวตนแล้ว?', v:'ต้องแน่ใจว่าเป็นเจ้าตัวจริง'},
+        {k:'ผลลัพธ์', v:'ย้าย LINE + อัปเดตสลิปเงินเดือน · ประวัติอยู่ครบ'}
+      ]});
+  } else {
+    confirmModal({ title:'ยืนยันปฏิเสธคำขอ', emoji:'❌', accent:'leave',
+      onConfirm:send, rows:[
+        {k:'ผู้ขอ', v:name},
+        {k:'ผลลัพธ์', v:'แจ้งกลับผู้ขอให้ติดต่อ HR'}
+      ]});
+  }
 }
 function renderPendingRegs(list){
   var canAdmin = S.profile && S.profile.canAdmin;
@@ -3343,6 +3400,10 @@ function mockApi(action, params){
     else if(action==='pendingRegistrations') resolve({ok:true,count:2,pending:[
       {userId:'MOCKP1',typedName:'นภา สดใส',lineDisplay:'Napa S.',submittedAt:'09/06/2569 08:10',matched:true,empId:'EMP-010',dept:'ฝ่ายขาย'},
       {userId:'MOCKP2',typedName:'ก้อง พากเพียร',lineDisplay:'Kong',submittedAt:'09/06/2569 08:25',matched:false,empId:'',dept:''}]});
+    else if(action==='lineChangeList') resolve({ok:true,count:1,pending:[
+      {newUserId:'Unew001',typedName:'สมชาย ใจดี',lineDisplay:'Somchai',empId:'1100100100101',
+       oldUserId:'Uold001',submittedAt:'31/08/2569 10:20'}]});
+    else if(action==='lineChangeDecide') resolve({ok:true,name:'(mock)',status:params.decision==='approve'?'approved':'rejected',payrollUpdated:true});
     else if(action==='decideRegistration') resolve({ok:true,name:'(mock)',status:params.decision==='approve'?'approved':'rejected'});
     else if(action==='addEmployeeApprove') resolve({ok:true,fullName:(params&&params.name||'')+' '+(params&&params.lastName||''),written:['โควต้าลา','วันลาคงเหลือ','payroll','OT'],linked:true,warnings:[]});
     else if(action==='hrSummary') resolve({ok:true,mode:params.mode,label:'(ตัวอย่าง) '+({period:'รอบ 26–25',month:'รายเดือน',year:'รายปี',range:'ช่วงวันที่'}[params.mode]||''),
