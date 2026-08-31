@@ -148,6 +148,17 @@ var TEMPLATE = [
         '</div>',
         '<div class="tbl-scroll" id="pay-yearWrap"></div>',
       '</div>',
+      '<div class="card" style="margin-bottom:20px">',
+        '<div class="card-hd">',
+          '<h2>เอกสารประจำปี</h2>',
+          '<span class="sub">50 ทวิ · กท.20 — ยอดมาจากทะเบียนทั้งปี ชุดเดียวกับ ภ.ง.ด.1ก</span>',
+        '</div>',
+        '<div class="yr-docs">',
+          '<button class="btn btn-ghost sm" id="pay-btnWht">🧾 ออก 50 ทวิ</button>',
+          '<button class="btn btn-ghost sm" id="pay-btnWhtSend">📧 ส่ง 50 ทวิ ให้พนักงาน</button>',
+          '<button class="btn btn-ghost sm" id="pay-btnKt20">🏭 กท.20 (กองทุนเงินทดแทน)</button>',
+        '</div>',
+      '</div>',
       '<div class="card">',
         '<div class="card-hd">',
           '<h2>ไฟล์รายงานที่ออกไปแล้ว</h2>',
@@ -195,6 +206,9 @@ function mount(host, opts) {
   $('tabClose').addEventListener('click', function () { goTab('close'); });
   $('tabReports').addEventListener('click', function () { goTab('reports'); });
   $('btnPND1K').addEventListener('click', runExportPND1K);
+  $('btnWht').addEventListener('click', runWhtIssue);
+  $('btnWhtSend').addEventListener('click', runWhtSend);
+  $('btnKt20').addEventListener('click', runKt20);
   $('btnCols').addEventListener('click', toggleCols);
   var bc = $('btnClean'); if (bc) bc.addEventListener('click', startCleanRegister);
   try { S.tableMode = localStorage.getItem('pay_tableMode') || 'slim'; } catch (e) {}
@@ -1516,10 +1530,101 @@ function doExport(title, action, params) {
     if (!r.ok) return showError(title, r.error);
     setModal(title, '✅ สร้างไฟล์แล้ว',
       '<pre class="report">' + esc(r.report || r.summary) + '</pre>' +
-      (r.xlsxUrl ? '<div style="margin-top:13px"><a class="btn btn-primary" style="text-decoration:none;display:inline-block"' +
-                   ' href="' + esc(r.xlsxUrl) + '" target="_blank" rel="noopener">📄 เปิดไฟล์รายงาน</a></div>' : ''),
+      (function () {
+        var url = r.xlsxUrl || r.fileUrl || r.folderUrl || '';   // กท.20 คืน fileUrl · 50 ทวิ คืน folderUrl
+        return url ? '<div style="margin-top:13px"><a class="btn btn-primary" style="text-decoration:none;display:inline-block"' +
+               ' href="' + esc(url) + '" target="_blank" rel="noopener">📄 เปิดไฟล์รายงาน</a></div>' : '';
+      })(),
       btn('เสร็จสิ้น', 'btn-primary', 'closeModal(); loadReports();'));
   }).catch(function (e) { S.busy = false; showError(title, String(e && e.message || e)); });
+}
+
+// ════════════ 📑 เอกสารประจำปี — 50 ทวิ + กท.20 ════════════
+// ยอดทั้งหมดมาจาก whtCertDataCore_ ฝั่ง backend (ชุดเดียวกับ ภ.ง.ด.1ก)
+// ทุกปุ่มเป็น "ดูก่อน → ยืนยัน" เหมือนขั้นปิดเงินเดือน
+
+/** 🧾 ออก 50 ทวิ — ดูรายชื่อ + ด่านตรวจก่อน */
+function runWhtIssue() {
+  var title = '🧾 50 ทวิ ปี ' + S.repYear;
+  openModal(title, 'กำลังตรวจสอบ…', '<div class="empty">กำลังเตรียม…</div>', '');
+
+  api('whtPreview', { yearBE: S.repYear }).then(function (r) {
+    if (!r.ok) return showError(title, r.error);
+
+    var body = '<pre class="report">' + esc(r.report || '') + '</pre>' + whtTable(r.people);
+    // ด่าน 🔴 ยังไม่ผ่าน = ไม่ให้กดออก (backend กันซ้ำอีกชั้น)
+    var foot = btn('ปิด', 'btn-ghost', 'closeModal()') +
+      (r.canIssue ? btn('ออกเอกสาร', 'btn-primary', 'doWhtIssue()') : '');
+    setModal(title, r.canIssue ? 'ตรวจสอบก่อน — ยังไม่ได้ออกเอกสาร' : 'ยังออกไม่ได้ — แก้ 🔴 ก่อนค่ะ', body, foot);
+  }).catch(function (e) { showError(title, String(e && e.message || e)); });
+}
+
+/** ตารางรายคนในหน้าดูก่อนออก (ย่อ ๆ พอให้เห็นว่าใครได้เท่าไร) */
+function whtTable(people) {
+  if (!people || !people.length) return '';
+  var rows = people.map(function (p) {
+    return '<tr><td>' + p.seq + '</td><td class="l">' + esc(p.fullName) + '</td>' +
+           '<td>' + money(p.income) + '</td>' +
+           '<td>' + money(p.tax) + '</td>' +
+           '<td>' + money(p.sso) + '</td>' +
+           '<td class="l">' + p.months.length + ' เดือน</td></tr>';
+  }).join('');
+  // ⚠️ ใช้ table.reg เหมือนตารางอื่นของระบบ + .plain ปิด sticky 2 คอลัมน์แรก (ไม่งั้นทับตัวเลขในโมดัล)
+  return '<div class="tbl-scroll" style="margin-top:12px"><table class="reg plain"><thead><tr>' +
+    '<th>ลำดับ</th><th class="l">ชื่อ-สกุล</th><th>รวมเงินได้</th>' +
+    '<th>ภาษี</th><th>ปกส.</th><th class="l">เดือน</th>' +
+    '</tr></thead><tbody>' + rows + '</tbody></table></div>';
+}
+
+function doWhtIssue() {
+  var title = '🧾 50 ทวิ ปี ' + S.repYear;
+  S.busy = true;
+  setModal(title, 'กำลังออกเอกสาร…', '<div class="empty">กำลังสร้าง PDF ทีละคน อย่าปิดหน้านี้นะคะ</div>', '');
+
+  api('whtIssue', { yearBE: S.repYear, mode: 'commit' }).then(function (r) {
+    S.busy = false;
+    if (!r.ok) return showError(title, r.error);
+    setModal(title, '✅ ออกเอกสารแล้ว',
+      '<pre class="report">' + esc(r.report || r.summary) + '</pre>' +
+      (r.folderUrl ? '<div style="margin-top:13px"><a class="btn btn-primary" style="text-decoration:none;display:inline-block"' +
+                     ' href="' + esc(r.folderUrl) + '" target="_blank" rel="noopener">📁 เปิดโฟลเดอร์เอกสาร</a></div>' : ''),
+      btn('ปิด', 'btn-ghost', 'closeModal(); loadReports();') +
+      btn('ส่งให้พนักงานต่อ', 'btn-primary', 'runWhtSend()'));
+  }).catch(function (e) { S.busy = false; showError(title, String(e && e.message || e)); });
+}
+
+/** 📧 ส่ง 50 ทวิ — เลือกช่องทางได้ (ต้องออกเอกสารไว้ก่อน) */
+function runWhtSend() {
+  var title = '📧 ส่ง 50 ทวิ ปี ' + S.repYear;
+  openModal(title, 'กำลังตรวจสอบ…', '<div class="empty">กำลังเตรียม…</div>', '');
+
+  api('whtSend', { yearBE: S.repYear }).then(function (r) {
+    if (!r.ok) return showError(title, r.error);
+    setModal(title, 'เลือกช่องทางที่จะส่ง',
+      '<pre class="report">' + esc(r.report || '') + '</pre>',
+      btn('ปิด', 'btn-ghost', 'closeModal()') +
+      btn('Email', 'btn-ghost', "doWhtSend('email')") +
+      btn('LINE', 'btn-ghost', "doWhtSend('line')") +
+      btn('ส่งทั้งสองทาง', 'btn-primary', "doWhtSend('both')"));
+  }).catch(function (e) { showError(title, String(e && e.message || e)); });
+}
+
+function doWhtSend(channel) {
+  var title = '📧 ส่ง 50 ทวิ ปี ' + S.repYear;
+  S.busy = true;
+  setModal(title, 'กำลังส่ง…', '<div class="empty">กำลังส่ง อย่าปิดหน้านี้นะคะ</div>', '');
+
+  api('whtSend', { yearBE: S.repYear, channel: channel, mode: 'commit' }).then(function (r) {
+    S.busy = false;
+    if (!r.ok) return showError(title, r.error);
+    setModal(title, '✅ ส่งแล้ว', '<pre class="report">' + esc(r.report || r.summary) + '</pre>',
+      btn('เสร็จสิ้น', 'btn-primary', 'closeModal(); loadReports();'));
+  }).catch(function (e) { S.busy = false; showError(title, String(e && e.message || e)); });
+}
+
+/** 🏭 กท.20 — ใช้ flow ออกไฟล์รายงานร่วมกับ ภ.ง.ด.1ก */
+function runKt20() {
+  exportFlow('🏭 กท.20 ปี ' + S.repYear, 'kt20', { yearBE: S.repYear });
 }
 
 // ════════════ MODAL ════════════
@@ -1752,6 +1857,32 @@ function mockResult(action, params) {
     ] };
   }
 
+  if (action === 'whtPreview' || (action === 'whtIssue' && (!params || params.mode !== 'commit'))) {
+    return { ok: true, dryRun: true, yearBE: (params && params.yearBE) || 2569, canIssue: true,
+      people: [
+        { seq: 1, fullName: 'สมชาย ใจดี',    income: 300000, tax: 12345, sso: 9000, months: [1,2,3,4,5,6,7,8,9,10,11,12] },
+        { seq: 2, fullName: 'สมหญิง รักงาน', income: 216000, tax: 4200,  sso: 9000, months: [1,2,3,4,5,6,7,8,9,10,11,12] },
+      ],
+      report: '(โหมดพรีวิว) 50 ทวิ ปี 2569\nจะออกให้ 2 คน · รวมเงินได้ 516,000.00 บาท' };
+  }
+  if (action === 'whtIssue') {
+    return { ok: true, dryRun: false, issued: 2, failed: [], pending: [], folderUrl: '#',
+      report: '(โหมดพรีวิว) ออก 50 ทวิ แล้ว 2 ฉบับ' };
+  }
+  if (action === 'whtSend') {
+    var whtCommit = params && params.mode === 'commit';
+    return { ok: true, dryRun: !whtCommit, count: 2,
+      sentEmail: whtCommit ? 2 : 0, sentLine: whtCommit ? 2 : 0, errors: [],
+      report: whtCommit ? '(โหมดพรีวิว) ส่งแล้ว email 2 · LINE 2' : '(โหมดพรีวิว) จะส่งให้ 2 คน' };
+  }
+  if (action === 'kt20') {
+    var ktCommit = params && params.mode === 'commit';
+    return { ok: true, dryRun: !ktCommit, yearBE: (params && params.yearBE) || 2569,
+      fileUrl: ktCommit ? '#' : undefined,
+      totals: { emp: 2, wage: 516000, wageCapped: 456000, overCapCount: 1 },
+      report: '(โหมดพรีวิว) กท.20 ปี 2569\nลูกจ้าง 2 คน · ค่าจ้างที่ใช้ยื่น 456,000.00 บาท' };
+  }
+
   var noop = { ok: true, dryRun: params && params.mode !== 'commit',
     report: '(โหมดพรีวิว) ต่อ backend จริงถึงจะทำงานได้ค่ะ\n\nตั้ง PAYROLL_API_URL ใน config.js แล้วเปลี่ยน MOCK เป็น false',
     summary: 'พรีวิว', written: 1, writes: 1, pending: 4, remaining: 0, done: true, results: [] };
@@ -1889,6 +2020,11 @@ return {
   openMonth: openMonth,
   runExportRegister: runExportRegister,
   runExportPND1K: runExportPND1K,
+  runWhtIssue: runWhtIssue,
+  doWhtIssue: doWhtIssue,
+  runWhtSend: runWhtSend,
+  doWhtSend: doWhtSend,
+  runKt20: runKt20,
   doExport: doExport,
   loadMonth: loadMonth,
   loadReports: loadReports,
