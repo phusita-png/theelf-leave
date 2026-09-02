@@ -1198,7 +1198,7 @@ function loadDocuments(){
 var CFG_TABS = [
   { key:'holiday', label:'วันหยุดบริษัท', icon:'calendar', ready:true },
   { key:'company', label:'ข้อมูลบริษัท · ผู้ลงนาม', icon:'building', ready:true },
-  { key:'payroll', label:'ค่าคำนวณเงินเดือน/ภาษี', icon:'calc' },
+  { key:'payroll', label:'ค่าคำนวณเงินเดือน/ภาษี', icon:'calc', ready:true },
   { key:'leave',   label:'โควต้าลามาตรฐาน · กะ', icon:'ticket' },
   { key:'files',   label:'โลโก้ · แบบฟอร์ม', icon:'folder' },
 ];
@@ -1220,6 +1220,7 @@ function paintCfgTab(){
   var box=document.getElementById('cfgBody'); if(!box) return;
   if(S.cfgTab==='holiday') return loadCfgHolidays();
   if(S.cfgTab==='company') return loadCfgCompany();
+  if(S.cfgTab==='payroll') return loadCfgPayroll();
   var t=CFG_TABS.filter(function(x){ return x.key===S.cfgTab; })[0]||{};
   box.innerHTML = viewSoon(ico(t.icon||'settings')+' '+(t.label||'ตั้งค่า'),
     'ยังไม่เปิดใช้ — ตอนนี้แก้ในชีต/Script Properties ตามเดิมได้ค่ะ');
@@ -1407,6 +1408,72 @@ function paintCfgCompany(){
       if(!res.ok) return noticeBox('บันทึกไม่ได้', res.error||'ตรวจข้อมูลอีกครั้งค่ะ', ico('alert'));
       toast(res.count ? ('บันทึกแล้ว '+res.count+' ช่อง') : 'ไม่มีอะไรเปลี่ยน','ok');
       loadCfgCompany();
+    }).catch(function(e){ b.disabled=false; b.innerHTML=ico('save')+' บันทึก'; toast(String(e.message||e),'err'); });
+  });
+}
+
+/** 💰 ค่าคำนวณเงินเดือน/ภาษี — กระทบทุกคนทุกเดือน จึงมีตัวอย่างผลให้ดูก่อนบันทึก */
+function loadCfgPayroll(){
+  var box=document.getElementById('cfgBody'); if(!box) return;
+  box.innerHTML='<div class="card"><div class="skel" style="height:220px"></div></div>';
+  api('cfgPayrollGet',{}).then(function(r){
+    if(!r.ok){ box.innerHTML=emptyBox(ico('alert','e-ico'), r.error||'โหลดไม่ได้'); return; }
+    S.cfgPay=r; paintCfgPayroll();
+  }).catch(function(e){ box.innerHTML=emptyBox(ico('alert','e-ico'), String(e.message||e)); });
+}
+
+function _cfgMoney(n){ return (Number(n)||0).toLocaleString('th-TH',{maximumFractionDigits:2}); }
+function _cfgPct(n){ return (Number(n)*100).toFixed(2).replace(/\.?0+$/,'')+'%'; }
+
+function cfgSampleHtml(sample){
+  var rows=(sample||[]).map(function(s){
+    return '<div class="cfm-row"><span class="cfm-k">เงินเดือน '+_cfgMoney(s.salary)+'</span>'+
+      '<span class="cfm-v">หักประกันสังคม <b>'+_cfgMoney(s.sso)+'</b> บาท</span></div>'; }).join('');
+  return '<div class="set-sec">ตัวอย่างผลที่จะเกิด</div>'+rows;
+}
+
+function paintCfgPayroll(){
+  var box=document.getElementById('cfgBody'); if(!box || !S.cfgPay) return;
+  var r=S.cfgPay;
+  var row=function(f){
+    var shown = f.kind==='rate' ? String(f.value) : String(f.value);
+    return '<div class="set-row col">'+
+      '<label>'+esc(f.label)+(f.kind==='rate'?' <span class="mg-sub2">('+_cfgPct(f.value)+')</span>':'')+'</label>'+
+      '<input type="text" data-payf="'+esc(f.key)+'" value="'+esc(shown)+'" autocomplete="off">'+
+      '<div class="set-hint">'+esc(f.hint||'')+
+        (f.differs ? ' · <b style="color:var(--ot)">ต่างจากค่าที่ใช้กันอยู่ ('+
+            (f.kind==='rate'?_cfgPct(f.ref):_cfgMoney(f.ref))+')</b>' : '')+'</div>'+
+    '</div>'; };
+
+  var mx=r.ssoMax||{};
+  box.innerHTML=
+    '<div class="card">'+
+      '<div class="hr-note warn">'+ico('alert')+' ค่าชุดนี้กระทบ <b>เงินเดือนทุกคนทุกเดือน</b> — '+
+        'แก้แล้วมีผลกับรอบที่ยังไม่ปิด · ดูตัวอย่างผลด้านล่างก่อนบันทึกทุกครั้ง</div>'+
+      (mx.inSync===false
+        ? '<div class="hr-note warn">'+ico('alert')+' "สมทบสูงสุด/เดือน" ในชีตคือ <b>'+_cfgMoney(mx.current)+'</b> '+
+          'แต่คำนวณจากเพดาน × อัตราได้ <b>'+_cfgMoney(mx.calc)+'</b> — กดบันทึกครั้งเดียวระบบแก้ให้ตรงกันค่ะ</div>'
+        : '<div class="hr-note ok2">'+ico('check')+' สมทบสูงสุด/เดือน = <b>'+_cfgMoney(mx.calc)+'</b> บาท (คำนวณจากเพดาน × อัตรา ระบบดูแลให้เอง)</div>')+
+      '<div class="set-sec">ประกันสังคม</div>'+
+      r.fields.filter(function(f){ return f.key.indexOf('เพดานฐาน')>=0 || f.key.indexOf('อัตราพนักงาน')>=0; }).map(row).join('')+
+      '<div class="set-sec">ภาษีหัก ณ ที่จ่าย</div>'+
+      r.fields.filter(function(f){ return f.key.indexOf('ค่าใช้จ่าย')>=0 || f.key.indexOf('ลดหย่อน')>=0; }).map(row).join('')+
+      '<div id="cfgPaySample">'+cfgSampleHtml(r.sample)+'</div>'+
+      '<button class="btn btn-primary mg-full" id="cfgPaySave" style="margin-top:14px">'+ico('save')+' บันทึก</button>'+
+      '<div class="paste-help">อัตราพิมพ์ 5 หรือ 0.05 ก็ได้ · ทุกการเปลี่ยนบันทึก audit</div>'+
+    '</div>';
+
+  var b=document.getElementById('cfgPaySave');
+  if(b) b.addEventListener('click', function(){
+    var payload={};
+    box.querySelectorAll('[data-payf]').forEach(function(el){ payload['f_'+el.dataset.payf]=el.value; });
+    b.disabled=true; b.innerHTML=ico('save')+' กำลังบันทึก…';
+    api('cfgPayrollSave', payload).then(function(res){
+      b.disabled=false; b.innerHTML=ico('save')+' บันทึก';
+      if(!res.ok) return noticeBox('บันทึกไม่ได้', res.error||'ตรวจตัวเลขอีกครั้งค่ะ', ico('alert'));
+      if(res.notes && res.notes.length) toast(res.notes.join(' · '),'ok');
+      else toast(res.count ? ('บันทึกแล้ว '+res.count+' รายการ') : 'ไม่มีอะไรเปลี่ยน','ok');
+      loadCfgPayroll();
     }).catch(function(e){ b.disabled=false; b.innerHTML=ico('save')+' บันทึก'; toast(String(e.message||e),'err'); });
   });
 }
@@ -4128,6 +4195,18 @@ function mockApi(action, params){
         {key:'Drive ID ลายเซ็น 50 ทวิ',label:'ลายเซ็น (ไฟล์ใน Drive)',type:'driveid',req:false,hint:'วางลิงก์ Drive ได้เลย',value:'SIGN123',missing:false},
         {key:'CC Email',label:'สำเนาอีเมล (CC) ตอนส่งสลิป',type:'text',req:false,hint:'เว้นว่างได้',value:'',missing:true}]});
     else if(action==='cfgCompanySave') resolve({ok:true,count:1,changed:['โทรศัพท์: 021234567 → (mock)']});
+    else if(action==='cfgPayrollGet') resolve({ok:true,sheet:'ตั้งค่าระบบ',
+      ssoMax:{current:875,calc:875,inSync:true},
+      sample:[{salary:10000,sso:500},{salary:20000,sso:875},{salary:40000,sso:875}],
+      fields:[
+        {key:'เพดานฐานค่าจ้าง',label:'เพดานฐานค่าจ้าง (ประกันสังคม)',kind:'money',hint:'ปัจจุบัน 17,500 บาท',value:17500,ref:17500,differs:false,missing:false},
+        {key:'อัตราพนักงาน (%)',label:'อัตราหักประกันสังคม',kind:'rate',hint:'พิมพ์ 5 หรือ 0.05 ก็ได้',value:0.05,ref:0.05,differs:false,missing:false},
+        {key:'ค่าใช้จ่าย (% รายได้)',label:'หักค่าใช้จ่าย (คิดภาษี)',kind:'rate',hint:'ตามประมวลรัษฎากร 50%',value:0.5,ref:0.5,differs:false,missing:false},
+        {key:'ค่าใช้จ่ายสูงสุด/ปี',label:'เพดานค่าใช้จ่าย/ปี',kind:'money',hint:'ปัจจุบัน 100,000 บาท',value:100000,ref:100000,differs:false,missing:false},
+        {key:'ลดหย่อนส่วนตัว',label:'ลดหย่อนส่วนตัว/ปี',kind:'money',hint:'ปัจจุบัน 60,000 บาท',value:60000,ref:60000,differs:false,missing:false}]});
+    else if(action==='cfgPayrollSave') resolve({ok:true,count:1,notes:[],ssoMax:875,
+      changed:['ลดหย่อนส่วนตัว: 60000 → (mock)'],
+      sample:[{salary:10000,sso:500},{salary:20000,sso:875},{salary:40000,sso:875}]});
     else if(action==='cfgHolidayList') resolve({ok:true,yearBE:params&&params.yearBE,files:['ระบบลา','ระบบ OT'],
       years:[2569,2568],mismatch:1,holidays:[
         {date:'01/01/2026',yearBE:2569,name:'วันขึ้นปีใหม่',where:['ระบบลา','ระบบ OT'],synced:true},
