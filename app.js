@@ -2931,7 +2931,7 @@ function _addEmpFormBody_(pfName, pfLast){
       '<div class="set-row"><label>📋 กิจ</label>'+num('q_biz',3)+'</div>'+
       '<div class="set-row"><label>🌴 พักร้อน</label>'+num('q_vac',0)+'</div>'+
     '</div>'+
-    '<div class="set-hint">ℹ️ ลาวันเกิด / คนพิเศษ / ไม่รับค่าจ้าง — ระบบใส่ค่ามาตรฐานให้ · ปรับทีหลังได้ที่ปุ่ม 🏖️ โควต้า ของแต่ละคน</div>'+
+    '<div class="set-hint">ℹ️ ลาวันเกิด / คนพิเศษ / ลากิจไม่รับค่าจ้าง — <b>ไม่ให้สิทธิ์อัตโนมัติ</b> · ถ้าจะให้ กดปุ่ม 🏖️ โควต้า ของคนนั้นทีหลัง</div>'+
     '<div class="set-sec">payroll/OT (เติมทีหลังได้)</div>'+
     rc('ตำแหน่ง',inp('position'))+rc('Email',inp('email'))+
     '<div class="set-2col">'+rc('ธนาคาร',inp('bank'))+rc('เลขบัญชี',inp('bankAcc'))+'</div>'+
