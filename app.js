@@ -1197,7 +1197,7 @@ function loadDocuments(){
 // แท็บอื่นค่อยเปิดทีละแท็บ — ปุ่มขึ้นไว้ให้เห็นทิศทาง แต่ยังกดไม่ได้
 var CFG_TABS = [
   { key:'holiday', label:'วันหยุดบริษัท', icon:'calendar', ready:true },
-  { key:'company', label:'ข้อมูลบริษัท · ผู้ลงนาม', icon:'building' },
+  { key:'company', label:'ข้อมูลบริษัท · ผู้ลงนาม', icon:'building', ready:true },
   { key:'payroll', label:'ค่าคำนวณเงินเดือน/ภาษี', icon:'calc' },
   { key:'leave',   label:'โควต้าลามาตรฐาน · กะ', icon:'ticket' },
   { key:'files',   label:'โลโก้ · แบบฟอร์ม', icon:'folder' },
@@ -1219,6 +1219,7 @@ function loadConfig(){
 function paintCfgTab(){
   var box=document.getElementById('cfgBody'); if(!box) return;
   if(S.cfgTab==='holiday') return loadCfgHolidays();
+  if(S.cfgTab==='company') return loadCfgCompany();
   var t=CFG_TABS.filter(function(x){ return x.key===S.cfgTab; })[0]||{};
   box.innerHTML = viewSoon(ico(t.icon||'settings')+' '+(t.label||'ตั้งค่า'),
     'ยังไม่เปิดใช้ — ตอนนี้แก้ในชีต/Script Properties ตามเดิมได้ค่ะ');
@@ -1349,6 +1350,65 @@ function openHolCopy(){
         S.cfgHolYear=to; loadCfgHolidays();
       }).catch(function(e){ toast(String(e.message||e),'err'); });
     } });
+}
+
+/** 🏢 ข้อมูลบริษัท + ผู้ลงนามเอกสาร */
+function loadCfgCompany(){
+  var box=document.getElementById('cfgBody'); if(!box) return;
+  box.innerHTML='<div class="card"><div class="skel" style="height:220px"></div></div>';
+  api('cfgCompanyGet',{}).then(function(r){
+    if(!r.ok){ box.innerHTML=emptyBox(ico('alert','e-ico'), r.error||'โหลดไม่ได้'); return; }
+    S.cfgCompany=r; paintCfgCompany();
+  }).catch(function(e){ box.innerHTML=emptyBox(ico('alert','e-ico'), String(e.message||e)); });
+}
+
+function paintCfgCompany(){
+  var box=document.getElementById('cfgBody'); if(!box || !S.cfgCompany) return;
+  var r=S.cfgCompany;
+  var row=function(f){
+    var ph = f.type==='driveid' ? 'วางลิงก์ไฟล์ Drive หรือ ID' : '';
+    return '<div class="set-row col">'+
+      '<label>'+esc(f.label)+(f.req?' <span style="color:var(--red)">*</span>':'')+'</label>'+
+      '<input type="text" data-cfgf="'+esc(f.key)+'" value="'+esc(f.value||'')+'"'+
+        (ph?' placeholder="'+esc(ph)+'"':'')+' autocomplete="off">'+
+      (f.hint?'<div class="set-hint">'+esc(f.hint)+'</div>':'')+
+    '</div>'; };
+
+  var sign=r.sign||{};
+  var signNote = !sign.id
+    ? '<div class="hr-note">'+ico('info')+' ยังไม่ได้ตั้งลายเซ็น — ใบ 50 ทวิ จะออกโดยไม่มีลายเซ็น</div>'
+    : (sign.ok
+        ? '<div class="hr-note ok2">'+ico('check')+' ลายเซ็นพร้อมใช้ · ไฟล์ <b>'+esc(sign.name)+'</b></div>'
+        : '<div class="hr-note warn">'+ico('alert')+' '+esc(sign.error||'เปิดไฟล์ลายเซ็นไม่ได้')+
+          ' — ถ้าไม่แก้ ตอนออก 50 ทวิ จะพลาดตรงนี้</div>');
+
+  box.innerHTML=
+    '<div class="card">'+
+      '<div class="hr-note ok2">'+ico('info')+' ค่าพวกนี้ถูกพิมพ์ลงเอกสารจริง — <b>สลิปเงินเดือน · 50 ทวิ · กท.20 · ภ.ง.ด.1ก</b> '+
+        'เก็บอยู่ในชีต "'+esc(r.sheet||'ตั้งค่าระบบ')+'" ของไฟล์ payroll</div>'+
+      signNote+
+      '<div class="set-sec">ข้อมูลบริษัท</div>'+
+      r.fields.filter(function(f){ return ['ชื่อบริษัท','เลขผู้เสียภาษี','ที่อยู่','โทรศัพท์'].indexOf(f.key)>=0; }).map(row).join('')+
+      '<div class="set-sec">ผู้ลงนามเอกสาร (50 ทวิ)</div>'+
+      r.fields.filter(function(f){ return f.key.indexOf('ผู้ลงนาม')>=0 || f.type==='driveid'; }).map(row).join('')+
+      '<div class="set-sec">อื่น ๆ</div>'+
+      r.fields.filter(function(f){ return f.key==='CC Email'; }).map(row).join('')+
+      '<button class="btn btn-primary mg-full" id="cfgCoSave" style="margin-top:14px">'+ico('save')+' บันทึก</button>'+
+      '<div class="paste-help">บันทึกเฉพาะช่องที่แก้ · ทุกครั้งบันทึก audit ว่าเปลี่ยนอะไรเป็นอะไร</div>'+
+    '</div>';
+
+  var b=document.getElementById('cfgCoSave');
+  if(b) b.addEventListener('click', function(){
+    var payload={};
+    box.querySelectorAll('[data-cfgf]').forEach(function(el){ payload['f_'+el.dataset.cfgf]=el.value; });
+    b.disabled=true; b.innerHTML=ico('save')+' กำลังบันทึก…';
+    api('cfgCompanySave', payload).then(function(res){
+      b.disabled=false; b.innerHTML=ico('save')+' บันทึก';
+      if(!res.ok) return noticeBox('บันทึกไม่ได้', res.error||'ตรวจข้อมูลอีกครั้งค่ะ', ico('alert'));
+      toast(res.count ? ('บันทึกแล้ว '+res.count+' ช่อง') : 'ไม่มีอะไรเปลี่ยน','ok');
+      loadCfgCompany();
+    }).catch(function(e){ b.disabled=false; b.innerHTML=ico('save')+' บันทึก'; toast(String(e.message||e),'err'); });
+  });
 }
 
 // ════════════ 📊 แดชบอร์ด (รวมภาพรวมทั้งบริษัท) ════════════
@@ -4056,6 +4116,18 @@ function mockApi(action, params){
     }
     else if(action==='mgEditOt') resolve({ok:true,otId:(params&&params.otId)||'OT-MOCK',hours:1.5,wasApproved:true,warn:''});
     else if(action==='approve') resolve({ok:true,id:'(mock)',status:'✅'});
+    else if(action==='cfgCompanyGet') resolve({ok:true,sheet:'ตั้งค่าระบบ',
+      sign:{id:'SIGN123',ok:true,name:'ลายเซ็นกรรมการ.png',error:''},
+      fields:[
+        {key:'ชื่อบริษัท',label:'ชื่อบริษัท',type:'text',req:true,hint:'ขึ้นหัวสลิป · 50 ทวิ · กท.20',value:'บจก.ดิเอลฟ์',missing:false},
+        {key:'เลขผู้เสียภาษี',label:'เลขประจำตัวผู้เสียภาษี',type:'taxid',req:true,hint:'13 หลัก',value:'0105558001234',missing:false},
+        {key:'ที่อยู่',label:'ที่อยู่บริษัท',type:'text',req:false,hint:'ที่อยู่ตามหนังสือรับรอง',value:'123 ถนนทดสอบ กรุงเทพฯ',missing:false},
+        {key:'โทรศัพท์',label:'โทรศัพท์',type:'text',req:false,hint:'',value:'021234567',missing:false},
+        {key:'ชื่อผู้ลงนาม 50 ทวิ',label:'ชื่อผู้ลงนาม (50 ทวิ)',type:'text',req:false,hint:'ผู้มีอำนาจลงนาม',value:'ภูษิตา นันตาโจง',missing:false},
+        {key:'ตำแหน่งผู้ลงนาม 50 ทวิ',label:'ตำแหน่งผู้ลงนาม',type:'text',req:false,hint:'',value:'กรรมการ',missing:false},
+        {key:'Drive ID ลายเซ็น 50 ทวิ',label:'ลายเซ็น (ไฟล์ใน Drive)',type:'driveid',req:false,hint:'วางลิงก์ Drive ได้เลย',value:'SIGN123',missing:false},
+        {key:'CC Email',label:'สำเนาอีเมล (CC) ตอนส่งสลิป',type:'text',req:false,hint:'เว้นว่างได้',value:'',missing:true}]});
+    else if(action==='cfgCompanySave') resolve({ok:true,count:1,changed:['โทรศัพท์: 021234567 → (mock)']});
     else if(action==='cfgHolidayList') resolve({ok:true,yearBE:params&&params.yearBE,files:['ระบบลา','ระบบ OT'],
       years:[2569,2568],mismatch:1,holidays:[
         {date:'01/01/2026',yearBE:2569,name:'วันขึ้นปีใหม่',where:['ระบบลา','ระบบ OT'],synced:true},
