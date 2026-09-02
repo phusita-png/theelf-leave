@@ -1189,12 +1189,25 @@ function loadDocuments(){
 
 // ════════════ VIEW: HR DASHBOARD (read-only) ════════════
 function loadHr(){
+  // ขอทีเดียวได้ครบ (แดชบอร์ด + คำขอลงทะเบียน + เปลี่ยน LINE + ลาไม่รับค่าจ้าง + เอกสาร)
+  // ทุกคำขอมีต้นทุนคงที่ ~4.5 วิ — เดิมยิง 5-6 คำขอ รวมแล้วเกินเวลารอจนขึ้น "หมดเวลาเชื่อมต่อ"
   S.hrHistData=null;   // reset cache — โหลดประวัติสดทุกครั้งเปิดแผง HR
-  api('hrDashboard',{}).then(function(r){
+  var now=new Date();
+  S.docF = S.docF || { mode:'period', year:now.getFullYear()+543, month:now.getMonth()+1, from:'', to:'' };
+  var f = S.docF;
+  api('hrBundle',{ mode:f.mode, year:f.year, month:f.month, from:f.from, to:f.to }).then(function(b){
     var m=document.getElementById('main'); if(!m) return;
-    if(!r.ok){ m.innerHTML = backBar()+emptyBox(ico('lock'), r.error||'ไม่มีสิทธิ์'); bindBack(); return; }
-    m.innerHTML = backBar()+'<div id="pendRegSlot"></div><div id="lineChgSlot"></div><div id="unpaidReqSlot"></div>'+renderHr(r); bindBack(); wireHrPending(); wireHrHistTabs(); wireHrSumFilter(); loadDocDash();
-    loadPendingRegs(); loadUnpaidReqs(); loadHrHistory();
+    var r = b && b.dashboard;
+    if(!b || !b.ok || !r || !r.ok){
+      m.innerHTML = backBar()+emptyBox(ico('lock'), (b&&b.error) || (r&&r.error) || 'ไม่มีสิทธิ์'); bindBack(); return;
+    }
+    m.innerHTML = backBar()+'<div id="pendRegSlot"></div><div id="lineChgSlot"></div><div id="unpaidReqSlot"></div>'+renderHr(r);
+    bindBack(); wireHrPending(); wireHrHistTabs(); wireHrSumFilter();
+    paintPendingRegs(b.pendingReg);
+    paintLineChanges(b.lineChange);
+    paintUnpaidReqs(b.unpaidReq);
+    paintDocDash(b.docStats);
+    loadHrHistory();                     // ประวัติทั้งบริษัทหนัก — โหลดแยกทีหลัง
   }).catch(function(e){ var m=document.getElementById('main'); if(m){ m.innerHTML=backBar()+emptyBox(ico('alert','e-ico'),String(e.message||e)); bindBack(); } });
 }
 function wireHrHistTabs(){
@@ -1213,23 +1226,25 @@ function wireHrHistTabs(){
 }
 // 📝 รายการรออนุมัติลงทะเบียน — โหลดแยก แล้วแทรกบนสุดของแผง HR
 function loadPendingRegs(){
-  api('pendingRegistrations',{}).then(function(r){
-    var slot=document.getElementById('pendRegSlot');
-    if(!slot || !r.ok){ return; }
-    if(!r.count){ slot.innerHTML=''; return; }
-    slot.innerHTML = renderPendingRegs(r.pending);
-    wirePendingRegs();
-  }).catch(function(){});
+  api('pendingRegistrations',{}).then(paintPendingRegs).catch(function(){});
   loadLineChanges();
+}
+function paintPendingRegs(r){
+  var slot=document.getElementById('pendRegSlot');
+  if(!slot || !r || !r.ok) return;
+  if(!r.count){ slot.innerHTML=''; return; }
+  slot.innerHTML = renderPendingRegs(r.pending);
+  wirePendingRegs();
 }
 // 📱 คำขอเปลี่ยน LINE (พนักงานคนเดิม เครื่อง/บัญชีใหม่) — แทรกใต้การ์ดลงทะเบียน
 function loadLineChanges(){
-  api('lineChangeList',{}).then(function(r){
-    var slot=document.getElementById('lineChgSlot');
-    if(!slot || !r.ok){ return; }
-    slot.innerHTML = r.count ? renderLineChanges(r.pending) : '';
-    if(r.count) wireLineChanges();
-  }).catch(function(){});
+  api('lineChangeList',{}).then(paintLineChanges).catch(function(){});
+}
+function paintLineChanges(r){
+  var slot=document.getElementById('lineChgSlot');
+  if(!slot || !r || !r.ok) return;
+  slot.innerHTML = r.count ? renderLineChanges(r.pending) : '';
+  if(r.count) wireLineChanges();
 }
 function renderLineChanges(list){
   var canAdmin = S.profile && S.profile.canAdmin;
@@ -1568,10 +1583,13 @@ function loadDocDash(){
   var now = new Date();
   S.docF = S.docF || { mode:'period', year:now.getFullYear()+543, month:now.getMonth()+1, from:'', to:'' };
   var f = S.docF;
-  api('hrDocStats', { mode:f.mode, year:f.year, month:f.month, from:f.from, to:f.to }).then(function(r){
-    if(!r.ok){ box.innerHTML=''; return; }
-    renderDocDash(box, r);
-  }).catch(function(){ box.innerHTML=''; });
+  api('hrDocStats', { mode:f.mode, year:f.year, month:f.month, from:f.from, to:f.to })
+    .then(paintDocDash).catch(function(){ box.innerHTML=''; });
+}
+function paintDocDash(r){
+  var box = document.getElementById('docDash'); if(!box) return;
+  if(!r || !r.ok){ box.innerHTML=''; return; }
+  renderDocDash(box, r);
 }
 
 /** แถบตัวกรองของแดชบอร์ดเอกสาร — ชุดเดียวกับ "สรุปการลา & OT" (รอบ/เดือน/ปี/ช่วงวันที่) */
@@ -3645,6 +3663,9 @@ function mockApi(action, params){
     }
     else if(action==='mgEditOt') resolve({ok:true,otId:(params&&params.otId)||'OT-MOCK',hours:1.5,wasApproved:true,warn:''});
     else if(action==='approve') resolve({ok:true,id:'(mock)',status:'✅'});
+    else if(action==='hrBundle'){ Promise.all([mockApi('hrDashboard',params),mockApi('pendingRegistrations',params),
+      mockApi('lineChangeList',params),mockApi('unpaidReqList',params),mockApi('hrDocStats',params)])
+      .then(function(a){ resolve({ok:true,dashboard:a[0],pendingReg:a[1],lineChange:a[2],unpaidReq:a[3],docStats:a[4]}); }); }
     else if(action==='hrDashboard') resolve({ok:true,monthLabel:'มิถุนายน 2569',
       leave:{total:8,approved:5,pending:2,rejected:1},ot:{hours:24.5,count:6,approved:4,pending:1,rejected:1},
       employees:[{name:'นางสาวชนัญชิดา โชคธนอนันต์',dept:'สำนักงานใหญ่',vac:16,biz:10,sick:29,used:5,status:'ปกติ'},
@@ -3714,13 +3735,14 @@ function mockApi(action, params){
 
 // ── ฝั่ง HR: การ์ดคำขอรออนุมัติ (แทรกบนแผง HR)
 function loadUnpaidReqs(){
-  api('unpaidReqList',{scope:'pending'}).then(function(r){
-    var slot=document.getElementById('unpaidReqSlot');
-    if(!slot || !r.ok) return;
-    if(!r.count){ slot.innerHTML=''; return; }
-    slot.innerHTML = renderUnpaidReqs(r.list);
-    wireUnpaidReqs();
-  }).catch(function(){});
+  api('unpaidReqList',{scope:'pending'}).then(paintUnpaidReqs).catch(function(){});
+}
+function paintUnpaidReqs(r){
+  var slot=document.getElementById('unpaidReqSlot');
+  if(!slot || !r || !r.ok) return;
+  if(!r.count){ slot.innerHTML=''; return; }
+  slot.innerHTML = renderUnpaidReqs(r.list);
+  wireUnpaidReqs();
 }
 function renderUnpaidReqs(list){
   var rows = list.map(function(x){
