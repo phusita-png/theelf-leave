@@ -159,6 +159,21 @@ img{max-width:100%}
   padding:9px 12px;margin-bottom:12px;line-height:1.4}
 .hr-note.ok2{background:var(--green-tint);color:var(--green)}
 
+.nav-ico{width:19px;height:19px;flex:0 0 auto;stroke:currentColor}
+.hf-ic .nav-ico{width:17px;height:17px}
+.hd-avatar .nav-ico{width:20px;height:20px}
+
+/* -- 🎨 ไอคอนเส้น (monochrome) — แทนอิโมจิสีทีละหน้า -- */
+.ico{width:1.15em;height:1.15em;vertical-align:-.18em;flex:0 0 auto;stroke:currentColor}
+.stat-ic .ico,.feed-ic .ico,.hist-ic .ico{width:20px;height:20px;vertical-align:0}
+.e-emo .ico,.ico.e-ico{width:34px;height:34px;opacity:.5}
+.pend-btn .ico,.hub-link .ico,.role-chip .ico{width:1.05em;height:1.05em}
+.stat-ic,.feed-ic,.hist-ic{color:var(--muted)}
+.stat.vac .stat-ic,.stat.biz .stat-ic,.stat.sick .stat-ic{color:var(--red)}
+.stat.ot .stat-ic{color:var(--ot)}
+/* ปุ่มพื้นทึบ: ไอคอนใช้สีตัวอักษร (currentColor) ไม่งั้นสีชนพื้นแล้วหาย */
+.pend-btn.no .ico{color:var(--red)}
+
 /* -- 📱 แท็บ LINE ในหน้าพนักงาน -- */
 .hr-note.warn{background:var(--red-tint);color:var(--red-deep)}
 .lcand{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;margin-bottom:8px;

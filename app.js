@@ -11,6 +11,62 @@ var TH_MONTHS = ['มกราคม','กุมภาพันธ์','มี�
 var TH_DOW = ['อา','จ','อ','พ','พฤ','ศ','ส'];
 var TYPE_EMOJI = {'ลาป่วย':'🤒','ลากิจ':'🏠','ลาพักร้อน':'🌴','ลากิจไม่รับค่าจ้าง':'📄',
   'ลาวันเกิด':'🎂','ลาวันเกิดคนพิเศษ':'💝'};
+// ════════════ 🎨 ชุดไอคอนเส้น (monochrome) ════════════
+// พี่กี้อยากได้ไอคอนแบบเส้นบาง สีเดียว ทั้งระบบ แทนอิโมจิสี
+// - เขียนเป็น SVG inline · ใช้ currentColor → ได้สีตามข้อความ/ธีมที่ครอบอยู่
+// - ตัวที่ "ห้ามแตะ" ยังเป็นอิโมจิเหมือนเดิม: ค่าสถานะที่เก็บในชีต (✅ อนุมัติแล้ว ฯลฯ)
+//   และข้อความที่ส่งเข้า LINE — LINE แสดง SVG ไม่ได้
+var ICONS = {
+  sun:       '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  home:      '<path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9.5V20h13V9.5"/><path d="M9.5 20v-6h5v6"/>',
+  thermometer:'<path d="M13.5 13.6V4.8a2 2 0 1 0-4 0v8.8a4.2 4.2 0 1 0 4 0Z"/><path d="M11.5 9h2"/>',
+  clock:     '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 1.8"/>',
+  cake:      '<path d="M4 21h16"/><path d="M5 21v-6.5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2V21"/><path d="M8 12.5V10M12 12.5V9.5M16 12.5V10"/><path d="M8 7.2c0 .8-.9 1-.9 1.8M12 6c0 .9-.9 1.1-.9 2M16 7.2c0 .8-.9 1-.9 1.8"/>',
+  heart:     '<path d="M12 20s-7-4.4-7-9.2A3.9 3.9 0 0 1 12 8a3.9 3.9 0 0 1 7 2.8C19 15.6 12 20 12 20Z"/>',
+  file:      '<path d="M14 3H7a1.8 1.8 0 0 0-1.8 1.8v14.4A1.8 1.8 0 0 0 7 21h10a1.8 1.8 0 0 0 1.8-1.8V8Z"/><path d="M14 3v5h4.8"/>',
+  paperclip: '<path d="M20 11.5 12.3 19a4.6 4.6 0 0 1-6.5-6.5l7.9-7.9a3.1 3.1 0 0 1 4.3 4.3l-7.8 7.9a1.5 1.5 0 0 1-2.2-2.2l7.2-7.2"/>',
+  chart:     '<path d="M4 20h16"/><path d="M7 20v-6M12 20V7M17 20v-9"/>',
+  users:     '<circle cx="9" cy="8" r="3.2"/><path d="M3.5 19.5a5.5 5.5 0 0 1 11 0"/><path d="M16 5.4a3.2 3.2 0 0 1 0 6.2M17.5 19.5a5.6 5.6 0 0 0-2-4.3"/>',
+  check:     '<circle cx="12" cy="12" r="8.5"/><path d="M8.5 12.3l2.4 2.4 4.6-4.9"/>',
+  x:         '<circle cx="12" cy="12" r="8.5"/><path d="M9.4 9.4l5.2 5.2M14.6 9.4l-5.2 5.2"/>',
+  calendar:  '<rect x="3.5" y="5" width="17" height="15.5" rx="2.2"/><path d="M3.5 9.6h17M8.5 3v4M15.5 3v4"/>',
+  message:   '<path d="M20.5 12.2c0 3.9-3.8 7-8.5 7a10 10 0 0 1-2.6-.3L4.5 20.5l1.3-3.5a6.6 6.6 0 0 1-2.3-4.8c0-3.9 3.8-7 8.5-7s8.5 3.1 8.5 7Z"/>',
+  ticket:    '<path d="M3.5 9.2V7.4a1.4 1.4 0 0 1 1.4-1.4h14.2a1.4 1.4 0 0 1 1.4 1.4v1.8a2.8 2.8 0 0 0 0 5.6v1.8a1.4 1.4 0 0 1-1.4 1.4H4.9a1.4 1.4 0 0 1-1.4-1.4v-1.8a2.8 2.8 0 0 0 0-5.6Z"/><path d="M13 6v2M13 11v2M13 16v2"/>',
+  star:      '<path d="m12 4 2.4 4.9 5.4.8-3.9 3.8.9 5.4-4.8-2.5-4.8 2.5.9-5.4L4.2 9.7l5.4-.8Z"/>',
+  leaf:      '<path d="M5 19c0-8 5-12 14-13 .5 8-3.5 13-10 13H5Z"/><path d="M8.5 15.5c2-3 4.4-5 7.5-6.5"/>',
+  rotate:    '<path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v4.5h-4.5"/>',
+  clipboard: '<rect x="6" y="4.5" width="12" height="16" rx="2"/><rect x="9" y="2.6" width="6" height="3.6" rx="1.2"/><path d="M9.5 11h5M9.5 15h5"/>',
+  'user-plus': '<circle cx="9.5" cy="8" r="3.2"/><path d="M3.5 19.5a6 6 0 0 1 12 0"/><path d="M18 8.5v5M15.5 11h5"/>',
+  'user-check':'<circle cx="9.5" cy="8" r="3.2"/><path d="M3.5 19.5a6 6 0 0 1 12 0"/><path d="M16 11.8l1.7 1.7 3.3-3.5"/>',
+  phone:     '<rect x="6.5" y="2.5" width="11" height="19" rx="2.4"/><path d="M10.5 18.5h3"/>',
+  alert:     '<path d="M12 4.2 2.8 20h18.4L12 4.2Z"/><path d="M12 10v4M12 17h.01"/>',
+  info:      '<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 8h.01"/>',
+  folder:    '<path d="M3.5 7.5a2 2 0 0 1 2-2h3.3l2 2.4h7.7a2 2 0 0 1 2 2v8.6a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2Z"/>',
+  scroll:    '<path d="M6 4.5h10.5a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-11a2 2 0 0 1 2-2Z"/><path d="M8 9h6.5M8 12.5h6.5M8 16h4"/>',
+  send:      '<path d="M21 3 10.5 13.5"/><path d="M21 3l-6.8 18-3.7-7.5L3 9.8 21 3Z"/>',
+  lock:      '<rect x="4.5" y="10.5" width="15" height="9.5" rx="2"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/>',
+  wallet:    '<rect x="3" y="6" width="18" height="12.5" rx="2.4"/><path d="M3 10.5h18"/><circle cx="16.5" cy="14.6" r="1.4"/>',
+  user:      '<circle cx="12" cy="8.5" r="3.6"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/>',
+  tools:     '<path d="M14.5 6.5a3.8 3.8 0 0 0 5 5l-8 8a2.4 2.4 0 0 1-3.4-3.4l8-8a3.8 3.8 0 0 0-1.6-1.6Z"/>',
+  ban:       '<circle cx="12" cy="12" r="8.5"/><path d="M6 6l12 12"/>',
+  pencil:    '<path d="M4 20h4L19 9a2.1 2.1 0 0 0-3-3L5 17v3Z"/><path d="M14.5 6.5l3 3"/>',
+  hourglass: '<path d="M7 3h10M7 21h10"/><path d="M8 3v3.4a4 4 0 0 0 1.6 3.2L12 12l-2.4 2.4A4 4 0 0 0 8 17.6V21"/><path d="M16 3v3.4a4 4 0 0 1-1.6 3.2L12 12l2.4 2.4a4 4 0 0 1 1.6 3.2V21"/>',
+  wave:      '<path d="M8 13V6.5a1.4 1.4 0 0 1 2.8 0V12"/><path d="M10.8 12V5.4a1.4 1.4 0 0 1 2.8 0V12"/><path d="M13.6 12V7a1.4 1.4 0 0 1 2.8 0v7.5c0 3.3-2.2 5.9-5.4 5.9-3.4 0-5.2-2.3-5.6-4.6l-.6-3a1.3 1.3 0 0 1 2.4-.9L8 14"/>',
+};
+
+/** ico('home') → <svg> ไอคอนเส้น ขนาดตามตัวอักษรที่ครอบอยู่ */
+function ico(name, cls){
+  var d = ICONS[name];
+  if(!d) return '';
+  return '<svg class="ico'+(cls?' '+cls:'')+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" '+
+    'stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+d+'</svg>';
+}
+
+// ประเภทการลา → ไอคอน (แทน TYPE_EMOJI ในหน้าจอที่แปลงแล้ว)
+var TYPE_ICON = {'ลาป่วย':'thermometer','ลากิจ':'home','ลาพักร้อน':'sun','ลากิจไม่รับค่าจ้าง':'file',
+  'ลาวันเกิด':'cake','ลาวันเกิดคนพิเศษ':'heart'};
+function typeIco(name, cls){ return ico(TYPE_ICON[name] || 'calendar', cls); }
+
 var VIEW_HEAD = {
   home:    ['ระบบลา & OT','บจก.ดิเอลฟ์'],
   leave:   ['ยื่นใบลา','เลือกประเภท · วัน · ช่วงเวลา'],
@@ -30,9 +86,9 @@ var VIEW_HEAD = {
 };
 // ไอคอนเมนู (โชว์หน้า topbar desktop) — ตรงกับ nav-emo ใน index.html
 var VIEW_ICON = {
-  home:'🏠', leave:'📅', ot:'⏰', payslip:'💰', history:'📋', profile:'🙂',
-  documents:'📎', hr:'✅', leavecal:'🗓️', dashboard:'📊',
-  mgleave:'📋', mgot:'⏰', mgpay:'💰', emps:'👥', unpaidreq:'📄'
+  home:'home', leave:'calendar', ot:'clock', payslip:'wallet', history:'clipboard', profile:'user',
+  documents:'paperclip', hr:'check', leavecal:'calendar', dashboard:'chart',
+  mgleave:'clipboard', mgot:'clock', mgpay:'wallet', emps:'users', unpaidreq:'file'
 };
 
 var S = {
@@ -282,7 +338,7 @@ function render(){
   // topbar (desktop) — โชว์ชื่อเมนูที่กด + ไอคอน
   var tt=document.getElementById('tbTitle');
   if(tt){ tt.textContent=h[0]; document.getElementById('tbSub').textContent=h[1];
-    document.getElementById('tbIcon').textContent=VIEW_ICON[S.view]||''; }
+    document.getElementById('tbIcon').innerHTML=ico(VIEW_ICON[S.view]||'home'); }
   var m = document.getElementById('main');
   if (S.view==='home')      { m.innerHTML = viewHome(); wireHome(); }
   else if (S.view==='leave'){ m.innerHTML = viewLeave(); wireLeave(); }
@@ -333,30 +389,30 @@ function mountPayroll(m){
 function viewHome(){
   var p = S.profile, b = S.balances;
   var bal = function(k){ var v=b[k]&&b[k].remaining; return v==null?'—':(Number.isInteger(v)?v:v.toFixed(1)); };
-  var roleChip = p.canApprove ? '<span class="role-chip">⭐ '+esc(p.role)+'</span>' : '';
-  var stat = function(cls,emo,num,lb){
-    return '<div class="stat '+cls+'"><div class="stat-ic">'+emo+'</div><div>'+
+  var roleChip = p.canApprove ? '<span class="role-chip">'+ico('star')+' '+esc(p.role)+'</span>' : '';
+  var stat = function(cls,icn,num,lb){
+    return '<div class="stat '+cls+'"><div class="stat-ic">'+ico(icn)+'</div><div>'+
       '<div class="stat-num">'+num+'</div><div class="stat-lb">'+lb+'</div></div></div>'; };
 
   var feed = S.recent.length ? S.recent.map(function(x){
-    var emo = x.kind==='ot' ? '⏰' : (TYPE_EMOJI[x.title] || '🌴');
-    return '<div class="feed-item"><div class="feed-ic '+x.kind+'">'+emo+'</div>'+
+    var ic = x.kind==='ot' ? ico('clock') : typeIco(x.title);
+    return '<div class="feed-item"><div class="feed-ic '+x.kind+'">'+ic+'</div>'+
       '<div class="feed-main"><div class="feed-title">'+esc(x.title)+'</div>'+
       '<div class="feed-meta">'+esc(x.dateText)+' · '+esc(x.amount)+'</div></div>'+
       statusBadge(x.status)+'</div>';
-  }).join('') : '<div class="empty" style="padding:24px"><div class="e-emo">🍃</div><div class="e-txt">ยังไม่มีกิจกรรม</div></div>';
+  }).join('') : '<div class="empty" style="padding:24px"><div class="e-emo">'+ico('leaf','e-ico')+'</div><div class="e-txt">ยังไม่มีกิจกรรม</div></div>';
 
   return ''+
-  '<div class="greet"><div class="greet-hi">สวัสดีค่ะ 👋</div>'+
+  '<div class="greet"><div class="greet-hi">สวัสดีค่ะ '+ico('wave')+'</div>'+
     '<div class="greet-name">'+esc(p.name)+'</div>'+
     '<div class="greet-meta"><span class="greet-dept">'+esc(p.dept||'')+'</span>'+roleChip+'</div></div>'+
 
   '<div class="section-h">ภาพรวมเดือนนี้</div>'+
   '<div class="stat-grid">'+
-    stat('vac','🌴',bal('vac'),'พักร้อนคงเหลือ')+
-    stat('biz','🏠',bal('biz'),'ลากิจคงเหลือ')+
-    stat('sick','🤒',bal('sick'),'ลาป่วยคงเหลือ')+
-    stat('ot','⏰',(S.otThisMonth.hours||0),'OT รอบนี้ (ชม.)')+
+    stat('vac','sun',bal('vac'),'พักร้อนคงเหลือ')+
+    stat('biz','home',bal('biz'),'ลากิจคงเหลือ')+
+    stat('sick','thermometer',bal('sick'),'ลาป่วยคงเหลือ')+
+    stat('ot','clock',(S.otThisMonth.hours||0),'OT รอบนี้ (ชม.)')+
   '</div>'+
 
   '<div class="act-row">'+
@@ -366,11 +422,11 @@ function viewHome(){
       '<svg viewBox="0 0 24 24"><circle cx="12" cy="12.5" r="8.5"/><path d="M12 8v5l3 2"/></svg>ขอ OT</button>'+
   '</div>'+
 
-  '<button class="hub-link" data-go="documents"><span>📎 เอกสารของฉัน</span><span class="chev">›</span></button>'+
-  '<button class="hub-link" data-go="unpaidreq"><span>📄 ขอสิทธิ์ลาไม่รับค่าจ้าง'+
-    ((S.unpaidReq&&S.unpaidReq.pending)?' · ⏳ รอ HR':'')+'</span><span class="chev">›</span></button>'+
-  (p.canApprove ? '<button class="hub-link hr" data-go="hr"><span>📊 แผง HR · ภาพรวม + รออนุมัติ</span><span class="chev">›</span></button>' : '')+
-  (p.canAdmin ? '<button class="hub-link admin" data-go="emps"><span>👥 พนักงาน · เพิ่ม + บทบาท + โควต้า</span><span class="chev">›</span></button>' : '')+
+  '<button class="hub-link" data-go="documents"><span>'+ico('paperclip')+' เอกสารของฉัน</span><span class="chev">›</span></button>'+
+  '<button class="hub-link" data-go="unpaidreq"><span>'+ico('file')+' ขอสิทธิ์ลาไม่รับค่าจ้าง'+
+    ((S.unpaidReq&&S.unpaidReq.pending)?' · รอ HR':'')+'</span><span class="chev">›</span></button>'+
+  (p.canApprove ? '<button class="hub-link hr" data-go="hr"><span>'+ico('chart')+' แผง HR · ภาพรวม + รออนุมัติ</span><span class="chev">›</span></button>' : '')+
+  (p.canAdmin ? '<button class="hub-link admin" data-go="emps"><span>'+ico('users')+' พนักงาน · เพิ่ม + บทบาท + โควต้า</span><span class="chev">›</span></button>' : '')+
 
   '<div class="card"><div class="card-title"><span class="ic"></span>กิจกรรมล่าสุด</div>'+feed+'</div>';
 }
@@ -752,13 +808,13 @@ function loadLeaveHistory(){
       var dt = h.startDate+(h.endDate&&h.endDate!==h.startDate?' — '+h.endDate:'');
       var editBtn = isReturnEdit(h.status)
         ? '<button class="hist-edit" data-edit="'+esc(h.leaveId)+'">✏️ แก้ไขแล้วส่งใหม่</button>' : '';
-      return '<div class="hist"><div class="hist-ic">'+(TYPE_EMOJI[h.type]||'📋')+'</div>'+
+      return '<div class="hist"><div class="hist-ic">'+typeIco(h.type)+'</div>'+
         '<div class="hist-main"><div class="hist-type">'+esc(h.type)+'</div>'+
-        '<div class="hist-meta"><span>📅 '+dt+'</span><span>·</span><span>⏱ '+h.days+' วัน</span></div>'+editBtn+'</div>'+
+        '<div class="hist-meta"><span>'+ico('calendar')+' '+dt+'</span><span>·</span><span>'+ico('hourglass')+' '+h.days+' วัน</span></div>'+editBtn+'</div>'+
         statusBadge(h.status)+'</div>'; }).join('')+'</div>';
     body.querySelectorAll('.hist-edit').forEach(function(b){
       b.addEventListener('click', function(){ enterEditByLeaveId(b.dataset.edit); }); });
-  }).catch(function(e){ var b=document.getElementById('histBody'); if(b) b.innerHTML=emptyBox('😿',String(e.message||e)); });
+  }).catch(function(e){ var b=document.getElementById('histBody'); if(b) b.innerHTML=emptyBox(ico('alert','e-ico'),String(e.message||e)); });
 }
 function loadOtHistory(){
   api('otHistory',{}).then(function(r){
@@ -768,14 +824,14 @@ function loadOtHistory(){
     body.innerHTML = '<div class="card">'+r.history.map(function(o){
       var editBtn = isReturnEdit(o.status)
         ? '<button class="hist-edit" data-edit="'+esc(o.otId)+'">✏️ แก้ไขแล้วส่งใหม่</button>' : '';
-      return '<div class="hist"><div class="hist-ic">⏰</div>'+
+      return '<div class="hist"><div class="hist-ic">'+ico('clock')+'</div>'+
         '<div class="hist-main"><div class="hist-type">'+esc(o.otType||'OT')+'</div>'+
         '<div class="hist-meta"><span>📅 '+esc(o.otDate)+'</span><span>·</span>'+
         '<span>🕐 '+esc(o.startTime)+'–'+esc(o.endTime)+'</span><span>·</span><span>'+o.hours+' ชม.</span></div>'+editBtn+'</div>'+
         statusBadge(o.status)+'</div>'; }).join('')+'</div>';
     body.querySelectorAll('.hist-edit').forEach(function(b){
       b.addEventListener('click', function(){ enterEditById(b.dataset.edit); }); });
-  }).catch(function(e){ var b=document.getElementById('histBody'); if(b) b.innerHTML=emptyBox('😿',String(e.message||e)); });
+  }).catch(function(e){ var b=document.getElementById('histBody'); if(b) b.innerHTML=emptyBox(ico('alert','e-ico'),String(e.message||e)); });
 }
 
 // ════════════ VIEW: PROFILE ════════════
@@ -829,7 +885,7 @@ function loadPayslip(){
     if(!r.ok) return m.innerHTML = emptyBox(r.needLink?'🔗':'😿', r.error||'โหลดสลิปไม่ได้');
     if(!r.slips || !r.slips.length) return m.innerHTML = emptyBox('🧾','ยังไม่มีสลิปเงินเดือน');
     m.innerHTML = renderPayslip(r); wirePayslip();
-  }).catch(function(e){ var m=document.getElementById('main'); if(m) m.innerHTML=emptyBox('😿',String(e.message||e)); });
+  }).catch(function(e){ var m=document.getElementById('main'); if(m) m.innerHTML=emptyBox(ico('alert','e-ico'),String(e.message||e)); });
 }
 function renderPayslip(r){
   var s = r.latest;
@@ -1032,13 +1088,13 @@ function loadDocuments(){
     if(!r.ok){ m.innerHTML = backBar()+emptyBox('😿', r.error||'โหลดไม่ได้'); bindBack(); return; }
     if(!r.documents.length){ m.innerHTML = backBar()+emptyBox('📭','ยังไม่มีเอกสารสำหรับคุณ'); bindBack(); return; }
     var list = r.documents.map(function(d){
-      return '<div class="hist"><div class="hist-ic">📄</div><div class="hist-main">'+
+      return '<div class="hist"><div class="hist-ic">'+ico('file')+'</div><div class="hist-main">'+
         '<div class="hist-type">'+esc(d.name)+'</div>'+
         '<div class="hist-meta">'+esc(d.category)+' · '+esc(d.scope)+'</div></div>'+
         '<button class="slip-mini" data-doc="'+esc(d.url)+'">⬇</button></div>'; }).join('');
     m.innerHTML = backBar()+'<div class="card"><div class="card-title"><span class="ic"></span>เอกสาร '+r.documents.length+' รายการ</div>'+list+'</div>';
     bindBack(); wireFiles();
-  }).catch(function(e){ var m=document.getElementById('main'); if(m){ m.innerHTML=backBar()+emptyBox('😿',String(e.message||e)); bindBack(); } });
+  }).catch(function(e){ var m=document.getElementById('main'); if(m){ m.innerHTML=backBar()+emptyBox(ico('alert','e-ico'),String(e.message||e)); bindBack(); } });
 }
 
 // ════════════ VIEW: HR DASHBOARD (read-only) ════════════
@@ -1049,7 +1105,7 @@ function loadHr(){
     if(!r.ok){ m.innerHTML = backBar()+emptyBox('🔒', r.error||'ไม่มีสิทธิ์'); bindBack(); return; }
     m.innerHTML = backBar()+'<div id="pendRegSlot"></div><div id="lineChgSlot"></div><div id="unpaidReqSlot"></div>'+renderHr(r); bindBack(); wireHrPending(); wireHrHistTabs(); wireHrSumFilter(); loadDocDash();
     loadPendingRegs(); loadUnpaidReqs(); loadHrHistory();
-  }).catch(function(e){ var m=document.getElementById('main'); if(m){ m.innerHTML=backBar()+emptyBox('😿',String(e.message||e)); bindBack(); } });
+  }).catch(function(e){ var m=document.getElementById('main'); if(m){ m.innerHTML=backBar()+emptyBox(ico('alert','e-ico'),String(e.message||e)); bindBack(); } });
 }
 function wireHrHistTabs(){
   document.querySelectorAll('[data-hh]').forEach(function(el){
@@ -1091,16 +1147,16 @@ function renderLineChanges(list){
     var d = 'data-lcuid="'+esc(x.newUserId)+'" data-lcname="'+esc(x.typedName)+'"';
     // เปลี่ยนตัวตน = ADMIN/OWNER เท่านั้น (backend กันอีกชั้น) · คนอื่นเห็นได้แต่กดไม่ได้
     var acts = canAdmin
-      ? '<div class="pend-act"><button class="pend-btn no" data-lcno="1" '+d+'>❌ ปฏิเสธ</button>'+
-        '<button class="pend-btn ok" data-lcok="1" '+d+'>✅ อนุมัติ</button></div>'
-      : '<div class="hr-note">ℹ️ ต้องเป็น ADMIN/OWNER ถึงจะอนุมัติการเปลี่ยน LINE ได้</div>';
-    return '<div class="pend"><div class="pend-top"><div class="hist-ic">📱</div><div class="hist-main">'+
+      ? '<div class="pend-act"><button class="pend-btn no" data-lcno="1" '+d+'>'+ico('x')+' ปฏิเสธ</button>'+
+        '<button class="pend-btn ok" data-lcok="1" '+d+'>'+ico('check')+' อนุมัติ</button></div>'
+      : '<div class="hr-note">'+ico('info')+' ต้องเป็น ADMIN/OWNER ถึงจะอนุมัติการเปลี่ยน LINE ได้</div>';
+    return '<div class="pend"><div class="pend-top"><div class="hist-ic">'+ico('phone')+'</div><div class="hist-main">'+
       '<div class="hist-type">'+esc(x.typedName)+'</div>'+
       '<div class="hist-meta">'+(x.lineDisplay?'LINE ใหม่: '+esc(x.lineDisplay)+' · ':'')+esc(x.submittedAt)+'</div>'+
-      '<div style="margin-top:5px"><span class="badge no">📱 ขอย้ายไป LINE เครื่องใหม่'+
+      '<div style="margin-top:5px"><span class="badge no">'+ico('phone')+' ขอย้ายไป LINE เครื่องใหม่'+
       (x.empId?' · '+esc(x.empId):'')+'</span></div></div></div>'+acts+'</div>'; }).join('');
-  return '<div class="card"><div class="card-title"><span class="ic"></span>📱 คำขอเปลี่ยน LINE ('+list.length+')</div>'+rows+
-    '<div class="hr-note ok2">⚠️ โทรหรือทักเจ้าตัวยืนยันก่อนอนุมัติทุกครั้ง — ถ้าไม่ใช่เจ้าตัวคือมีคนพยายามสวมรอย</div></div>';
+  return '<div class="card"><div class="card-title"><span class="ic"></span>'+ico('phone')+' คำขอเปลี่ยน LINE ('+list.length+')</div>'+rows+
+    '<div class="hr-note ok2">'+ico('alert')+' โทรหรือทักเจ้าตัวยืนยันก่อนอนุมัติทุกครั้ง — ถ้าไม่ใช่เจ้าตัวคือมีคนพยายามสวมรอย</div></div>';
 }
 function wireLineChanges(){
   document.querySelectorAll('[data-lcok]').forEach(function(el){
@@ -1136,30 +1192,30 @@ function renderPendingRegs(list){
   var canAdmin = S.profile && S.profile.canAdmin;
   var rows = list.map(function(x){
     var match = x.matched
-      ? '<span class="badge ok">✅ ตรงโควต้าลา · '+esc(x.empId)+(x.dept?' · '+esc(x.dept):'')+'</span>'
-      : '<span class="badge no">⚠️ ยังไม่มีข้อมูลในระบบ</span>';
+      ? '<span class="badge ok">'+ico('check')+' ตรงโควต้าลา · '+esc(x.empId)+(x.dept?' · '+esc(x.dept):'')+'</span>'
+      : '<span class="badge no">'+ico('alert')+' ยังไม่มีข้อมูลในระบบ</span>';
     var d = 'data-uid="'+esc(x.userId)+'" data-name="'+esc(x.typedName)+'"';
     // ปุ่ม: ถ้าตรงโควต้าลา → อนุมัติ/ปฏิเสธ · ถ้าไม่ตรง + เป็น admin → เพิ่มเป็นพนักงานใหม่ (เพิ่ม+อนุมัติขั้นเดียว)
     // 🔁 ทางที่สาม: เป็นพนักงานคนเดิมที่เปลี่ยนเครื่อง/พิมพ์ชื่อไม่ตรง — ย้าย LINE ให้แทนการเพิ่มคนใหม่
     //    (ไม่มีทางนี้ HR จะกด ➕ เพิ่มข้อมูล จนได้พนักงานซ้ำทั้งชุด = เงินเดือน 2 ใบ)
     var moveBtn = canAdmin
-      ? '<div class="pend-act2"><button class="pend-btn rmove" data-regmove="1" '+d+'>🔁 เป็นคนเดิม — ย้าย LINE ให้</button></div>' : '';
+      ? '<div class="pend-act2"><button class="pend-btn rmove" data-regmove="1" '+d+'>'+ico('user-check')+' เป็นคนเดิม — ย้าย LINE ให้</button></div>' : '';
     var acts = x.matched
-      ? moveBtn+'<div class="pend-act"><button class="pend-btn no" data-regno="1" '+d+'>❌ ปฏิเสธ</button>'+
-        '<button class="pend-btn ok" data-regok="1" '+d+'>✅ อนุมัติ</button></div>'
+      ? moveBtn+'<div class="pend-act"><button class="pend-btn no" data-regno="1" '+d+'>'+ico('x')+' ปฏิเสธ</button>'+
+        '<button class="pend-btn ok" data-regok="1" '+d+'>'+ico('check')+' อนุมัติ</button></div>'
       : (canAdmin
           ? moveBtn+
-            '<div class="pend-act2"><button class="pend-btn redit" data-regadd="1" '+d+'>➕ เพิ่มเป็นพนักงานใหม่ + อนุมัติ</button></div>'+
-            '<div class="hr-note">⚠️ กด ➕ เฉพาะคนที่ยังไม่เคยมีในระบบจริง ๆ — ถ้าเป็นคนเดิมที่พิมพ์ชื่อไม่ตรง (เช่นพิมพ์ภาษาอังกฤษ) ให้กด 🔁 ย้าย LINE</div>'+
-            '<div class="pend-act"><button class="pend-btn no" data-regno="1" '+d+'>❌ ปฏิเสธ</button></div>'
-          : '<div class="hr-note">ℹ️ ชื่อนี้ยังไม่มีในระบบ — ให้ ADMIN เพิ่มข้อมูลพนักงานก่อน</div>'+
-            '<div class="pend-act"><button class="pend-btn no" data-regno="1" '+d+'>❌ ปฏิเสธ</button></div>');
-    return '<div class="pend"><div class="pend-top"><div class="hist-ic">📝</div><div class="hist-main">'+
+            '<div class="pend-act2"><button class="pend-btn redit" data-regadd="1" '+d+'>'+ico('user-plus')+' เพิ่มเป็นพนักงานใหม่ + อนุมัติ</button></div>'+
+            '<div class="hr-note">'+ico('alert')+' กดปุ่มสีฟ้าเฉพาะคนที่ยังไม่เคยมีในระบบจริง ๆ — ถ้าเป็นคนเดิมที่พิมพ์ชื่อไม่ตรง (เช่นพิมพ์ภาษาอังกฤษ) ให้กดปุ่มย้าย LINE</div>'+
+            '<div class="pend-act"><button class="pend-btn no" data-regno="1" '+d+'>'+ico('x')+' ปฏิเสธ</button></div>'
+          : '<div class="hr-note">'+ico('info')+' ชื่อนี้ยังไม่มีในระบบ — ให้ ADMIN เพิ่มข้อมูลพนักงานก่อน</div>'+
+            '<div class="pend-act"><button class="pend-btn no" data-regno="1" '+d+'>'+ico('x')+' ปฏิเสธ</button></div>');
+    return '<div class="pend"><div class="pend-top"><div class="hist-ic">'+ico('clipboard')+'</div><div class="hist-main">'+
       '<div class="hist-type">'+esc(x.typedName)+'</div>'+
       '<div class="hist-meta">'+(x.lineDisplay?'LINE: '+esc(x.lineDisplay)+' · ':'')+esc(x.submittedAt)+'</div>'+
       '<div style="margin-top:5px">'+match+'</div></div></div>'+acts+'</div>'; }).join('');
-  return '<div class="card"><div class="card-title"><span class="ic"></span>📝 รออนุมัติลงทะเบียน ('+list.length+')</div>'+
-    '<div class="hr-note ok2">👇 ตรวจชื่อให้ตรงพนักงานจริงก่อนอนุมัติ · ระบบแจ้งพนักงานทาง LINE อัตโนมัติ</div>'+rows+'</div>';
+  return '<div class="card"><div class="card-title"><span class="ic"></span>'+ico('clipboard')+' รออนุมัติลงทะเบียน ('+list.length+')</div>'+
+    '<div class="hr-note ok2">'+ico('info')+' ตรวจชื่อให้ตรงพนักงานจริงก่อนอนุมัติ · ระบบแจ้งพนักงานทาง LINE อัตโนมัติ</div>'+rows+'</div>';
 }
 function wirePendingRegs(){
   document.querySelectorAll('[data-regok]').forEach(function(el){
@@ -1316,7 +1372,7 @@ function doHrViewHistory(kind, uid, empid, name){
       head='📊 ประวัติ OT · '+nm;
       bodyInner = (r.history&&r.history.length)
         ? '<div class="card">'+r.history.map(function(o){
-            return '<div class="hist"><div class="hist-ic">⏰</div><div class="hist-main">'+
+            return '<div class="hist"><div class="hist-ic">'+ico('clock')+'</div><div class="hist-main">'+
               '<div class="hist-type">'+esc(o.otType||'OT')+'</div>'+
               '<div class="hist-meta">📅 '+esc(o.otDate)+' · 🕐 '+esc(o.startTime)+'–'+esc(o.endTime)+' · '+o.hours+' ชม.</div></div>'+
               statusBadge(o.status)+'</div>'; }).join('')+'</div>'
@@ -1329,7 +1385,7 @@ function doHrViewHistory(kind, uid, empid, name){
       var list = (r.history&&r.history.length)
         ? '<div class="card">'+r.history.map(function(h){
             var dt=h.startDate+(h.endDate&&h.endDate!==h.startDate?' — '+h.endDate:'');
-            return '<div class="hist"><div class="hist-ic">'+(TYPE_EMOJI[h.type]||'📋')+'</div><div class="hist-main">'+
+            return '<div class="hist"><div class="hist-ic">'+typeIco(h.type)+'</div><div class="hist-main">'+
               '<div class="hist-type">'+esc(h.type)+'</div>'+
               '<div class="hist-meta">📅 '+dt+' · '+h.days+' วัน</div></div>'+statusBadge(h.status)+'</div>'; }).join('')+'</div>'
         : emptyBox('🍃','ยังไม่มีประวัติการลา');
@@ -1466,10 +1522,10 @@ function wireDocFilter(){
 
 function renderDocDash(box, ds){
   var KIND = [
-    ['leave',     '📋 ใบลา',                    '#2f80ed'],
+    ['leave',     'ใบลา',                    '#2f80ed'],
     ['ot',        '⏰ ใบ OT',                   '#f2994a'],
-    ['register',  '📝 คำขอลงทะเบียน',           '#27ae60'],
-    ['unpaidReq', '📄 ขอสิทธิ์ลาไม่รับค่าจ้าง', '#9b51e0'],
+    ['register',  'คำขอลงทะเบียน',           '#27ae60'],
+    ['unpaidReq', 'ขอสิทธิ์ลาไม่รับค่าจ้าง', '#9b51e0'],
   ];
   var parts = KIND.map(function(k){
     return { name:k[1], count:(ds.byKind && ds.byKind[k[0]]) || 0, color:k[2] };
@@ -1492,7 +1548,7 @@ function renderDocDash(box, ds){
       '<div class="card doc-card">'+
         '<div class="card-title"><span class="ic"></span>เอกสารที่ยังไม่ได้รับการอนุมัติ</div>'+
         docFilterBar()+
-        '<div class="hr-sum-lb">📅 '+esc(ds.periodLabel||'')+'</div>'+
+        '<div class="hr-sum-lb">'+ico('calendar')+' '+esc(ds.periodLabel||'')+'</div>'+
         '<div class="doc-pgrid">'+pendCards+'</div>'+
       '</div>'+
     '</div>';
@@ -1532,7 +1588,7 @@ function renderHr(r){
     '<div id="hrSumGrid">'+hrSumGrids(r.leave, r.ot, r.monthLabel)+'</div></div>';
 
   var pend = r.pending.length ? r.pending.map(function(x){
-    var emo = x.kind==='ot' ? '⏰' : (TYPE_EMOJI[x.type]||'📋');
+    var emo = x.kind==='ot' ? ico('clock') : typeIco(x.type);
     var when, amt;
     if(x.kind==='ot'){
       when = esc(x.date)+(x.startTime?(' · '+esc(x.startTime)+'–'+esc(x.endTime)):'');
@@ -1544,41 +1600,41 @@ function renderHr(r){
     var d = 'data-kind="'+x.kind+'" data-id="'+esc(x.id)+'" data-name="'+esc(x.name)+'" data-uid="'+esc(x.userId||'')+'" data-empid="'+esc(x.empId||'')+'"';
     // เหตุผล + สิทธิ์คงเหลือ (ช่วยตัดสินใจในการ์ดเลย ไม่ต้องกดดูประวัติ)
     var info = '';
-    if(x.reason) info += '<div class="pend-info">💬 '+esc(x.reason)+'</div>';
-    if(x.kind!=='ot' && x.remaining!=null) info += '<div class="pend-info bal">🎫 สิทธิ์'+esc(x.type)+'คงเหลือ <b>'+balNum(x.remaining)+'</b> วัน</div>';
+    if(x.reason) info += '<div class="pend-info">'+ico('message')+' '+esc(x.reason)+'</div>';
+    if(x.kind!=='ot' && x.remaining!=null) info += '<div class="pend-info bal">'+ico('ticket')+' สิทธิ์'+esc(x.type)+'คงเหลือ <b>'+balNum(x.remaining)+'</b> วัน</div>';
     return '<div class="pend">'+
       '<div class="pend-l">'+
-        '<div class="pend-kind'+(x.kind==='ot'?' ot':'')+'">'+(x.kind==='ot'?'⏰ คำขอ OT':'📋 คำขอลา')+'</div>'+
+        '<div class="pend-kind'+(x.kind==='ot'?' ot':'')+'">'+(x.kind==='ot'?ico('clock')+' คำขอ OT':ico('clipboard')+' คำขอลา')+'</div>'+
         '<div class="pend-top">'+(x.photo?empAvatar(x,34):'<div class="hist-ic">'+emo+'</div>')+'<div class="hist-main">'+
-          '<div class="hist-type">'+esc(x.name)+(x.resubmit?' <span class="re-badge">🔄 แก้ไขส่งใหม่</span>':'')+'</div>'+
+          '<div class="hist-type">'+esc(x.name)+(x.resubmit?' <span class="re-badge">'+ico('rotate')+' แก้ไขส่งใหม่</span>':'')+'</div>'+
           '<div class="hist-meta">'+esc(x.type)+' · '+when+' · <b>'+amt+'</b> · '+esc(x.id)+'</div></div></div>'+
         info+
       '</div>'+
       '<div class="pend-r">'+
         '<div class="pend-main2">'+
-          '<button class="pend-btn no" data-rej="1" '+d+'>❌ ไม่อนุมัติ</button>'+
-          '<button class="pend-btn ok" data-appr="1" '+d+'>✅ อนุมัติ</button>'+
+          '<button class="pend-btn no" data-rej="1" '+d+'>'+ico('x')+' ไม่อนุมัติ</button>'+
+          '<button class="pend-btn ok" data-appr="1" '+d+'>'+ico('check')+' อนุมัติ</button>'+
         '</div>'+
         '<div class="pend-sub">'+
-          '<button class="pend-btn hist" data-hist="1" '+d+'>📊 ประวัติ</button>'+
-          (x.kind!=='ot' ? '<button class="pend-btn doc" data-doc="1" '+d+'>📎 ขอเอกสาร</button>' : '')+
-          '<button class="pend-btn redit" data-redit="1" '+d+'>📝 ส่งกลับแก้ไข</button>'+
-          (x.docUrl ? '<button class="pend-btn viewdoc" data-viewdoc="1" '+d+'>📨 ดูแนบ</button>' : '')+
+          '<button class="pend-btn hist" data-hist="1" '+d+'>'+ico('chart')+' ประวัติ</button>'+
+          (x.kind!=='ot' ? '<button class="pend-btn doc" data-doc="1" '+d+'>'+ico('paperclip')+' ขอเอกสาร</button>' : '')+
+          '<button class="pend-btn redit" data-redit="1" '+d+'>'+ico('pencil')+' ส่งกลับแก้ไข</button>'+
+          (x.docUrl ? '<button class="pend-btn viewdoc" data-viewdoc="1" '+d+'>'+ico('send')+' ดูแนบ</button>' : '')+
         '</div>'+
       '</div>'+
       '</div>'; }).join('')
-    : '<div class="empty" style="padding:20px"><div class="e-emo">✅</div><div class="e-txt">ไม่มีรายการค้างอนุมัติ</div></div>';
+    : '<div class="empty" style="padding:20px"><div class="e-emo">'+ico('check','e-ico')+'</div><div class="e-txt">ไม่มีรายการค้างอนุมัติ</div></div>';
   var pendCard='<div class="card"><div class="card-title"><span class="ic"></span>รออนุมัติ ('+r.pending.length+')</div>'+
-    (r.pending.length?'<div class="hr-note ok2">👇 กดอนุมัติ/ไม่อนุมัติได้เลย · ระบบแจ้งพนักงานทาง LINE อัตโนมัติ</div>':'')+
+    (r.pending.length?'<div class="hr-note ok2">'+ico('info')+' กดอนุมัติ/ไม่อนุมัติได้เลย · ระบบแจ้งพนักงานทาง LINE อัตโนมัติ</div>':'')+
     '<div class="hr-pend-list">'+pend+'</div></div>';
 
   // ประวัติทั้งบริษัท — แท็บ ลา/OT/ลงทะเบียน · เรียงวันที่ใหม่→เก่า · lazy load
-  var histCard='<div class="card"><div class="card-title"><span class="ic"></span>📜 ประวัติทั้งบริษัท</div>'+
+  var histCard='<div class="card"><div class="card-title"><span class="ic"></span>'+ico('scroll')+' ประวัติทั้งบริษัท</div>'+
     '<div class="htabs">'+
-      '<button class="htab'+(S.hrHist==='all'?' sel':'')+'" data-hh="all">📂 ทั้งหมด</button>'+
-      '<button class="htab'+(S.hrHist==='leave'?' sel':'')+'" data-hh="leave">📋 การลา</button>'+
+      '<button class="htab'+(S.hrHist==='all'?' sel':'')+'" data-hh="all">'+ico('folder')+' ทั้งหมด</button>'+
+      '<button class="htab'+(S.hrHist==='leave'?' sel':'')+'" data-hh="leave">'+ico('clipboard')+' การลา</button>'+
       '<button class="htab'+(S.hrHist==='ot'?' sel ot':'')+'" data-hh="ot">⏰ OT</button>'+
-      '<button class="htab'+(S.hrHist==='reg'?' sel':'')+'" data-hh="reg">📝 ลงทะเบียน</button>'+
+      '<button class="htab'+(S.hrHist==='reg'?' sel':'')+'" data-hh="reg">'+ico('user-plus')+' ลงทะเบียน</button>'+
     '</div>'+
     '<div id="hrHistBody"><div class="skel" style="height:64px"></div></div></div>';
 
@@ -1604,7 +1660,7 @@ function hrSumFilterBar(){
 }
 function hrSumGrids(lv, ot, label){
   var stat=function(num,lb){ return '<div class="hr-stat"><div class="hr-num">'+num+'</div><div class="hr-lb">'+lb+'</div></div>'; };
-  return '<div class="hr-sum-lb">📅 '+esc(label||'')+'</div>'+
+  return '<div class="hr-sum-lb">'+ico('calendar')+' '+esc(label||'')+'</div>'+
     '<div class="hr-sum-2col">'+
       '<div class="hr-sum-block"><div class="hr-sum-h">การลา</div>'+
         '<div class="hr-grid">'+stat(lv.total,'ยื่นทั้งหมด')+stat(lv.approved,'อนุมัติ')+stat(lv.pending,'รออนุมัติ')+stat(lv.rejected,'ไม่อนุมัติ')+'</div></div>'+
@@ -1644,9 +1700,9 @@ function loadHrHistory(){
   // โหลดครั้งเดียว cache ใน S.hrHistData แล้วสลับแท็บ client-side
   if(S.hrHistData){ paintHrHistory(); return; }
   api('hrAllHistory',{}).then(function(r){
-    if(!r.ok){ var b=document.getElementById('hrHistBody'); if(b) b.innerHTML=emptyBox('🔒',r.error||'โหลดไม่ได้'); return; }
+    if(!r.ok){ var b=document.getElementById('hrHistBody'); if(b) b.innerHTML=emptyBox(ico('lock','e-ico'),r.error||'โหลดไม่ได้'); return; }
     S.hrHistData = r; paintHrHistory();
-  }).catch(function(e){ var b=document.getElementById('hrHistBody'); if(b) b.innerHTML=emptyBox('😿',String(e.message||e)); });
+  }).catch(function(e){ var b=document.getElementById('hrHistBody'); if(b) b.innerHTML=emptyBox(ico('alert','e-ico'),String(e.message||e)); });
 }
 function paintHrHistory(){
   var b=document.getElementById('hrHistBody'); if(!b||!S.hrHistData) return;
@@ -1656,7 +1712,7 @@ function paintHrHistory(){
   else if(t==='reg'){ list=d.reg; empty='ยังไม่มีประวัติลงทะเบียน'; }
   else { list=d.leave.concat(d.ot).concat(d.reg).sort(function(a,b){ return (b.ts||0)-(a.ts||0); }); empty='ยังไม่มีประวัติ'; }
   var showKind = (S.hrHist==='all');
-  b.innerHTML = !list.length ? emptyBox('🍃',empty) :
+  b.innerHTML = !list.length ? emptyBox(ico('leaf','e-ico'),empty) :
     '<div class="hr-hist">'+list.map(function(h){ return histRow(h, showKind); }).join('')+'</div>';
 }
 // ป้ายประเภท (โชว์ในแท็บ "ทั้งหมด" เพื่อแยก ลา/OT/ลงทะเบียน)
@@ -1677,31 +1733,31 @@ function apprLine(h){
 function histRow(h, showKind){
   var chip = showKind ? kindChip(h.kind) : '';
   if(h.kind==='ot'){
-    return '<div class="hist"><div class="hist-ic">⏰</div>'+
+    return '<div class="hist"><div class="hist-ic">'+ico('clock')+'</div>'+
       '<div class="hist-main"><div class="hist-type">'+chip+esc(h.name)+'</div>'+
-      '<div class="hist-meta"><span>'+esc(h.otType||'OT')+'</span><span>·</span><span>📅 '+esc(h.otDate)+'</span><span>·</span>'+
-      '<span>🕐 '+esc(h.startTime)+'–'+esc(h.endTime)+'</span><span>·</span><span>'+h.hours+' ชม.</span></div>'+apprLine(h)+'</div>'+
+      '<div class="hist-meta"><span>'+esc(h.otType||'OT')+'</span><span>·</span><span>'+ico('calendar')+' '+esc(h.otDate)+'</span><span>·</span>'+
+      '<span>'+ico('clock')+' '+esc(h.startTime)+'–'+esc(h.endTime)+'</span><span>·</span><span>'+h.hours+' ชม.</span></div>'+apprLine(h)+'</div>'+
       statusBadge(h.status)+'</div>';
   }
   if(h.kind==='reg'){
-    var meta='<span>'+(h.empId?esc(h.empId):'ยังไม่มีในระบบ')+(h.dept?' · '+esc(h.dept):'')+'</span><span>·</span><span>📅 '+esc(h.submittedAt)+'</span>';
+    var meta='<span>'+(h.empId?esc(h.empId):'ยังไม่มีในระบบ')+(h.dept?' · '+esc(h.dept):'')+'</span><span>·</span><span>'+ico('calendar')+' '+esc(h.submittedAt)+'</span>';
     if(h.by) meta+='<span>·</span><span>'+(h.status==='rejected'?'✕':'✓')+' โดย '+esc(h.by)+(h.decidedAt?' · '+esc(h.decidedAt):'')+'</span>';
-    if(h.reason) meta+='<span>·</span><span>📝 '+esc(h.reason)+'</span>';
-    return '<div class="hist"><div class="hist-ic">📝</div>'+
+    if(h.reason) meta+='<span>·</span><span>'+ico('message')+' '+esc(h.reason)+'</span>';
+    return '<div class="hist"><div class="hist-ic">'+ico('clipboard')+'</div>'+
       '<div class="hist-main"><div class="hist-type">'+chip+esc(h.name)+'</div>'+
       '<div class="hist-meta">'+meta+'</div></div>'+regBadge(h.status)+'</div>';
   }
   // leave (default)
   var dt=h.startDate+(h.endDate&&h.endDate!==h.startDate?' — '+h.endDate:'');
-  return '<div class="hist"><div class="hist-ic">'+(TYPE_EMOJI[h.type]||'📋')+'</div>'+
+  return '<div class="hist"><div class="hist-ic">'+typeIco(h.type)+'</div>'+
     '<div class="hist-main"><div class="hist-type">'+chip+esc(h.name)+'</div>'+
-    '<div class="hist-meta"><span>'+esc(h.type)+'</span><span>·</span><span>📅 '+dt+'</span><span>·</span><span>⏱ '+h.days+' วัน</span></div>'+apprLine(h)+'</div>'+
+    '<div class="hist-meta"><span>'+esc(h.type)+'</span><span>·</span><span>'+ico('calendar')+' '+dt+'</span><span>·</span><span>'+ico('hourglass')+' '+h.days+' วัน</span></div>'+apprLine(h)+'</div>'+
     statusBadge(h.status)+'</div>';
 }
 // badge สถานะลงทะเบียน (pending/approved/rejected)
 function regBadge(st){
   st=String(st||'');
-  if(st==='approved') return '<span class="badge ok">✅ อนุมัติ</span>';
+  if(st==='approved') return '<span class="badge ok">'+ico('check')+' อนุมัติ</span>';
   if(st==='rejected') return '<span class="badge no">❌ ปฏิเสธ</span>';
   return '<span class="badge wait">⏳ รออนุมัติ</span>';
 }
@@ -1745,13 +1801,13 @@ function loadLeaveCal(){
   var ml=document.getElementById('lcMonth'); if(ml) ml.textContent=TH_MONTHS[mo1-1]+' '+(y+543);
   api('hrLeaveCalendar',{year:y,month:mo1}).then(function(r){
     var c=document.getElementById('lcCal'); if(!c) return;
-    if(!r.ok){ c.innerHTML=emptyBox('🔒',r.error||'ไม่มีสิทธิ์'); return; }
+    if(!r.ok){ c.innerHTML=emptyBox(ico('lock','e-ico'),r.error||'ไม่มีสิทธิ์'); return; }
     S.leaveCalItems=r.items||[];
     var dp=document.getElementById('lcDept');
     if(dp && (r.depts||[]).length){ dp.innerHTML='<option value="">ทุกแผนก</option>'+r.depts.map(function(d){
       return '<option value="'+esc(d)+'"'+(S.leaveCalDept===d?' selected':'')+'>'+esc(d)+'</option>'; }).join(''); }
     renderLeaveCalGrid(); renderLeaveCalPanel(S.leaveCalSel);
-  }).catch(function(e){ var c=document.getElementById('lcCal'); if(c)c.innerHTML=emptyBox('😿',String(e.message||e)); });
+  }).catch(function(e){ var c=document.getElementById('lcCal'); if(c)c.innerHTML=emptyBox(ico('alert','e-ico'),String(e.message||e)); });
 }
 function lcFiltered(){
   return S.leaveCalItems.filter(function(it){
@@ -1918,9 +1974,9 @@ function loadMgleave(){
   if(f.mode==='range' && (!f.from||!f.to)) return toast('เลือกช่วงวันที่ให้ครบค่ะ','err');
   var box=document.getElementById('mgList'); if(box) box.innerHTML='<div class="card"><div class="skel" style="height:120px"></div></div>';
   api('mgLeaveList',{mode:f.mode,year:f.year,month:f.month,from:f.from,to:f.to}).then(function(r){
-    if(!r.ok){ if(box) box.innerHTML=emptyBox('🔒',r.error||'โหลดไม่ได้'); return; }
+    if(!r.ok){ if(box) box.innerHTML=emptyBox(ico('lock','e-ico'),r.error||'โหลดไม่ได้'); return; }
     S.mgData=r; paintMgList();
-  }).catch(function(e){ if(box) box.innerHTML=emptyBox('😿',String(e.message||e)); });
+  }).catch(function(e){ if(box) box.innerHTML=emptyBox(ico('alert','e-ico'),String(e.message||e)); });
 }
 
 // ════════════ แท็บ 📊 สรุปวันลารายคน (matrix) ════════════
@@ -1968,9 +2024,9 @@ function loadMgReport(){
   if(f.mode==='range' && (!f.from||!f.to)) return toast('เลือกช่วงวันที่ให้ครบค่ะ','err');
   var box=document.getElementById('mgReport'); if(box) box.innerHTML='<div class="skel" style="height:160px"></div>';
   api('mgLeaveReport',{mode:f.mode,year:f.year,month:f.month,from:f.from,to:f.to}).then(function(r){
-    if(!r.ok){ if(box) box.innerHTML=emptyBox('🔒',r.error||'โหลดไม่ได้'); return; }
+    if(!r.ok){ if(box) box.innerHTML=emptyBox(ico('lock','e-ico'),r.error||'โหลดไม่ได้'); return; }
     S.mgRptData=r; paintMgReport();
-  }).catch(function(e){ if(box) box.innerHTML=emptyBox('😿',String(e.message||e)); });
+  }).catch(function(e){ if(box) box.innerHTML=emptyBox(ico('alert','e-ico'),String(e.message||e)); });
 }
 function paintMgReport(){
   var box=document.getElementById('mgReport'); if(!box||!S.mgRptData) return;
@@ -2072,7 +2128,7 @@ function mgRowTable(h){
     '<td class="mg-sub2 ce">'+esc(h.empId||'-')+'</td>'+
     '<td class="lft"><b>'+esc(h.name)+'</b></td>'+
     '<td class="lft">'+esc(h.dept||'-')+'</td>'+
-    '<td>'+(TYPE_EMOJI[h.type]||'📋')+' '+esc(h.type)+'</td>'+
+    '<td>'+typeIco(h.type)+' '+esc(h.type)+'</td>'+
     '<td>'+esc(dt)+'</td>'+
     '<td class="ce">'+esc(h.timeDisplay||h.days)+'</td>'+
     '<td class="ce">'+statusBadge(h.status)+'</td>'+
@@ -2336,9 +2392,9 @@ function loadOtList(){
   if(f.mode==='range'&&(!f.from||!f.to)) return toast('เลือกช่วงวันที่ให้ครบค่ะ','err');
   var box=document.getElementById('otList'); if(box) box.innerHTML='<div class="card"><div class="skel" style="height:120px"></div></div>';
   api('mgOtList',{mode:f.mode,year:f.year,month:f.month,from:f.from,to:f.to}).then(function(r){
-    if(!r.ok){ if(box) box.innerHTML=emptyBox('🔒',r.error||'โหลดไม่ได้'); return; }
+    if(!r.ok){ if(box) box.innerHTML=emptyBox(ico('lock','e-ico'),r.error||'โหลดไม่ได้'); return; }
     S.mgotData=r; paintOtList();
-  }).catch(function(e){ if(box) box.innerHTML=emptyBox('😿',String(e.message||e)); });
+  }).catch(function(e){ if(box) box.innerHTML=emptyBox(ico('alert','e-ico'),String(e.message||e)); });
 }
 function otCounts(list){ var c={all:list.length,pending:0,approved:0,rejected:0,cancel:0}; list.forEach(function(it){ var g=mgStatusGroup(it.status); if(c[g]!=null) c[g]++; }); return c; }
 function otSummaryBar(c){
@@ -2725,7 +2781,7 @@ function loadOtReport(){
   otReadFilter('otr', S.mgotRptFilter); var f=S.mgotRptFilter;
   if(f.mode==='range'&&(!f.from||!f.to)) return toast('เลือกช่วงวันที่ให้ครบค่ะ','err');
   var box=document.getElementById('otReport'); if(box) box.innerHTML='<div class="skel" style="height:160px"></div>';
-  api('mgOtSummary',{mode:f.mode,year:f.year,month:f.month,from:f.from,to:f.to}).then(function(r){ if(!r.ok){ if(box) box.innerHTML=emptyBox('🔒',r.error||'โหลดไม่ได้'); return; } S.mgotRptData=r; paintOtReport(); }).catch(function(e){ if(box) box.innerHTML=emptyBox('😿',String(e.message||e)); });
+  api('mgOtSummary',{mode:f.mode,year:f.year,month:f.month,from:f.from,to:f.to}).then(function(r){ if(!r.ok){ if(box) box.innerHTML=emptyBox(ico('lock','e-ico'),r.error||'โหลดไม่ได้'); return; } S.mgotRptData=r; paintOtReport(); }).catch(function(e){ if(box) box.innerHTML=emptyBox(ico('alert','e-ico'),String(e.message||e)); });
 }
 function paintOtReport(){
   var box=document.getElementById('otReport'); if(!box||!S.mgotRptData) return;
@@ -2756,10 +2812,10 @@ function otExportResult(r){
 function loadSettings(){
   api('adminBootstrap',{}).then(function(r){
     var m=document.getElementById('main'); if(!m) return;
-    if(!r.ok){ m.innerHTML=backBar()+emptyBox('🔒',r.error||'ไม่มีสิทธิ์'); bindBack(); return; }
+    if(!r.ok){ m.innerHTML=backBar()+emptyBox(ico('lock','e-ico'),r.error||'ไม่มีสิทธิ์'); bindBack(); return; }
     S.adminUsers=r.users; S.adminRoles=r.roles; S.adminCaller=r.callerId; S.adminOwnerCount=r.ownerCount; S.adminSchedules=r.schedules||[];
     m.innerHTML=backBar()+renderSettings(r); bindBack(); wireSettings();
-  }).catch(function(e){ var m=document.getElementById('main'); if(m){ m.innerHTML=backBar()+emptyBox('😿',String(e.message||e)); bindBack(); } });
+  }).catch(function(e){ var m=document.getElementById('main'); if(m){ m.innerHTML=backBar()+emptyBox(ico('alert','e-ico'),String(e.message||e)); bindBack(); } });
 }
 function renderSettings(r){
   // หน้าแรกเมนูพนักงาน = แดชบอร์ด + ค้นหา + ตาราง (ปรับตามแบบที่พี่กี้ส่ง 27 ส.ค. 69)
@@ -3089,12 +3145,13 @@ function openInfoModal(uid){
 function refresh(){ api('bootstrap',{}).then(function(r){ if(r.ok){ apply(r); if(S.view==='home'||S.view==='profile') render(); } }).catch(function(){}); }
 function statusBadge(st){
   st = String(st||'');
-  if (st.indexOf('ยกเลิก')>=0) return '<span class="badge cancel">🚫 ยกเลิก</span>';
-  if (st.indexOf('แก้ไข')>=0 || st.indexOf('ส่งกลับ')>=0) return '<span class="badge edit">✏️ ต้องแก้ไข</span>';
-  if (st.indexOf('รอ')>=0) return '<span class="badge wait">⏳ รออนุมัติ</span>';   // "รอการอนุมัติ" — เช็คก่อน (มีคำว่า "อนุมัติ" ข้างใน)
-  if (st.indexOf('ไม่อนุมัติ')>=0) return '<span class="badge no">❌ ไม่อนุมัติ</span>';
-  if (st.indexOf('อนุมัติ')>=0) return '<span class="badge ok">✅ อนุมัติ</span>';
-  return '<span class="badge wait">⏳ รออนุมัติ</span>';
+  // ป้ายบนหน้าจอใช้ไอคอนเส้น — ค่าสถานะจริงในชีตยังเป็นอิโมจิเหมือนเดิม (backend เทียบสตริงนั้น)
+  if (st.indexOf('ยกเลิก')>=0) return '<span class="badge cancel">'+ico('ban')+' ยกเลิก</span>';
+  if (st.indexOf('แก้ไข')>=0 || st.indexOf('ส่งกลับ')>=0) return '<span class="badge edit">'+ico('pencil')+' ต้องแก้ไข</span>';
+  if (st.indexOf('รอ')>=0) return '<span class="badge wait">'+ico('hourglass')+' รออนุมัติ</span>';   // "รอการอนุมัติ" — เช็คก่อน (มีคำว่า "อนุมัติ" ข้างใน)
+  if (st.indexOf('ไม่อนุมัติ')>=0) return '<span class="badge no">'+ico('x')+' ไม่อนุมัติ</span>';
+  if (st.indexOf('อนุมัติ')>=0) return '<span class="badge ok">'+ico('check')+' อนุมัติ</span>';
+  return '<span class="badge wait">'+ico('hourglass')+' รออนุมัติ</span>';
 }
 function dkey(d){ return d.getFullYear()+'-'+d.getMonth()+'-'+d.getDate(); }
 function fmtThai(d){ return ('0'+d.getDate()).slice(-2)+'/'+('0'+(d.getMonth()+1)).slice(-2)+'/'+(d.getFullYear()+543); }
@@ -3567,14 +3624,14 @@ function loadUnpaidReqs(){
 function renderUnpaidReqs(list){
   var rows = list.map(function(x){
     var d = 'data-upid="'+esc(x.reqId)+'" data-upname="'+esc(x.name)+'" data-updays="'+esc(String(x.askDays))+'"';
-    return '<div class="pend"><div class="pend-top"><div class="hist-ic">📄</div><div class="hist-main">'+
+    return '<div class="pend"><div class="pend-top"><div class="hist-ic">'+ico('file')+'</div><div class="hist-main">'+
       '<div class="hist-type">'+esc(x.name)+' — ขอ '+esc(String(x.askDays))+' วัน</div>'+
       '<div class="hist-meta">'+esc(x.empId||'-')+(x.dept?' · '+esc(x.dept):'')+' · '+esc(x.submittedAt)+'</div>'+
-      '<div class="hist-meta" style="margin-top:4px">📝 '+esc(x.reason||'-')+'</div></div></div>'+
-      '<div class="pend-act"><button class="pend-btn no" data-upno="1" '+d+'>❌ ไม่อนุมัติ</button>'+
-      '<button class="pend-btn ok" data-upok="1" '+d+'>✅ ให้สิทธิ์</button></div></div>'; }).join('');
-  return '<div class="card"><div class="card-title"><span class="ic"></span>📄 คำขอลาไม่รับค่าจ้าง ('+list.length+')</div>'+
-    '<div class="hr-note ok2">👇 คุยกับพนักงานให้ชัดก่อนให้สิทธิ์ · ให้กี่วันก็ได้ (ไม่ต้องเท่าที่ขอ) · ระบบเพิ่มโควตาให้อัตโนมัติแล้วแจ้งพนักงานทาง LINE</div>'+rows+'</div>';
+      '<div class="hist-meta" style="margin-top:4px">'+ico('message')+' '+esc(x.reason||'-')+'</div></div></div>'+
+      '<div class="pend-act"><button class="pend-btn no" data-upno="1" '+d+'>'+ico('x')+' ไม่อนุมัติ</button>'+
+      '<button class="pend-btn ok" data-upok="1" '+d+'>'+ico('check')+' ให้สิทธิ์</button></div></div>'; }).join('');
+  return '<div class="card"><div class="card-title"><span class="ic"></span>'+ico('file')+' คำขอลาไม่รับค่าจ้าง ('+list.length+')</div>'+
+    '<div class="hr-note ok2">'+ico('info')+' คุยกับพนักงานให้ชัดก่อนให้สิทธิ์ · ให้กี่วันก็ได้ (ไม่ต้องเท่าที่ขอ) · ระบบเพิ่มโควตาให้อัตโนมัติแล้วแจ้งพนักงานทาง LINE</div>'+rows+'</div>';
 }
 function wireUnpaidReqs(){
   document.querySelectorAll('[data-upok]').forEach(function(el){
@@ -3627,7 +3684,7 @@ function viewUnpaidReq(){
   return '<div class="card">'+
     '<div class="card-title"><span class="ic"></span>📄 ขอสิทธิ์ลาไม่รับค่าจ้าง</div>'+
     quotaLine + banner +
-    '<div class="hr-note">ℹ️ ขั้นตอน: ① ส่งคำขอ (บอกจำนวนวัน + เหตุผล — <b>ยังไม่ต้องระบุวันที่ลา</b>) → ② HR คุยกับคุณแล้วให้สิทธิ์ → ③ คุณค่อยยื่นใบลา เลือกวันจริง → ④ HR อนุมัติใบลา</div>'+
+    '<div class="hr-note">'+ico('info')+' ขั้นตอน: ① ส่งคำขอ (บอกจำนวนวัน + เหตุผล — <b>ยังไม่ต้องระบุวันที่ลา</b>) → ② HR คุยกับคุณแล้วให้สิทธิ์ → ③ คุณค่อยยื่นใบลา เลือกวันจริง → ④ HR อนุมัติใบลา</div>'+
     (st.pending ? '' :
       '<label class="field-lb">📆 จำนวนวันที่ต้องการขอ</label>'+
       '<input type="number" id="upDays" inputmode="decimal" min="0.5" step="0.5" placeholder="เช่น 2">'+
@@ -3663,10 +3720,10 @@ function loadMyUnpaidReqs(){
     var el=document.getElementById('upHist'); if(!el) return;
     if(!r.ok || !r.count){ el.innerHTML=''; return; }
     var rows=r.list.map(function(x){
-      var badge = x.status==='อนุมัติแล้ว' ? '<span class="badge ok">✅ ให้สิทธิ์ '+esc(String(x.grantDays))+' วัน</span>'
+      var badge = x.status==='อนุมัติแล้ว' ? '<span class="badge ok">'+ico('check')+' ให้สิทธิ์ '+esc(String(x.grantDays))+' วัน</span>'
                 : x.status==='ไม่อนุมัติ' ? '<span class="badge no">❌ ไม่อนุมัติ</span>'
                 : '<span class="badge wait">⏳ รอ HR</span>';
-      return '<div class="hist"><div class="hist-ic">📄</div><div class="hist-main">'+
+      return '<div class="hist"><div class="hist-ic">'+ico('file')+'</div><div class="hist-main">'+
         '<div class="hist-type">ขอ '+esc(String(x.askDays))+' วัน '+badge+'</div>'+
         '<div class="hist-meta">'+esc(x.submittedAt)+(x.hr?' · '+esc(x.hr):'')+'</div>'+
         (x.note?'<div class="hist-meta">📝 '+esc(x.note)+'</div>':'')+'</div></div>'; }).join('');
