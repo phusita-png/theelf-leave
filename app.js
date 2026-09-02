@@ -2003,11 +2003,137 @@ function mgToolsTabHtml(){
       '<button class="mg-tool quota" id="mgQuotaBtn"><b>'+ico('ticket')+' ปรับโควต้าวันลา</b><span>แก้โควต้าทั้งปีรายคน 6 ประเภท</span></button>'+
     '</div>'+
   '</div>'+
+  // 📊 รายงานการลารายเดือน — ลำดับเดียวกับฝั่ง OT (สร้าง → ตรวจ → ส่ง)
+  '<div class="card">'+
+    '<div class="hr-note ok2">'+ico('chart')+' รายงานการลารายเดือน — รวมวันลาที่อนุมัติแล้วในรอบ 26–25 · เดิมทำได้จากเมนูในชีตเท่านั้น</div>'+
+    '<div class="mg-toolgrid">'+
+      '<button class="mg-tool" id="mglBuildBtn"><b>'+ico('chart')+' 1. สร้างรายงานเดือน</b><span>เขียนแท็บ "รายงาน MM-YYYY" ในชีตระบบลา · กดซ้ำได้ สร้างทับให้</span></button>'+
+      '<button class="mg-tool" id="mglExportBtn"><b>'+ico('upload')+' 2. ออกไฟล์รายงาน</b><span>คัดลอกแท็บเป็นไฟล์แชร์ → เปิดตรวจก่อนส่ง · ยังไม่ส่ง LINE</span></button>'+
+      '<button class="mg-tool" id="mglSendBtn"><b>'+ico('send')+' 3. ส่งเข้ากลุ่ม HR</b><span>ส่งสรุปยอด + ลิงก์ไฟล์เข้ากลุ่ม LINE ของ HR</span></button>'+
+      '<button class="mg-tool" id="mglStatusBtn"><b>'+ico('clipboard')+' สถานะเดือนนี้ (ดูย้อนหลัง)</b><span>สร้างแล้วยัง · ไฟล์ล่าสุด · ส่งกลุ่มไปเมื่อไร</span></button>'+
+    '</div>'+
+    '<div class="hr-note" style="margin-top:12px">'+ico('rotate')+' ลำดับปลอดภัย: <b>1.สร้างรายงาน</b> → <b>2.ออกไฟล์</b> (เปิดตรวจ) → <b>3.ส่งกลุ่ม</b> · '+ico('alert')+' ข้อมูลการลาเป็นข้อมูลส่วนบุคคล ส่งเข้ากลุ่ม HR เท่านั้น</div>'+
+  '</div>'+
+  '<div id="mglResult"></div>'+
   '<div class="card">'+
     '<div class="mg-head">'+ico('ticket')+' โควต้าวันลารายคน (ทั้งปี) <span class="mg-sub2">— คลิกแถวเพื่อแก้โควต้า</span></div>'+
     '<div id="mgQuotaTbl"><div class="skel" style="height:120px"></div></div>'+
   '</div>';
 }
+
+// ════════════ 📊 รายงานการลารายเดือน (ทำจากเว็บ) ════════════
+// ลำดับเดียวกับฝั่ง OT: 1) สร้างรายงาน → 2) ออกไฟล์ (เปิดตรวจ) → 3) ส่งเข้ากลุ่ม HR
+// แกนคำนวณใช้ตัวเดิมที่เมนูชีตใช้ ตัวเลขจึงตรงกับที่เคยส่งทุกเดือน
+function _mglYMSelect_(){
+  var TH=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  var now=new Date(), nowY=now.getFullYear()+543;
+  // ค่าเริ่ม = รอบที่เพิ่งปิด (วันที่ 26 ขึ้นไปนับเป็นรอบเดือนถัดไป)
+  var curM=now.getMonth()+1; if(now.getDate()>=26){ curM++; if(curM>12) curM=1; }
+  var mons=''; for(var mo=1;mo<=12;mo++) mons+='<option value="'+mo+'"'+(curM===mo?' selected':'')+'>'+TH[mo-1]+'</option>';
+  var yrs=''; for(var y=nowY;y>=nowY-3;y--) yrs+='<option value="'+y+'"'+(nowY===y?' selected':'')+'>'+y+'</option>';
+  return '<div class="cfm-row"><span class="cfm-k">เดือน (ปลายรอบ)</span><span class="cfm-v">'+
+      '<select class="hr-fsel" id="mglMon">'+mons+'</select> <select class="hr-fsel" id="mglYr">'+yrs+'</select></span></div>'+
+    '<div id="mglPrev" class="hr-note" style="margin-top:8px"></div>';
+}
+function _mglPrev(mEnd, yrBE){
+  var yCE=yrBE-543, s=new Date(yCE,mEnd-2,26), e=new Date(yCE,mEnd-1,25), pad=function(n){return (n<10?'0':'')+n;};
+  var fmt=function(d){return pad(d.getDate())+'/'+pad(d.getMonth()+1)+'/'+(d.getFullYear()+543);};
+  return { label:fmt(s)+' – '+fmt(e), tab:'รายงาน '+pad(mEnd)+'-'+yrBE };
+}
+function _mglWirePrev(c){
+  var upd=function(){ var mo=+c.querySelector('#mglMon').value, yr=+c.querySelector('#mglYr').value, pv=_mglPrev(mo,yr);
+    var el=c.querySelector('#mglPrev'); if(el) el.innerHTML=ico('calendar')+' รอบ <b>'+pv.label+'</b> · '+ico('folder')+' แท็บ: '+esc(pv.tab); };
+  c.querySelector('#mglMon').addEventListener('change',upd); c.querySelector('#mglYr').addEventListener('change',upd); upd();
+}
+function _mglPick(c){ return { month:+c.querySelector('#mglMon').value, yearBE:+c.querySelector('#mglYr').value }; }
+
+/** ขั้น 1 — สร้าง/สร้างทับแท็บรายงานในชีตระบบลา */
+function openMglBuild(){
+  modalForm({ title:'สร้างรายงานการลารายเดือน', emoji:ico('chart'), okLabel:ico('chart')+' สร้างรายงาน',
+    body:'<div class="hr-note ok2" style="margin-bottom:10px">รวมวันลาที่ <b>อนุมัติแล้ว</b> ในรอบ → เขียนแท็บ "รายงาน MM-YYYY" ในชีตระบบลา · กดซ้ำได้ ระบบสร้างทับให้</div>'+_mglYMSelect_(),
+    onMount:_mglWirePrev,
+    onOk:function(c){ var s=_mglPick(c);
+      var btn=c.querySelector('[data-cfm-ok]'); if(btn){btn.disabled=true;btn.textContent='กำลังสร้าง…';}
+      api('mgLeaveReportBuild',s).then(function(r){
+        if(!r.ok){ if(btn){btn.disabled=false;btn.textContent='สร้างรายงาน';} return toast(r.error||'สร้างไม่สำเร็จ','err'); }
+        closeConfirm(); renderMglResult('build', r); toast('สร้างรายงาน '+r.tabName+' แล้ว','ok');
+      }).catch(function(e){ if(btn){btn.disabled=false;btn.textContent='สร้างรายงาน';} toast(String(e.message||e),'err'); }); }
+  });
+}
+
+/** ขั้น 2 — คัดลอกแท็บเป็นไฟล์แชร์ (เปิดตรวจก่อนส่ง) */
+function openMglExport(){
+  modalForm({ title:'ออกไฟล์รายงาน (เปิดตรวจก่อนส่ง)', emoji:ico('upload'), okLabel:ico('upload')+' ออกไฟล์',
+    body:'<div class="hr-note ok2" style="margin-bottom:10px">คัดลอกแท็บรายงานเป็นไฟล์ใหม่ + เปิดสิทธิ์ "ใครมีลิงก์ดูได้" · ต้องกดสร้างรายงานเดือนนั้นก่อน</div>'+_mglYMSelect_(),
+    onMount:_mglWirePrev,
+    onOk:function(c){ var s=_mglPick(c);
+      var btn=c.querySelector('[data-cfm-ok]'); if(btn){btn.disabled=true;btn.textContent='กำลังออกไฟล์…';}
+      api('mgLeaveReportExport',s).then(function(r){
+        if(!r.ok){ if(btn){btn.disabled=false;btn.textContent='ออกไฟล์';}
+          if(r.needBuild) return noticeBox('ยังไม่มีรายงานเดือนนี้', r.error+'\n\nกดปุ่ม "1. สร้างรายงานเดือน" ก่อนค่ะ', ico('alert'));
+          return toast(r.error||'ออกไฟล์ไม่สำเร็จ','err'); }
+        closeConfirm(); renderMglResult('export', r); toast('ออกไฟล์แล้ว','ok');
+      }).catch(function(e){ if(btn){btn.disabled=false;btn.textContent='ออกไฟล์';} toast(String(e.message||e),'err'); }); }
+  });
+}
+
+/** ขั้น 3 — ส่งสรุป + ลิงก์เข้ากลุ่ม HR (ไม่ส่งรายคน) */
+function openMglSend(){
+  modalForm({ title:'ส่งรายงานเข้ากลุ่ม HR', emoji:ico('send'), okLabel:ico('send')+' ส่งเข้ากลุ่ม',
+    body:'<div class="hr-note ok2" style="margin-bottom:10px">ส่งสรุปยอด + ลิงก์ไฟล์เข้า<b>กลุ่ม HR</b> ทาง LINE · ระบบหยิบไฟล์ล่าสุดของเดือนนั้นให้เอง</div>'+_mglYMSelect_()+
+      '<div class="hr-note" style="margin-top:8px">'+ico('alert')+' ข้อมูลการลาเป็นข้อมูลส่วนบุคคล — ส่งเข้ากลุ่ม HR เท่านั้น ไม่ส่งให้พนักงานรายคน</div>',
+    onMount:_mglWirePrev,
+    onOk:function(c){ var s=_mglPick(c);
+      var btn=c.querySelector('[data-cfm-ok]'); if(btn){btn.disabled=true;btn.textContent='กำลังส่ง…';}
+      api('mgLeaveReportSend',s).then(function(r){
+        if(!r.ok){ if(btn){btn.disabled=false;btn.textContent='ส่งเข้ากลุ่ม';}
+          if(r.needExport) return noticeBox('ยังไม่มีไฟล์ของเดือนนี้', r.error+'\n\nกดปุ่ม "2. ออกไฟล์รายงาน" ก่อนค่ะ', ico('alert'));
+          return toast(r.error||'ส่งไม่สำเร็จ','err'); }
+        closeConfirm(); renderMglResult('send', r); toast('ส่งเข้ากลุ่ม HR แล้ว','ok');
+      }).catch(function(e){ if(btn){btn.disabled=false;btn.textContent='ส่งเข้ากลุ่ม';} toast(String(e.message||e),'err'); }); }
+  });
+}
+
+/** เดือนนี้ทำถึงไหนแล้ว — เปิดดูย้อนหลังได้ ไม่ต้องจำเอง */
+function openMglStatus(){
+  modalForm({ title:'สถานะรายงานเดือนนี้', emoji:ico('clipboard'), okLabel:ico('search')+' ดูสถานะ',
+    body:'<div class="hr-note ok2" style="margin-bottom:10px">ดูว่าเดือนที่เลือกสร้างรายงานแล้วหรือยัง · ออกไฟล์ล่าสุดเมื่อไร · ส่งเข้ากลุ่มไปแล้วหรือยัง</div>'+_mglYMSelect_(),
+    onMount:_mglWirePrev,
+    onOk:function(c){ var s=_mglPick(c);
+      api('mgLeaveReportStatus',s).then(function(r){
+        if(!r.ok) return toast(r.error||'ดูสถานะไม่ได้','err');
+        closeConfirm(); renderMglResult('status', r);
+      }).catch(function(e){ toast(String(e.message||e),'err'); }); }
+  });
+}
+
+function renderMglResult(kind, r){
+  var box=document.getElementById('mglResult'); if(!box) return;
+  var line=function(k,v){ return '<div class="cfm-row"><span class="cfm-k">'+esc(k)+'</span><span class="cfm-v">'+v+'</span></div>'; };
+  var link=function(u,t){ return u?'<a href="'+esc(u)+'" target="_blank" rel="noopener">'+esc(t||'เปิด')+' ↗</a>':'<span class="mg-sub2">—</span>'; };
+  var head='', body='';
+
+  if(kind==='build'){
+    head=ico('chart')+' สร้างรายงาน <b>'+esc(r.tabName)+'</b> เรียบร้อย';
+    body=line('พนักงานในรายงาน', r.empCount+' คน')+line('ใบลาที่นับ', r.leaveCount+' ใบ (อนุมัติแล้ว)')+
+         line('แท็บในชีต', link(r.url, r.tabName))+
+         '<div class="hr-note" style="margin-top:10px">'+ico('rotate')+' ตรวจในแท็บก่อน → กด <b>2. ออกไฟล์รายงาน</b> → <b>3. ส่งเข้ากลุ่ม HR</b></div>';
+  } else if(kind==='export'){
+    head=ico('upload')+' ออกไฟล์ <b>'+esc(r.tabName)+'</b> แล้ว';
+    body=line('ชื่อไฟล์', esc(r.filename))+line('ลิงก์ (ใครมีลิงก์ดูได้)', link(r.url,'เปิดไฟล์'))+
+         '<div class="hr-note" style="margin-top:10px">'+ico('folder')+' ไฟล์เข้าทะเบียนแล้ว — เปิดซ้ำได้ที่แท็บ "ไฟล์รายงาน"</div>';
+  } else if(kind==='send'){
+    head=ico('send')+' ส่งเข้ากลุ่ม HR แล้ว · <b>'+esc(r.tabName)+'</b>';
+    body=line('ลิงก์ที่ส่งไป', link(r.url,'เปิดไฟล์'));
+  } else {
+    head=ico('clipboard')+' สถานะ <b>'+esc(r.tabName)+'</b>';
+    body=line('สร้างรายงานแล้ว', r.hasTab ? (ico('check')+' แล้ว · '+link(r.tabUrl,'เปิดแท็บ')) : (ico('x')+' ยังไม่ได้สร้าง'))+
+         line('ไฟล์ล่าสุด', r.lastFile ? (esc(r.lastFile.at)+' · '+link(r.lastFile.url,'เปิดไฟล์')+' <span class="mg-sub2">โดย '+esc(r.lastFile.by)+'</span>') : '<span class="mg-sub2">ยังไม่ได้ออกไฟล์</span>')+
+         line('ส่งเข้ากลุ่ม HR', r.lastSend ? (ico('check')+' '+esc(r.lastSend.at)+' <span class="mg-sub2">โดย '+esc(r.lastSend.by)+'</span>') : '<span class="mg-sub2">ยังไม่ได้ส่ง</span>');
+  }
+  box.innerHTML='<div class="card"><div class="hr-note ok2">'+head+'</div>'+body+'</div>';
+}
+
 function mgFilterBar(){
   var f=S.mgFilter;
   var modeSel='<select class="hr-fsel" id="mgMode">'+
@@ -2049,6 +2175,10 @@ function wireMgListTab(){
 function wireMgToolsTab(){
   var add=document.getElementById('mgAddBtn'); if(add) add.addEventListener('click',function(){ openMgProxy(); });
   var q=document.getElementById('mgQuotaBtn'); if(q) q.addEventListener('click',function(){ openMgQuota(); });
+  var rb=document.getElementById('mglBuildBtn');  if(rb) rb.addEventListener('click', openMglBuild);
+  var re=document.getElementById('mglExportBtn'); if(re) re.addEventListener('click', openMglExport);
+  var rs=document.getElementById('mglSendBtn');   if(rs) rs.addEventListener('click', openMglSend);
+  var rt=document.getElementById('mglStatusBtn'); if(rt) rt.addEventListener('click', openMglStatus);
   renderMgQuotaTable();
 }
 function renderMgQuotaTable(){
@@ -3644,6 +3774,14 @@ function mockApi(action, params){
       resolve({ok:true,period:'08-2569',kind:_k,locked:_on,
  summary:(_on?' ปิดรอบ ':' ปลดล็อกรอบ ')+'08-2569'});
     }
+    else if(action==='mgLeaveReportBuild') resolve({ok:true,month:params.month,yearBE:params.yearBE,
+      tabName:'รายงาน 08-2569',url:'#',empCount:30,leaveCount:12,label:'สิงหาคม 2569'});
+    else if(action==='mgLeaveReportExport') resolve({ok:true,month:params.month,yearBE:params.yearBE,
+      tabName:'รายงาน 08-2569',filename:'รายงานการลา_08-2569_20260902-110000',url:'#'});
+    else if(action==='mgLeaveReportSend') resolve({ok:true,tabName:'รายงาน 08-2569',url:'#'});
+    else if(action==='mgLeaveReportStatus') resolve({ok:true,tabName:'รายงาน 08-2569',hasTab:true,tabUrl:'#',
+      lastFile:{at:'02/09/2569 11:00',name:'รายงานการลา_08-2569',url:'#',by:'พี่กี้ HR'},
+      lastSend:{at:'02/09/2569 11:05',by:'พี่กี้ HR'}});
     else if(action==='mgMonthlyReports') resolve({ok:true,group:(params&&params.group)||'leave',months:
       ((params&&params.group)==='ot'
         ? [{month:8,yearBE:2569,label:'ส.ค. 2569',name:'การคำนวณ OT 08-2026',rows:48,from:'26/07/2569',to:'25/08/2569',url:'#'},
