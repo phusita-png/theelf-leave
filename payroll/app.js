@@ -203,6 +203,19 @@ function configure(opts) {
   return CFG;
 }
 
+/**
+ * dashboardInto — วาด "ภาพรวมทั้งปี" (กราฟเงินเดือน/ภาษี/ปกส.) ลงกล่องที่คอนโซลให้มา
+ * ใช้ของเดิมทั้งดุ้น (loadPayDash → renderPayDash) ไม่ได้ทำกราฟชุดใหม่
+ */
+function dashboardInto(hostEl, opts) {
+  if (!hostEl) return;
+  configure(opts);
+  hostEl.classList.add('pay-scope', 'pay-embed');
+  hostEl.innerHTML = '<div id="pay-dash"></div>';
+  ROOT = hostEl;              // $() หา #pay-* จาก ROOT — ชี้มาที่กล่องนี้ชั่วคราว
+  loadPayDash();              // เปิดหน้า Payroll ทีหลัง mount() จะตั้ง ROOT ใหม่เอง
+}
+
 function mount(host, opts) {
   if (!host) return;
   ROOT = host;
@@ -2021,6 +2034,7 @@ function submitEditRow(seq) {
 return {
   api: api,          // หน้าแดชบอร์ดของคอนโซลเรียกยอดรวมเงินเดือนผ่านตัวนี้
   configure: configure,
+  dashboardInto: dashboardInto,
   mount: mount,
   unmount: unmount,
   goTab: goTab,
