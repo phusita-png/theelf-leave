@@ -3026,17 +3026,29 @@ function openQuotaModal(empId){
   if(!u) return toast('ไม่พบพนักงาน','err');
   if(!u.quota) return toast('ไม่พบแถวโควต้าของ '+u.name+' ในชีตโควต้าลา','err');
   var q=u.quota;
-  var types=[['sick','🤒 ลาป่วย'],['biz','📋 ลากิจ'],['vac','🌴 ลาพักร้อน']];
-  var body='<div class="set-hint">หน่วย: วัน (สิทธิ์ต่อปี) · ลาวันเกิด/คนพิเศษ/ไม่รับค่าจ้าง ใช้ค่ามาตรฐาน (แก้ในชีตโควต้าลาถ้าต้องการ)</div>'+types.map(function(t){
-    return '<div class="set-row"><label>'+t[1]+'</label><input type="number" inputmode="decimal" min="0" step="0.5" data-q="'+t[0]+'" value="'+(q[t[0]]!=null?q[t[0]]:0)+'"></div>';
-  }).join('');
-  _settingsModal_('🏖️ โควต้าลา · '+esc(u.name), body, function(cc){
+  // แก้ได้ครบทั้ง 6 ประเภท — เดิมโชว์แค่ 3 ตัวแรก อีก 3 ตัวต้องไปแก้ในชีตเอง
+  // (คนเก่ายังมีสิทธิ์วันเกิด/คนพิเศษ/ไม่รับค่าจ้างค้างอยู่ ต้องล้างได้จากหน้านี้)
+  var types=[['sick','🤒 ลาป่วย'],['biz','📋 ลากิจ'],['vac','🌴 ลาพักร้อน'],
+             ['bday','🎂 ลาวันเกิด'],['special','💝 ลาวันเกิดคนพิเศษ'],['unpaid','📄 ลากิจไม่รับค่าจ้าง']];
+  var body='<div class="set-hint">หน่วย: วัน (สิทธิ์ต่อปี) · ใส่ 0 = ไม่ให้สิทธิ์ (แถวนั้นจะหายจากตารางสิทธิ์ ถ้ายังไม่เคยลา)</div>'+
+    types.map(function(t){
+      return '<div class="set-row"><label>'+t[1]+'</label><input type="number" inputmode="decimal" min="0" step="0.5" data-q="'+t[0]+'" value="'+(q[t[0]]!=null?q[t[0]]:0)+'"></div>';
+    }).join('')+
+    '<button type="button" class="btn btn-sm mg-full" data-qzero style="margin-top:6px">🧹 ล้างสิทธิ์ วันเกิด · คนพิเศษ · ไม่รับค่าจ้าง (ตั้งเป็น 0)</button>'+
+    '<div class="set-hint">พนักงานใหม่ไม่ได้ 3 ประเภทนี้อัตโนมัติแล้ว · ปุ่มนี้ไว้ล้างของคนเก่าที่ยังค้างอยู่</div>';
+  var c=_settingsModal_('🏖️ โควต้าลา · '+esc(u.name), body, function(cc){
     var quota={}; cc.querySelectorAll('[data-q]').forEach(function(el){ quota[el.dataset.q]=el.value; });
     closeConfirm(); toast('กำลังบันทึก…');
     api('setLeaveQuota',{empId:empId,quota:quota}).then(function(r){
       if(!r.ok) return toast(r.error||'ไม่สำเร็จ','err');
       toast('✅ แก้โควต้าแล้ว'+(r.changed?' ('+r.changed+' รายการ)':''),'ok'); afterEmpEdit();
     }).catch(function(e){ toast(String(e.message||e),'err'); });
+  });
+  var zb=c.querySelector('[data-qzero]');
+  if(zb) zb.addEventListener('click', function(){
+    ['bday','special','unpaid'].forEach(function(k){
+      var el=c.querySelector('[data-q="'+k+'"]'); if(el) el.value=0; });
+    toast('ตั้งเป็น 0 แล้ว — กด 💾 บันทึก เพื่อยืนยัน');
   });
 }
 /**
