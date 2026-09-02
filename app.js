@@ -1199,8 +1199,8 @@ var CFG_TABS = [
   { key:'holiday', label:'วันหยุดบริษัท', icon:'calendar', ready:true },
   { key:'company', label:'ข้อมูลบริษัท · ผู้ลงนาม', icon:'building', ready:true },
   { key:'payroll', label:'ค่าคำนวณเงินเดือน/ภาษี', icon:'calc', ready:true },
-  { key:'leave',   label:'โควต้าลามาตรฐาน · กะ', icon:'ticket' },
-  { key:'files',   label:'โลโก้ · แบบฟอร์ม', icon:'folder' },
+  { key:'leave',   label:'โควต้าลามาตรฐาน · กะ', icon:'ticket', ready:true },
+  { key:'files',   label:'โลโก้ · แบบฟอร์ม', icon:'folder', ready:true },
 ];
 
 function loadConfig(){
@@ -1221,6 +1221,8 @@ function paintCfgTab(){
   if(S.cfgTab==='holiday') return loadCfgHolidays();
   if(S.cfgTab==='company') return loadCfgCompany();
   if(S.cfgTab==='payroll') return loadCfgPayroll();
+  if(S.cfgTab==='leave')   return loadCfgLeave();
+  if(S.cfgTab==='files')   return loadCfgFiles();
   var t=CFG_TABS.filter(function(x){ return x.key===S.cfgTab; })[0]||{};
   box.innerHTML = viewSoon(ico(t.icon||'settings')+' '+(t.label||'ตั้งค่า'),
     'ยังไม่เปิดใช้ — ตอนนี้แก้ในชีต/Script Properties ตามเดิมได้ค่ะ');
@@ -1474,6 +1476,165 @@ function paintCfgPayroll(){
       if(res.notes && res.notes.length) toast(res.notes.join(' · '),'ok');
       else toast(res.count ? ('บันทึกแล้ว '+res.count+' รายการ') : 'ไม่มีอะไรเปลี่ยน','ok');
       loadCfgPayroll();
+    }).catch(function(e){ b.disabled=false; b.innerHTML=ico('save')+' บันทึก'; toast(String(e.message||e),'err'); });
+  });
+}
+
+/** 🏖️ โควต้าลามาตรฐาน + กะเวลาทำงาน */
+function loadCfgLeave(){
+  var box=document.getElementById('cfgBody'); if(!box) return;
+  box.innerHTML='<div class="card"><div class="skel" style="height:200px"></div></div>';
+  api('cfgLeaveGet',{}).then(function(r){
+    if(!r.ok){ box.innerHTML=emptyBox(ico('alert','e-ico'), r.error||'โหลดไม่ได้'); return; }
+    S.cfgLeave=r; paintCfgLeave();
+  }).catch(function(e){ box.innerHTML=emptyBox(ico('alert','e-ico'), String(e.message||e)); });
+}
+
+function paintCfgLeave(){
+  var box=document.getElementById('cfgBody'); if(!box || !S.cfgLeave) return;
+  var r=S.cfgLeave;
+
+  var qrows=r.quota.map(function(q){
+    return '<div class="set-row"><label>'+esc(q.label)+'</label>'+
+      '<input type="number" min="0" step="0.5" data-qf="'+esc(q.field)+'" value="'+q.value+'"></div>'; }).join('');
+
+  var srows=(r.schedules||[]).map(function(s){
+    return '<tr class="mg-tr">'+
+      '<td class="ce"><b>'+esc(s.code)+'</b></td>'+
+      '<td class="lft">'+esc(s.desc||'-')+'</td>'+
+      '<td class="ce">'+esc(s.days||'-')+'</td>'+
+      '<td class="ce">'+esc(s.start||'-')+' – '+esc(s.end||'-')+'</td>'+
+      '<td class="ce">'+esc(s.off||'-')+'</td>'+
+      '<td class="ce"><button class="btn btn-sm" data-sched-edit="'+esc(s.code)+'">'+ico('pencil')+' แก้</button> '+
+        '<button class="btn btn-sm" data-sched-del="'+esc(s.code)+'">'+ico('trash')+'</button></td>'+
+    '</tr>'; }).join('');
+
+  box.innerHTML=
+    '<div class="card">'+
+      '<div class="card-title"><span class="ic"></span>โควต้าลาเริ่มต้นของพนักงานใหม่</div>'+
+      '<div class="hr-note ok2">'+ico('info')+' ใช้ตอนกด "เพิ่มพนักงาน" เท่านั้น — <b>ไม่กระทบคนที่มีอยู่แล้ว</b> · '+
+        'HR กรอกเองในฟอร์มได้ ค่าที่กรอกจะชนะค่านี้</div>'+
+      '<div class="set-2col">'+qrows+'</div>'+
+      '<button class="btn btn-primary mg-full" id="cfgQuotaSave" style="margin-top:12px">'+ico('save')+' บันทึกโควต้า</button>'+
+    '</div>'+
+    '<div class="card">'+
+      '<div class="emp-thead"><div class="card-title" style="margin:0"><span class="ic"></span>กะเวลาทำงาน</div>'+
+        '<button class="btn btn-primary btn-sm" id="cfgSchedAdd">'+ico('plus')+' เพิ่มกะ</button></div>'+
+      '<div class="hr-note">'+ico('alert')+' กะใช้ตัดสิน<b>วันทำงาน/วันหยุด</b>ของแต่ละคน → กระทบอัตรา OT (1x · 1.5x · 3x) และปฏิทินการลา · '+
+        'เก็บอยู่ในไฟล์ OT ชีต "เวลาการทำงาน"</div>'+
+      '<div class="mg-tbwrap"><table class="mg-table"><thead><tr>'+
+        '<th class="ce">รหัส</th><th class="lft">รายละเอียด</th><th class="ce">วันทำงาน</th>'+
+        '<th class="ce">เวลา</th><th class="ce">วันหยุด</th><th class="ce">จัดการ</th>'+
+      '</tr></thead><tbody>'+(srows||'<tr><td colspan="6" class="ce mg-sub2" style="padding:18px">ยังไม่มีกะในระบบ</td></tr>')+'</tbody></table></div>'+
+    '</div>';
+
+  var qs=document.getElementById('cfgQuotaSave');
+  if(qs) qs.addEventListener('click', function(){
+    var payload={};
+    box.querySelectorAll('[data-qf]').forEach(function(el){ payload['q_'+el.dataset.qf]=el.value; });
+    qs.disabled=true;
+    api('cfgQuotaSave', payload).then(function(res){
+      qs.disabled=false;
+      if(!res.ok) return noticeBox('บันทึกไม่ได้', res.error||'ตรวจตัวเลขอีกครั้งค่ะ', ico('alert'));
+      toast(res.count ? ('บันทึกแล้ว '+res.count+' รายการ') : 'ไม่มีอะไรเปลี่ยน','ok'); loadCfgLeave();
+    }).catch(function(e){ qs.disabled=false; toast(String(e.message||e),'err'); });
+  });
+  var sa=document.getElementById('cfgSchedAdd'); if(sa) sa.addEventListener('click', function(){ openSchedEdit(null); });
+  box.querySelectorAll('[data-sched-edit]').forEach(function(el){
+    el.addEventListener('click', function(){ openSchedEdit(el.dataset.schedEdit); }); });
+  box.querySelectorAll('[data-sched-del]').forEach(function(el){
+    el.addEventListener('click', function(){ askSchedDelete(el.dataset.schedDel); }); });
+}
+
+function openSchedEdit(code){
+  var cur=(S.cfgLeave && S.cfgLeave.schedules || []).filter(function(s){ return s.code===code; })[0] || {};
+  var isNew=!code;
+  modalForm({ title:isNew?'เพิ่มกะทำงาน':('แก้กะ '+code), emoji:ico('clock'), okLabel:ico('save')+' บันทึก',
+    body:'<label class="field-lb">รหัสกะ</label>'+
+         '<input type="text" id="scCode" value="'+esc(cur.code||'')+'"'+(isNew?'':' readonly')+' placeholder="เช่น S01">'+
+         (isNew?'':'<div class="set-hint">แก้รหัสไม่ได้ — ชีตอัตราค่าจ้างอ้างรหัสนี้อยู่</div>')+
+         '<label class="field-lb">รายละเอียด</label>'+
+         '<input type="text" id="scDesc" value="'+esc(cur.desc||'')+'" placeholder="เช่น จ-ศ 09:00-18:00">'+
+         '<label class="field-lb">วันทำงาน</label>'+
+         '<input type="text" id="scDays" value="'+esc(cur.days||'')+'" placeholder="เช่น จ-อ-พ-พฤ-ศ">'+
+         '<div class="set-2col">'+
+           '<div class="set-row col"><label>เวลาเริ่ม</label><input type="text" id="scStart" value="'+esc(cur.start||'')+'" placeholder="09:00"></div>'+
+           '<div class="set-row col"><label>เวลาสิ้นสุด</label><input type="text" id="scEnd" value="'+esc(cur.end||'')+'" placeholder="18:00"></div>'+
+         '</div>'+
+         '<label class="field-lb">วันหยุดประจำสัปดาห์</label>'+
+         '<input type="text" id="scOff" value="'+esc(cur.off||'')+'" placeholder="เช่น ส-อา">'+
+         '<div class="cfm-note">วันใช้ตัวย่อ อา จ อ พ พฤ ศ ส คั่นด้วย - · เวลาใช้รูปแบบ HH:mm</div>',
+    onOk:function(c){
+      var pl={ code:(c.querySelector('#scCode').value||'').trim(),
+               desc:c.querySelector('#scDesc').value, days:c.querySelector('#scDays').value,
+               start:c.querySelector('#scStart').value, end:c.querySelector('#scEnd').value,
+               off:c.querySelector('#scOff').value };
+      if(!pl.code) return toast('ใส่รหัสกะก่อนนะคะ','err');
+      api('cfgScheduleSave', pl).then(function(r){
+        if(!r.ok) return toast(r.error||'บันทึกไม่สำเร็จ','err');
+        closeConfirm(); toast(r.isNew?('เพิ่มกะ '+r.code+' แล้ว'):('แก้กะ '+r.code+' แล้ว'),'ok'); loadCfgLeave();
+      }).catch(function(e){ toast(String(e.message||e),'err'); });
+    } });
+}
+
+function askSchedDelete(code){
+  confirmModal({ title:'ลบกะ '+code, emoji:ico('trash'),
+    rows:[{k:'รหัสกะ', v:code},{k:'ผลที่เกิด', v:'คนที่ยังใช้กะนี้อยู่จะลบไม่ได้ — ระบบตรวจให้'}],
+    onConfirm:function(){
+      api('cfgScheduleDelete',{code:code}).then(function(r){
+        if(!r.ok){
+          if(r.inUse) return noticeBox('ลบไม่ได้', r.error+'\n\nเช่น: '+r.inUse.join(', '), ico('alert'));
+          return toast(r.error||'ลบไม่สำเร็จ','err');
+        }
+        toast('ลบกะ '+code+' แล้ว','ok'); loadCfgLeave();
+      }).catch(function(e){ toast(String(e.message||e),'err'); });
+    }});
+}
+
+/** 🗂️ โลโก้ · แบบฟอร์ม · ปลายทางไฟล์ */
+function loadCfgFiles(){
+  var box=document.getElementById('cfgBody'); if(!box) return;
+  box.innerHTML='<div class="card"><div class="skel" style="height:200px"></div></div>';
+  api('cfgFilesGet',{}).then(function(r){
+    if(!r.ok){ box.innerHTML=emptyBox(ico('alert','e-ico'), r.error||'โหลดไม่ได้'); return; }
+    S.cfgFiles=r; paintCfgFiles();
+  }).catch(function(e){ box.innerHTML=emptyBox(ico('alert','e-ico'), String(e.message||e)); });
+}
+
+function paintCfgFiles(){
+  var box=document.getElementById('cfgBody'); if(!box || !S.cfgFiles) return;
+  var r=S.cfgFiles;
+  var row=function(f){
+    var st=f.status||{};
+    var badge = st.ok===true  ? '<span class="pill ok">'+ico('check')+' '+esc(st.name||'ใช้ได้')+'</span>'
+              : st.ok===false ? '<span class="pill err">'+ico('alert')+' '+esc(st.error||'ใช้ไม่ได้')+'</span>'
+              : '<span class="mg-sub2">ยังไม่ได้ตั้ง</span>';
+    return '<div class="set-row col">'+
+      '<label>'+esc(f.label)+' '+badge+'</label>'+
+      '<input type="text" data-filef="'+esc(f.key)+'" value="'+esc(f.value||'')+'" '+
+        'placeholder="'+(f.kind==='url'?'https://…':'วางลิงก์ Drive หรือ ID')+'" autocomplete="off">'+
+      '<div class="set-hint">'+esc(f.hint||'')+'</div>'+
+    '</div>'; };
+
+  box.innerHTML=
+    '<div class="card">'+
+      '<div class="hr-note ok2">'+ico('info')+' ค่าพวกนี้เคยต้องตั้งใน Apps Script — ย้ายมาให้แก้จากหน้านี้แล้ว · '+
+        'ระบบตรวจว่าเปิดไฟล์/โฟลเดอร์ได้จริงก่อนบันทึกทุกครั้ง</div>'+
+      r.fields.map(row).join('')+
+      '<div class="hr-note">'+ico('lock')+' รหัสลับของ Worker (MERGE_WORKER_SECRET) ยังตั้งใน Script Properties ตามเดิม — '+
+        'เป็นความลับ ไม่ควรเก็บในชีตที่คนเปิดดูได้</div>'+
+      '<button class="btn btn-primary mg-full" id="cfgFilesSave" style="margin-top:12px">'+ico('save')+' บันทึก</button>'+
+    '</div>';
+
+  var b=document.getElementById('cfgFilesSave');
+  if(b) b.addEventListener('click', function(){
+    var payload={};
+    box.querySelectorAll('[data-filef]').forEach(function(el){ payload['f_'+el.dataset.filef]=el.value; });
+    b.disabled=true; b.innerHTML=ico('save')+' กำลังบันทึก…';
+    api('cfgFilesSave', payload).then(function(res){
+      b.disabled=false; b.innerHTML=ico('save')+' บันทึก';
+      if(!res.ok) return noticeBox('บันทึกไม่ได้', res.error||'ตรวจลิงก์อีกครั้งค่ะ', ico('alert'));
+      toast(res.count ? ('บันทึกแล้ว '+res.count+' รายการ') : 'ไม่มีอะไรเปลี่ยน','ok'); loadCfgFiles();
     }).catch(function(e){ b.disabled=false; b.innerHTML=ico('save')+' บันทึก'; toast(String(e.message||e),'err'); });
   });
 }
@@ -4207,6 +4368,26 @@ function mockApi(action, params){
     else if(action==='cfgPayrollSave') resolve({ok:true,count:1,notes:[],ssoMax:875,
       changed:['ลดหย่อนส่วนตัว: 60000 → (mock)'],
       sample:[{salary:10000,sso:500},{salary:20000,sso:875},{salary:40000,sso:875}]});
+    else if(action==='cfgLeaveGet') resolve({ok:true,dowNames:['อา','จ','อ','พ','พฤ','ศ','ส'],
+      quota:[{key:'k1',field:'sick',label:'ลาป่วย',value:30,def:30,missing:true},
+             {key:'k2',field:'biz',label:'ลากิจ',value:3,def:3,missing:true},
+             {key:'k3',field:'vac',label:'ลาพักร้อน',value:0,def:0,missing:true},
+             {key:'k4',field:'bday',label:'ลาวันเกิด',value:0,def:0,missing:true},
+             {key:'k5',field:'special',label:'ลาวันเกิดคนพิเศษ',value:0,def:0,missing:true},
+             {key:'k6',field:'unpaid',label:'ลากิจไม่รับค่าจ้าง',value:0,def:0,missing:true}],
+      schedules:[{row:2,code:'S01',desc:'จ-ศ ปกติ',days:'จ-อ-พ-พฤ-ศ',start:'09:00',end:'18:00',off:'ส-อา'},
+                 {row:3,code:'S02',desc:'กะบ่าย',days:'จ-อ-พ-พฤ-ศ',start:'13:00',end:'22:00',off:'ส-อา'}]});
+    else if(action==='cfgQuotaSave') resolve({ok:true,count:1,changed:['ลาป่วย: 30 → (mock)']});
+    else if(action==='cfgScheduleSave') resolve({ok:true,code:params&&params.code,isNew:false,
+      schedules:[{row:2,code:'S01',desc:'จ-ศ ปกติ',days:'จ-อ-พ-พฤ-ศ',start:'09:00',end:'18:00',off:'ส-อา'}]});
+    else if(action==='cfgScheduleDelete') resolve({ok:false,inUse:['สมชาย ใจดี'],inUseCount:1,
+      error:'ยังมีพนักงานใช้กะนี้อยู่ 1 คน — ย้ายกะให้เขาก่อนค่ะ'});
+    else if(action==='cfgFilesGet') resolve({ok:true,sheet:'ตั้งค่าระบบ',fields:[
+      {key:'Drive ID โลโก้บริษัท',label:'โลโก้บริษัท',kind:'file',hint:'ไฟล์รูปใน Drive',value:'',missing:true,status:{ok:null,name:'',error:''}},
+      {key:'WHT_TEMPLATE_FILE_ID',label:'ฟอร์ม 50 ทวิ (ต้นฉบับ)',kind:'file',hint:'PDF ฟอร์มเปล่า',value:'TPL123',missing:false,status:{ok:true,name:'Template_50ทวิ.pdf',error:''}},
+      {key:'Folder ID สลิป PDF',label:'โฟลเดอร์เก็บสลิป PDF',kind:'folder',hint:'ที่เก็บสลิป',value:'FLD123',missing:false,status:{ok:true,name:'สลิปเงินเดือน',error:''}},
+      {key:'MERGE_WORKER_URL',label:'Cloudflare Worker (กรอกฟอร์ม/รวม PDF)',kind:'url',hint:'ปลายทางกรอกฟอร์ม',value:'https://worker.example.dev',missing:false,status:{ok:true,name:'',error:''}}]});
+    else if(action==='cfgFilesSave') resolve({ok:true,count:1,changed:['โลโก้บริษัท: (ว่าง) → (mock)']});
     else if(action==='cfgHolidayList') resolve({ok:true,yearBE:params&&params.yearBE,files:['ระบบลา','ระบบ OT'],
       years:[2569,2568],mismatch:1,holidays:[
         {date:'01/01/2026',yearBE:2569,name:'วันขึ้นปีใหม่',where:['ระบบลา','ระบบ OT'],synced:true},
