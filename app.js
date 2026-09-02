@@ -1140,11 +1140,17 @@ function renderPendingRegs(list){
       : '<span class="badge no">⚠️ ยังไม่มีข้อมูลในระบบ</span>';
     var d = 'data-uid="'+esc(x.userId)+'" data-name="'+esc(x.typedName)+'"';
     // ปุ่ม: ถ้าตรงโควต้าลา → อนุมัติ/ปฏิเสธ · ถ้าไม่ตรง + เป็น admin → เพิ่มเป็นพนักงานใหม่ (เพิ่ม+อนุมัติขั้นเดียว)
+    // 🔁 ทางที่สาม: เป็นพนักงานคนเดิมที่เปลี่ยนเครื่อง/พิมพ์ชื่อไม่ตรง — ย้าย LINE ให้แทนการเพิ่มคนใหม่
+    //    (ไม่มีทางนี้ HR จะกด ➕ เพิ่มข้อมูล จนได้พนักงานซ้ำทั้งชุด = เงินเดือน 2 ใบ)
+    var moveBtn = canAdmin
+      ? '<div class="pend-act2"><button class="pend-btn rmove" data-regmove="1" '+d+'>🔁 เป็นคนเดิม — ย้าย LINE ให้</button></div>' : '';
     var acts = x.matched
-      ? '<div class="pend-act"><button class="pend-btn no" data-regno="1" '+d+'>❌ ปฏิเสธ</button>'+
+      ? moveBtn+'<div class="pend-act"><button class="pend-btn no" data-regno="1" '+d+'>❌ ปฏิเสธ</button>'+
         '<button class="pend-btn ok" data-regok="1" '+d+'>✅ อนุมัติ</button></div>'
       : (canAdmin
-          ? '<div class="pend-act2"><button class="pend-btn redit" data-regadd="1" '+d+'>➕ เพิ่มเป็นพนักงานใหม่ + อนุมัติ</button></div>'+
+          ? moveBtn+
+            '<div class="pend-act2"><button class="pend-btn redit" data-regadd="1" '+d+'>➕ เพิ่มเป็นพนักงานใหม่ + อนุมัติ</button></div>'+
+            '<div class="hr-note">⚠️ กด ➕ เฉพาะคนที่ยังไม่เคยมีในระบบจริง ๆ — ถ้าเป็นคนเดิมที่พิมพ์ชื่อไม่ตรง (เช่นพิมพ์ภาษาอังกฤษ) ให้กด 🔁 ย้าย LINE</div>'+
             '<div class="pend-act"><button class="pend-btn no" data-regno="1" '+d+'>❌ ปฏิเสธ</button></div>'
           : '<div class="hr-note">ℹ️ ชื่อนี้ยังไม่มีในระบบ — ให้ ADMIN เพิ่มข้อมูลพนักงานก่อน</div>'+
             '<div class="pend-act"><button class="pend-btn no" data-regno="1" '+d+'>❌ ปฏิเสธ</button></div>');
@@ -1162,6 +1168,67 @@ function wirePendingRegs(){
     el.addEventListener('click', function(){ decideReg(el.dataset.uid, el.dataset.name, 'reject'); }); });
   document.querySelectorAll('[data-regadd]').forEach(function(el){
     el.addEventListener('click', function(){ openAddEmpFromPending(el.dataset.uid, el.dataset.name); }); });
+  document.querySelectorAll('[data-regmove]').forEach(function(el){
+    el.addEventListener('click', function(){ openMoveFromPending(el.dataset.uid, el.dataset.name); }); });
+}
+
+/**
+ * 🔁 "เป็นคนเดิม — ย้าย LINE ให้" บนการ์ดคำขอลงทะเบียน
+ * เคสจริง 2 ก.ย.: พนักงานเปลี่ยนเครื่องแล้วพิมพ์ชื่อภาษาอังกฤษ ระบบหาชื่อไม่เจอ
+ * → ตกมาเป็นคำขอลงทะเบียนใหม่ → HR กด ➕ เพิ่มข้อมูล → ได้พนักงานซ้ำทั้งชุด
+ * ทางนี้ให้ HR ชี้ตัวว่าเป็นใครในทะเบียน แล้วย้าย LINE เข้าแถวเดิมแทน
+ */
+function openMoveFromPending(uid, typedName){
+  toast('กำลังโหลดรายชื่อ…');
+  api('emNameList',{}).then(function(r){
+    if(!r.ok){ return toast(r.error||'โหลดรายชื่อไม่ได้','err'); }
+    var people = r.people||[];
+    var rowHtml = function(p){
+      return '<label class="lcand" data-pname="'+esc(p.name)+'">'+
+        '<input type="radio" name="rmv" value="'+esc(p.empId||'')+'" data-nm="'+esc(p.name)+'" data-line="'+(p.hasLine?'1':'')+'">'+
+        '<span><b>'+esc(p.name)+'</b><br><span class="mg-sub2">'+esc(p.empId||'ไม่มีรหัส')+
+        (p.dept?' · '+esc(p.dept):'')+' · '+(p.hasLine?'ผูก LINE อยู่ (จะสลับเป็นเครื่องใหม่)':'ยังไม่ผูก LINE')+
+        '</span></span></label>'; };
+    modalForm({ title:'ย้าย LINE ให้พนักงานคนเดิม', emoji:'🔁',
+      body:'<div class="cfm-row"><span class="cfm-k">ชื่อที่พนักงานพิมพ์มา</span><span class="cfm-v">'+esc(typedName)+'</span></div>'+
+           '<label class="field-lb">🔎 ค้นชื่อ / รหัส / แผนก</label>'+
+           '<input type="text" id="rmvSearch" placeholder="พิมพ์บางส่วนของชื่อ" autocomplete="off">'+
+           '<div id="rmvList" style="max-height:280px;overflow:auto;margin-top:8px">'+people.slice(0,40).map(rowHtml).join('')+'</div>'+
+           '<div class="cfm-note">ยืนยันตัวตนกับเจ้าตัวก่อนกดทุกครั้ง — ใครก็ยื่นคำขอในชื่อคนอื่นได้<br>'+
+           'ย้ายแล้วประวัติลา / OT / สลิป ของคนนั้นอยู่ครบ ไม่เกิดพนักงานซ้ำ</div>',
+      okLabel:'🔁 ย้ายให้คนนี้',
+      onMount:function(c){
+        var box = c.querySelector('#rmvList');
+        c.querySelector('#rmvSearch').addEventListener('input', function(ev){
+          var q = (ev.target.value||'').trim().toLowerCase();
+          var hit = q ? people.filter(function(p){
+            return (p.name+' '+(p.empId||'')+' '+(p.dept||'')).toLowerCase().indexOf(q)>=0; }) : people;
+          box.innerHTML = hit.slice(0,40).map(rowHtml).join('') ||
+            '<div class="mg-sub2">ไม่พบชื่อนี้ในทะเบียน</div>';
+        });
+      },
+      onOk:function(c){
+        var pick = c.querySelector('input[name="rmv"]:checked');
+        if(!pick){ toast('เลือกพนักงานก่อนนะคะ','err'); return; }
+        closeConfirm();
+        var nm = pick.dataset.nm;
+        confirmModal({ title:'ย้าย LINE ให้ '+nm, emoji:'🔁',
+          rows:[{k:'บัญชีที่ขอเข้าใช้', v:typedName},
+                {k:'ย้ายให้', v:nm+' ('+(pick.value||'-')+')'},
+                {k:'ผลที่เกิด', v:'เครื่องเดิมของคนนี้ใช้ไม่ได้ · ประวัติอยู่ครบ'}],
+          onConfirm:function(){
+            toast('กำลังย้าย…');
+            api('emLineMove',{empId:pick.value||'', name:nm, newUserId:uid}).then(function(res){
+              if(!res.ok){
+                if(res.needMerge){ noticeBox('ต้องรวมร่างแทน', res.error+'\n\nไปที่ 👥 พนักงาน → เปิดคนนั้น → แท็บ 📱 LINE → 🧹 รวมร่าง', '🧹'); return; }
+                toast(res.error||'ย้ายไม่สำเร็จ','err'); return;
+              }
+              toast('ย้าย LINE ให้ '+res.name+' แล้ว'+(res.payrollUpdated?' · สลิปตามไปด้วย':''),'ok');
+              loadHr();
+            }).catch(function(e){ toast(String(e.message||e),'err'); });
+          }});
+      }});
+  }).catch(function(e){ toast(String(e.message||e),'err'); });
 }
 function decideReg(uid, name, decision){
   var send = function(reason){
@@ -3420,6 +3487,10 @@ function mockApi(action, params){
         {id:'LV-2',name:'วิชัย ตั้งใจ',dept:'CRM & Telesale',typeName:'ลาพักร้อน',typeKey:'vac',start:ly+'-'+lm+'-09',end:ly+'-'+lm+'-11',days:3,status:'อนุมัติ',pending:false},
         {id:'LV-3',name:'ก้อง พากเพียร',dept:'Content Creator',typeName:'ลากิจ',typeKey:'biz',start:ly+'-'+lm+'-09',end:ly+'-'+lm+'-09',days:1,status:'รอการอนุมัติ',pending:true},
         {id:'LV-4',name:'สุดา รักงาน',dept:'Live Sale',typeName:'ลาวันเกิด',typeKey:'bday',start:ly+'-'+lm+'-04',end:ly+'-'+lm+'-04',days:1,status:'อนุมัติ',pending:false}]}); }
+    else if(action==='emNameList') resolve({ok:true,count:3,people:[
+      {name:'นรินทร์ทิพย์ ลือชา',empId:'1349901087436',dept:'CRM & Telesale',hasLine:true,userId:'Uold000'},
+      {name:'ทัดพร วณิชย์ชาญพงศ์',empId:'1349900703532',dept:'CRM & Telesale',hasLine:true,userId:'Uoth000'},
+      {name:'วิชาญ จันทร์นวล',empId:'3330900441374',dept:'ปฏิบัติการ',hasLine:false,userId:''}]});
     else if(action==='pendingRegistrations') resolve({ok:true,count:2,pending:[
       {userId:'MOCKP1',typedName:'นภา สดใส',lineDisplay:'Napa S.',submittedAt:'09/06/2569 08:10',matched:true,empId:'EMP-010',dept:'ฝ่ายขาย'},
       {userId:'MOCKP2',typedName:'ก้อง พากเพียร',lineDisplay:'Kong',submittedAt:'09/06/2569 08:25',matched:false,empId:'',dept:''}]});
