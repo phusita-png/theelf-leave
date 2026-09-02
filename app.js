@@ -112,13 +112,14 @@ var VIEW_HEAD = {
   mgot:    ['จัดการ OT','ดู · แก้ · คำนวณ · ส่งสรุป'],
   mgpay:   ['จัดการ Payroll','ปิดเดือน 10 ขั้น · รายงานย้อนหลัง'],
   emps:    ['พนักงาน','เพิ่ม · บทบาท · โควต้า · ข้อมูล'],
-  unpaidreq:['ขอสิทธิ์ลาไม่รับค่าจ้าง','ส่งคำขอ → HR ให้สิทธิ์ → ยื่นใบลา']
+  unpaidreq:['ขอสิทธิ์ลาไม่รับค่าจ้าง','ส่งคำขอ → HR ให้สิทธิ์ → ยื่นใบลา'],
+  config:  ['ตั้งค่าระบบ','วันหยุด · บริษัท · ค่าคำนวณ · แบบฟอร์ม']
 };
 // ไอคอนเมนู (โชว์หน้า topbar desktop) — ตรงกับ nav-emo ใน index.html
 var VIEW_ICON = {
   home:'home', leave:'calendar', ot:'clock', payslip:'wallet', history:'clipboard', profile:'user',
   documents:'paperclip', hr:'check', leavecal:'calendar', dashboard:'chart',
-  mgleave:'clipboard', mgot:'clock', mgpay:'wallet', emps:'users', unpaidreq:'file'
+  mgleave:'clipboard', mgot:'clock', mgpay:'wallet', emps:'users', unpaidreq:'file', config:'settings'
 };
 
 var S = {
@@ -368,7 +369,7 @@ function goTo(view){
 // เปิดเมนู admin ใน sidebar (desktop) ตามสิทธิ์ — มือถือ CSS ซ่อนเสมอ (ใช้ hub link เดิม)
 function setupNavRoles(){
   var p = S.profile || {}, ap = !!p.canApprove, ad = !!p.canAdmin;
-  var roles = {dashboard:ap, leavecal:ap, hr:ap, mgleave:ad, mgot:ad, mgpay:ad, emps:ad};
+  var roles = {dashboard:ap, leavecal:ap, hr:ap, mgleave:ad, mgot:ad, mgpay:ad, emps:ad, config:ad};
   Object.keys(roles).forEach(function(v){
     var el=document.querySelector('.nav-btn[data-view="'+v+'"]'); if(el) el.classList.toggle('allow', roles[v]); });
   // section label โชว์เฉพาะกลุ่มที่มีปุ่ม visible (desktop)
@@ -438,6 +439,7 @@ function render(){
   else if (S.view==='hr'){ m.innerHTML = '<div class="card"><div class="skel" style="height:120px"></div></div>'; loadHr(); }
   else if (S.view==='leavecal'){ m.innerHTML = viewLeaveCal(); wireLeaveCal(); loadLeaveCal(); }
   else if (S.view==='dashboard'){ loadDashboard(); }
+  else if (S.view==='config'){ loadConfig(); }
   else if (S.view==='mgleave'){ m.innerHTML = viewMgleave(); wireMgleave(); loadMgleave(); }
   else if (S.view==='mgot'){ m.innerHTML = viewMgot(); wireMgot(); }
   else if (S.view==='mgpay'){ mountPayroll(m); }
@@ -1187,6 +1189,167 @@ function loadDocuments(){
   }).catch(function(e){ var m=document.getElementById('main'); if(m){ m.innerHTML=backBar()+emptyBox(ico('alert','e-ico'),String(e.message||e)); bindBack(); } });
 }
 
+
+
+// ════════════ ⚙️ ตั้งค่าระบบ ════════════
+// รวมค่าตั้งที่เดิมกระจายอยู่ในชีต/Script Properties ให้ HR แก้จากเว็บได้
+// เฟสแรก = วันหยุดบริษัท (แก้ทุกปี · กระทบทั้งการนับวันลาและอัตรา OT 3x)
+// แท็บอื่นค่อยเปิดทีละแท็บ — ปุ่มขึ้นไว้ให้เห็นทิศทาง แต่ยังกดไม่ได้
+var CFG_TABS = [
+  { key:'holiday', label:'วันหยุดบริษัท', icon:'calendar', ready:true },
+  { key:'company', label:'ข้อมูลบริษัท · ผู้ลงนาม', icon:'building' },
+  { key:'payroll', label:'ค่าคำนวณเงินเดือน/ภาษี', icon:'calc' },
+  { key:'leave',   label:'โควต้าลามาตรฐาน · กะ', icon:'ticket' },
+  { key:'files',   label:'โลโก้ · แบบฟอร์ม', icon:'folder' },
+];
+
+function loadConfig(){
+  var m=document.getElementById('main'); if(!m) return;
+  S.cfgTab = S.cfgTab || 'holiday';
+  var tabs=CFG_TABS.map(function(t){
+    return '<button class="mg-tab'+(S.cfgTab===t.key?' on':'')+'" data-cfgtab="'+t.key+'">'+
+      ico(t.icon)+' '+esc(t.label)+(t.ready?'':' <span class="mg-sub2">(เร็ว ๆ นี้)</span>')+'</button>'; }).join('');
+  m.innerHTML = backBar()+'<div class="mg-tabs">'+tabs+'</div><div id="cfgBody"></div>';
+  bindBack();
+  document.querySelectorAll('[data-cfgtab]').forEach(function(el){
+    el.addEventListener('click', function(){ S.cfgTab=el.dataset.cfgtab; loadConfig(); }); });
+  paintCfgTab();
+}
+
+function paintCfgTab(){
+  var box=document.getElementById('cfgBody'); if(!box) return;
+  if(S.cfgTab==='holiday') return loadCfgHolidays();
+  var t=CFG_TABS.filter(function(x){ return x.key===S.cfgTab; })[0]||{};
+  box.innerHTML = viewSoon(ico(t.icon||'settings')+' '+(t.label||'ตั้งค่า'),
+    'ยังไม่เปิดใช้ — ตอนนี้แก้ในชีต/Script Properties ตามเดิมได้ค่ะ');
+}
+
+/** 📅 วันหยุดบริษัท */
+function loadCfgHolidays(){
+  var box=document.getElementById('cfgBody'); if(!box) return;
+  box.innerHTML='<div class="card"><div class="skel" style="height:160px"></div></div>';
+  var y = S.cfgHolYear || (new Date().getFullYear()+543);
+  api('cfgHolidayList',{yearBE:y}).then(function(r){
+    if(!r.ok){ box.innerHTML=emptyBox(ico('alert','e-ico'), r.error||'โหลดไม่ได้'); return; }
+    S.cfgHol = r; S.cfgHolYear = y;
+    paintCfgHolidays();
+  }).catch(function(e){ box.innerHTML=emptyBox(ico('alert','e-ico'), String(e.message||e)); });
+}
+
+function paintCfgHolidays(){
+  var box=document.getElementById('cfgBody'); if(!box || !S.cfgHol) return;
+  var r=S.cfgHol, y=S.cfgHolYear;
+  var years=(r.years||[]).slice(); var nowY=new Date().getFullYear()+543;
+  [nowY, nowY+1].forEach(function(v){ if(years.indexOf(v)<0) years.push(v); });
+  years.sort(function(a,b){ return b-a; });
+  var yrSel='<select class="hr-fsel" id="cfgHolYear">'+years.map(function(v){
+    return '<option value="'+v+'"'+(v===y?' selected':'')+'>ปี '+v+'</option>'; }).join('')+'</select>';
+
+  var rows=(r.holidays||[]).map(function(h,i){
+    var dow=['อา','จ','อ','พ','พฤ','ศ','ส'];
+    var p=h.date.split('/'), dt=new Date(+p[2], +p[1]-1, +p[0]);
+    return '<tr class="mg-tr">'+
+      '<td class="ce mg-sub2">'+(i+1)+'</td>'+
+      '<td class="ce"><b>'+esc(h.date)+'</b> <span class="mg-sub2">'+(isNaN(dt.getTime())?'':dow[dt.getDay()])+'</span></td>'+
+      '<td class="lft">'+esc(h.name||'-')+'</td>'+
+      '<td class="ce">'+(h.synced ? '<span class="pill ok">'+ico('check')+' ครบ</span>'
+                                  : '<span class="pill err">'+ico('alert')+' มีแค่ '+esc((h.where||[]).join(', '))+'</span>')+'</td>'+
+      '<td class="ce"><button class="btn btn-sm" data-holdel="'+esc(h.date)+'" data-holname="'+esc(h.name||'')+'">'+ico('trash')+' ลบ</button></td>'+
+    '</tr>'; }).join('');
+
+  box.innerHTML=
+    '<div class="card">'+
+      '<div class="hr-note ok2">'+ico('info')+' วันหยุดนี้ใช้ทั้ง <b>การนับวันลา</b> และ <b>อัตรา OT วันหยุด (3 เท่า)</b> — '+
+        'ระบบเก็บไว้ '+((r.files||[]).length)+' ไฟล์ ('+esc((r.files||[]).join(' + '))+') และเขียนให้ครบทุกไฟล์อัตโนมัติ</div>'+
+      (r.mismatch ? '<div class="hr-note warn">'+ico('alert')+' มี <b>'+r.mismatch+'</b> วันที่อยู่ไม่ครบทุกไฟล์ (ของเก่าที่เคยเพิ่มในชีตเอง) — '+
+        'กดลบแล้วเพิ่มใหม่ผ่านหน้านี้ ระบบจะลงให้ครบเองค่ะ</div>' : '')+
+      '<div class="hr-filter">'+ico('calendar')+' '+yrSel+
+        '<button class="hr-fbtn" id="cfgHolAdd">'+ico('plus')+' เพิ่มวันหยุด</button>'+
+        '<button class="hr-fbtn ghost" id="cfgHolCopy">'+ico('rotate')+' คัดลอกจากปีก่อน</button></div>'+
+      '<div class="mg-tbwrap"><table class="mg-table"><thead><tr>'+
+        '<th class="ce">#</th><th class="ce">วันที่</th><th class="lft">ชื่อวันหยุด</th>'+
+        '<th class="ce">สถานะ</th><th class="ce">จัดการ</th>'+
+      '</tr></thead><tbody>'+(rows||'<tr><td colspan="5" class="ce mg-sub2" style="padding:18px">ยังไม่มีวันหยุดในปีนี้</td></tr>')+'</tbody></table></div>'+
+      '<div class="paste-help">รวม '+((r.holidays||[]).length)+' วัน · ทุกการเพิ่ม/ลบบันทึก audit</div>'+
+    '</div>';
+
+  var ys=document.getElementById('cfgHolYear');
+  if(ys) ys.addEventListener('change', function(){ S.cfgHolYear=parseInt(ys.value,10); loadCfgHolidays(); });
+  var ad=document.getElementById('cfgHolAdd');  if(ad) ad.addEventListener('click', openHolAdd);
+  var cp=document.getElementById('cfgHolCopy'); if(cp) cp.addEventListener('click', openHolCopy);
+  box.querySelectorAll('[data-holdel]').forEach(function(el){
+    el.addEventListener('click', function(){ askHolDelete(el.dataset.holdel, el.dataset.holname); }); });
+}
+
+function openHolAdd(){
+  var iso=dkeyISO(new Date());
+  modalForm({ title:'เพิ่มวันหยุดบริษัท', emoji:ico('calendar'), okLabel:ico('plus')+' เพิ่ม',
+    body:'<label class="field-lb">'+ico('calendar')+' วันที่</label>'+
+         '<input type="date" class="hr-fdate mg-full" id="holDate" value="'+esc(iso)+'">'+
+         '<label class="field-lb">'+ico('pencil')+' ชื่อวันหยุด</label>'+
+         '<input type="text" id="holName" placeholder="เช่น วันสงกรานต์ · วันหยุดชดเชย" autocomplete="off">'+
+         '<div class="cfm-note">ระบบจะลงให้ครบทุกไฟล์ (ระบบลา + ระบบ OT) เพื่อให้การนับวันลาและอัตรา OT ตรงกัน</div>',
+    onOk:function(c){
+      var d=isoToThai(c.querySelector('#holDate').value);
+      var nm=(c.querySelector('#holName').value||'').trim();
+      if(!d) return toast('เลือกวันที่ก่อนนะคะ','err');
+      if(!nm) return toast('ใส่ชื่อวันหยุดด้วยค่ะ','err');
+      toast('กำลังเพิ่ม…');
+      api('cfgHolidayAdd',{date:d,name:nm}).then(function(r){
+        if(!r.ok) return toast(r.error||'เพิ่มไม่สำเร็จ','err');
+        closeConfirm();
+        toast('เพิ่ม '+r.date+' แล้ว'+(r.already&&r.already.length?' (บางไฟล์มีอยู่แล้ว)':''),'ok');
+        loadCfgHolidays();
+      }).catch(function(e){ toast(String(e.message||e),'err'); });
+    } });
+}
+
+function askHolDelete(date, name){
+  confirmModal({ title:'ลบวันหยุด', emoji:ico('trash'),
+    rows:[{k:'วันที่', v:date},{k:'ชื่อ', v:name||'-'},
+          {k:'ผลที่เกิด', v:'ลบออกจากทุกไฟล์ · การนับวันลา/OT ของวันนั้นเปลี่ยนทันที'}],
+    onConfirm:function(){
+      toast('กำลังลบ…');
+      api('cfgHolidayDelete',{date:date}).then(function(r){
+        if(!r.ok) return toast(r.error||'ลบไม่สำเร็จ','err');
+        toast('ลบ '+r.date+' แล้ว','ok'); loadCfgHolidays();
+      }).catch(function(e){ toast(String(e.message||e),'err'); });
+    }});
+}
+
+function openHolCopy(){
+  var y=S.cfgHolYear||(new Date().getFullYear()+543);
+  var opt=function(v,sel){ return '<option value="'+v+'"'+(sel?' selected':'')+'>ปี '+v+'</option>'; };
+  var yrs=[y-1,y,y+1];
+  modalForm({ title:'คัดลอกวันหยุดจากปีก่อน', emoji:ico('rotate'), okLabel:ico('search')+' ดูรายการก่อน',
+    body:'<div class="hr-note ok2" style="margin-bottom:10px">คัดลอกวันหยุดทั้งปีแล้วเลื่อนปีให้ — วันที่ขยับ (เช่นวันหยุดชดเชย) ค่อยแก้ทีหลังได้</div>'+
+         '<div class="cfm-row"><span class="cfm-k">คัดจากปี</span><span class="cfm-v"><select class="hr-fsel" id="holFrom">'+
+           yrs.map(function(v){ return opt(v, v===y-1); }).join('')+'</select></span></div>'+
+         '<div class="cfm-row"><span class="cfm-k">ไปที่ปี</span><span class="cfm-v"><select class="hr-fsel" id="holTo">'+
+           yrs.map(function(v){ return opt(v, v===y); }).join('')+'</select></span></div>'+
+         '<div id="holPlan"></div>',
+    onOk:function(c){
+      var from=+c.querySelector('#holFrom').value, to=+c.querySelector('#holTo').value;
+      var plan=c.querySelector('#holPlan');
+      if(!plan.dataset.ready){                       // จังหวะ 1 — ดูก่อน
+        api('cfgHolidayCopy',{fromYearBE:from,toYearBE:to}).then(function(r){
+          if(!r.ok) return toast(r.error||'ดูรายการไม่ได้','err');
+          var rows=(r.plan||[]).map(function(x){
+            return '<div class="cfm-row"><span class="cfm-k">'+esc(x.date)+'</span><span class="cfm-v">'+
+              esc(x.name||'-')+(x.skip?' <span class="mg-sub2">(มีแล้ว — ข้าม)</span>':'')+'</span></div>'; }).join('');
+          plan.innerHTML='<div class="hr-note" style="margin-top:10px">'+ico('info')+' จะเพิ่ม <b>'+r.willAdd+'</b> วัน</div>'+rows;
+          plan.dataset.ready='1';
+          var ok=c.querySelector('[data-cfm-ok]'); if(ok) ok.innerHTML=ico('check')+' ยืนยันคัดลอก';
+        }).catch(function(e){ toast(String(e.message||e),'err'); });
+        return;
+      }
+      api('cfgHolidayCopy',{fromYearBE:from,toYearBE:to,mode:'commit'}).then(function(r){  // จังหวะ 2 — ทำจริง
+        if(!r.ok) return toast(r.error||'คัดลอกไม่สำเร็จ','err');
+        closeConfirm(); toast('คัดลอกแล้ว '+r.added+' วัน','ok');
+        S.cfgHolYear=to; loadCfgHolidays();
+      }).catch(function(e){ toast(String(e.message||e),'err'); });
+    } });
+}
 
 // ════════════ 📊 แดชบอร์ด (รวมภาพรวมทั้งบริษัท) ════════════
 // เดิม HR ต้องเดินเข้า 3 เมนู (อนุมัติ · พนักงาน · payroll) ถึงจะเห็นภาพรวม
@@ -3893,6 +4056,19 @@ function mockApi(action, params){
     }
     else if(action==='mgEditOt') resolve({ok:true,otId:(params&&params.otId)||'OT-MOCK',hours:1.5,wasApproved:true,warn:''});
     else if(action==='approve') resolve({ok:true,id:'(mock)',status:'✅'});
+    else if(action==='cfgHolidayList') resolve({ok:true,yearBE:params&&params.yearBE,files:['ระบบลา','ระบบ OT'],
+      years:[2569,2568],mismatch:1,holidays:[
+        {date:'01/01/2026',yearBE:2569,name:'วันขึ้นปีใหม่',where:['ระบบลา','ระบบ OT'],synced:true},
+        {date:'13/04/2026',yearBE:2569,name:'วันสงกรานต์',where:['ระบบลา','ระบบ OT'],synced:true},
+        {date:'01/05/2026',yearBE:2569,name:'วันแรงงาน',where:['ระบบลา'],synced:false}]});
+    else if(action==='cfgHolidayAdd') resolve({ok:true,date:params&&params.date,name:params&&params.name,
+      added:['ระบบลา','ระบบ OT'],already:[]});
+    else if(action==='cfgHolidayDelete') resolve({ok:true,date:params&&params.date,name:'(mock)',removed:['ระบบลา (1)','ระบบ OT (1)']});
+    else if(action==='cfgHolidayCopy') resolve(params&&params.mode==='commit'
+      ? {ok:true,added:2,fromYearBE:params.fromYearBE,toYearBE:params.toYearBE}
+      : {ok:true,dryRun:true,willAdd:2,fromYearBE:params.fromYearBE,toYearBE:params.toYearBE,
+         plan:[{from:'01/01/2026',date:'01/01/2027',name:'วันขึ้นปีใหม่',skip:false},
+               {from:'13/04/2026',date:'13/04/2027',name:'วันสงกรานต์',skip:false}]});
     else if(action==='hrOverview') resolve({ok:true,role:'OWNER',
       pending:{leave:2,ot:1,register:2,lineChange:1,unpaidReq:0,total:6},
       people:{ok:true,yearBE:2569,total:32,active:23,left:5,notCounted:1,noLine:2,
