@@ -3404,6 +3404,22 @@ function mockApi(action, params){
     else if(action==='lineChangeList') resolve({ok:true,count:1,pending:[
       {newUserId:'Unew001',typedName:'สมชาย ใจดี',lineDisplay:'Somchai',empId:'1100100100101',
        oldUserId:'Uold001',submittedAt:'31/08/2569 10:20'}]});
+    else if(action==='emLineInfo') resolve({ok:true,linked:true,row:5,userId:'Uold00000000000000000000000000',
+      name:'นรินทร์ทิพย์ ลือชา',empId:'1349901087436',dept:'CRM & Telesale',role:'EMPLOYEE',
+      registeredAt:'04/04/2026 9:39',payroll:{found:true,userId:'Uold00000000000000000000000000',seq:'12',inSync:true},
+      extras:[{row:3,userId:'Udupe0000000000000000000000000'}],
+      candidates:[{kind:'change',userId:'Unew00000000000000000000000000',label:'นรินทร์ทิพย์ ลือชา',sub:'คำขอเปลี่ยน LINE · 02/09/2569 10:16'},
+        {kind:'dup',userId:'Udup000000000000000000000000000',label:'Narintip Luecha',sub:'ร่างซ้ำ · LineUsers row 30'}],
+      history:[{at:'02/09/2569 10:16',userId:'Unew00000000000000000000000000',oldUserId:'Uold00000000000000000000000000',
+        typedName:'นรินทร์ทิพย์ ลือชา',status:'pending',by:'',decidedAt:'',reason:''}]});
+    else if(action==='emLineMove') resolve({ok:true,name:'(mock)',payrollUpdated:true,photoCleared:true});
+    else if(action==='emLineUnlink') resolve({ok:true,name:'(mock)',payrollCleared:true});
+    else if(action==='emLineMerge') resolve(params.dryRun?{ok:true,dryRun:true,dupName:'Narintip Luecha',
+      realName:'นรินทร์ทิพย์ ลือชา',newUserId:'Udup000000000000000000000000000',oldUserId:'Uold00000000000000000000000000',
+      deletes:[{sheet:'LineUsers',row:30},{sheet:'โควต้าลา',row:31},{sheet:'วันลาคงเหลือ',row:31},
+        {sheet:'พนักงาน',row:35},{sheet:'อัตราค่าจ้าง',row:31}],
+      extras:[{row:3,userId:'Udupe0000000000000000000000000'}],activity:{leaves:0,ots:0,registers:[]},blockers:[],warnings:[]}
+      : {ok:true,deleted:['LineUsers row 30','โควต้าลา row 31'],payrollUpdated:true,photoCleared:true,name:'(mock)'});
     else if(action==='lineChangeDecide') resolve({ok:true,name:'(mock)',status:params.decision==='approve'?'approved':'rejected',payrollUpdated:true});
     else if(action==='decideRegistration') resolve({ok:true,name:'(mock)',status:params.decision==='approve'?'approved':'rejected'});
     else if(action==='addEmployeeApprove') resolve({ok:true,fullName:(params&&params.name||'')+' '+(params&&params.lastName||''),written:['โควต้าลา','วันลาคงเหลือ','payroll','OT'],linked:true,warnings:[]});
@@ -3613,6 +3629,7 @@ var EMP_TABS = [
   { key:'job',    label:'📋 ประวัติการทำงาน' },
   { key:'salary', label:'💹 เงินเดือน' },
   { key:'tax',    label:'🧾 ลดหย่อนภาษี' },
+  { key:'line',   label:'📱 LINE' },
 ];
 
 /**
@@ -3741,6 +3758,7 @@ function paintEmpTab(){
   if(tab==='salary') return paintEmpSalary(box, u);
   if(tab==='job')    return paintEmpJob(box, u);
   if(tab==='tax')    return paintEmpTax(box, u);
+  if(tab==='line')   return paintEmpLine(box, u);
 }
 
 function empRow(k,v){ return '<div class="pf-row"><span class="k">'+esc(k)+'</span><span class="v">'+esc(v==null||v===''?'—':v)+'</span></div>'; }
@@ -4063,6 +4081,190 @@ function openJobAdd(u, events){
                       detail:c.querySelector('#jobDetail').value.trim()}).then(function(r){
         if(!r.ok){ toast(r.error||'บันทึกไม่สำเร็จ','err'); return; }
         closeConfirm(); toast(r.summary||'บันทึกแล้ว'); paintEmpTab();
+      }).catch(function(e){ toast(String(e.message||e),'err'); });
+    } });
+}
+
+// ════════════ 📱 บัญชี LINE ของพนักงาน (ADMIN/OWNER) ════════════
+// เดิม HR ทำเองไม่ได้เลย — พนักงานเปลี่ยนเครื่อง/บัญชี LINE ทีต้องให้คนทำระบบ
+// เข้าไปแก้ชีตให้ (LineUsers col A + รูป + payroll col E) แท็บนี้ยกมาไว้บนเว็บทั้งชุด
+//   🔁 ย้าย LINE   เลือกเครื่องที่รออยู่ (คำขอเปลี่ยน/ลงทะเบียน) หรือวาง userId เอง
+//   🧹 รวมร่างซ้ำ  เคสที่เผลอกด "เพิ่มข้อมูล" จนได้พนักงานคนใหม่ทั้งชุด
+//   🔌 ปลด LINE    มือถือหาย/ออกจากบัญชีเดิมไม่ได้ → ล้างให้ลงทะเบียนใหม่
+function shortUid(id){
+  id = String(id||''); if(!id) return '—';
+  return id.length > 18 ? id.slice(0,10)+'…'+id.slice(-6) : id;
+}
+function lineKindLabel(k){
+  return { change:'📱 คำขอเปลี่ยน LINE', register:'📝 คำขอลงทะเบียน', dup:'🧟 ร่างซ้ำในระบบ' }[k] || '📲 บัญชี LINE';
+}
+function lineStatusLabel(s){
+  return { pending:'⏳ รออนุมัติ', approved:'✅ อนุมัติแล้ว', rejected:'❌ ปฏิเสธ' }[s] || esc(s||'—');
+}
+
+function paintEmpLine(box, u){
+  box.innerHTML = '<div class="card"><div class="skel" style="height:130px"></div></div>';
+  api('emLineInfo',{empId:u.empId||'', name:u.name||''}).then(function(r){
+    if(!r.ok){ box.innerHTML = emptyBox('⚠️', r.error||'โหลดไม่สำเร็จ'); return; }
+    box.innerHTML = empLineCards(r);
+    wireEmpLine(box, u, r);
+  }).catch(function(e){ box.innerHTML = emptyBox('😿', String(e.message||e)); });
+}
+
+function empLineCards(r){
+  var warn = '';
+  if(r.linked && r.payroll && r.payroll.found && r.payroll.inSync === false)
+    warn += '<div class="hr-note warn">⚠️ ชีตเงินเดือนชี้ไปคนละบัญชี ('+esc(shortUid(r.payroll.userId))+
+            ') — สลิปจะส่งเข้าเครื่องเก่า กด 🔁 ย้าย LINE ซ้ำอีกครั้งเพื่อให้ตรงกัน</div>';
+  if((r.extras||[]).length)
+    warn += '<div class="hr-note warn">⚠️ คนนี้มีอีก '+r.extras.length+' แถวใน LineUsers (row '+
+            r.extras.map(function(x){ return x.row; }).join(', ')+') — ใช้ 🧹 รวมร่างซ้ำ เก็บให้เหลือแถวเดียว</div>';
+
+  var cand = (r.candidates||[]).map(function(c){
+    return '<div class="hist"><div class="hist-ic">'+(c.kind==='dup'?'🧟':(c.kind==='register'?'📝':'📱'))+'</div>'+
+      '<div class="hist-main"><div class="hist-type">'+esc(c.label||'(ไม่มีชื่อ)')+'</div>'+
+      '<div class="hist-meta">'+esc(c.sub||'')+'</div>'+
+      '<div class="hist-meta">'+esc(shortUid(c.userId))+'</div></div>'+
+      '<button class="btn btn-primary btn-sm" data-lcand="'+esc(c.userId)+'" data-lkind="'+esc(c.kind)+'" '+
+        'data-lname="'+esc(c.label||'')+'">'+(c.kind==='dup'?'🧹 รวมร่าง':'🔁 ย้ายให้คนนี้')+'</button></div>';
+  }).join('');
+
+  var hist = (r.history||[]).map(function(h){
+    return '<div class="hist"><div class="hist-ic">'+(h.status==='approved'?'✅':(h.status==='rejected'?'❌':'⏳'))+'</div>'+
+      '<div class="hist-main"><div class="hist-type">'+lineStatusLabel(h.status)+
+        ' <span class="hist-meta">'+esc(h.at||'')+'</span></div>'+
+      '<div class="hist-meta">'+esc(shortUid(h.oldUserId))+' → '+esc(shortUid(h.userId))+'</div>'+
+      (h.by?'<div class="hist-meta">โดย '+esc(h.by)+(h.decidedAt?' · '+esc(h.decidedAt):'')+'</div>':'')+
+      (h.reason?'<div class="hist-meta">'+esc(h.reason)+'</div>':'')+'</div></div>';
+  }).join('');
+
+  return warn+
+    '<div class="card">'+
+      '<div class="emp-thead"><div class="card-title" style="margin:0"><span class="ic"></span>บัญชี LINE ที่ผูกอยู่</div>'+
+        (r.linked?'<button class="btn btn-sm" data-lunlink>🔌 ปลด LINE</button>':'')+'</div>'+
+      empRow('สถานะ', r.linked?'✅ ผูกแล้ว':'⚪ ยังไม่ผูก — พนักงานยังใช้บอท/เว็บไม่ได้')+
+      empRow('LineUserID', r.linked?shortUid(r.userId):'—')+
+      empRow('วันลงทะเบียน', r.registeredAt)+
+      empRow('ชีตเงินเดือน (สลิป)', !r.payroll||!r.payroll.found ? 'ไม่พบแถวในชีตพนักงาน'
+        : (r.payroll.inSync ? '✅ ตรงกัน (ลำดับ '+esc(r.payroll.seq)+')' : '⚠️ ชี้คนละบัญชี'))+
+      '<button class="btn btn-primary mg-full" data-lmove style="margin-top:10px">🔁 ย้าย LINE ให้คนนี้</button>'+
+      '<div class="paste-help">ย้ายแล้วประวัติลา / OT / สลิป อยู่ครบ — ระบบผูกด้วยรหัสพนักงาน ไม่ใช่บัญชี LINE</div>'+
+    '</div>'+
+    '<div class="card"><div class="card-title"><span class="ic"></span>เครื่องที่รอผูก ('+((r.candidates||[]).length)+')</div>'+
+      (cand||'<div class="mg-sub2">ยังไม่มีคำขอค้าง — ถ้าพนักงานเพิ่งทักบอทจากเครื่องใหม่ กดรีเฟรชอีกที</div>')+
+      '<div class="paste-help">🧟 ร่างซ้ำ = แถวที่ไม่มีตัวตนในชีตโควต้าลา (มักเกิดตอนเผลอกด "เพิ่มข้อมูล" ให้คนที่มีอยู่แล้ว)</div>'+
+    '</div>'+
+    '<div class="card"><div class="card-title"><span class="ic"></span>ประวัติการเปลี่ยน LINE</div>'+
+      (hist||'<div class="mg-sub2">ยังไม่เคยเปลี่ยน</div>')+'</div>';
+}
+
+function wireEmpLine(box, u, r){
+  var mv = box.querySelector('[data-lmove]');
+  if(mv) mv.addEventListener('click', function(){ openLineMove(u, r); });
+  var un = box.querySelector('[data-lunlink]');
+  if(un) un.addEventListener('click', function(){ openLineUnlink(u, r); });
+  box.querySelectorAll('[data-lcand]').forEach(function(el){
+    el.addEventListener('click', function(){
+      if(el.dataset.lkind === 'dup') openLineMerge(u, el.dataset.lname);
+      else doLineMove(u, el.dataset.lcand, el.dataset.lname);
+    });
+  });
+}
+
+/** เลือกเครื่องจากรายการ หรือวาง LineUserID เอง */
+function openLineMove(u, r){
+  var opts = (r.candidates||[]).map(function(c){
+    return '<label class="lcand"><input type="radio" name="lmv" value="'+esc(c.userId)+'" data-nm="'+esc(c.label||'')+'" data-kd="'+esc(c.kind)+'">'+
+      '<span><b>'+esc(c.label||'(ไม่มีชื่อ)')+'</b><br><span class="mg-sub2">'+lineKindLabel(c.kind)+' · '+esc(shortUid(c.userId))+(c.kind==='dup'?' · เลือกแล้วจะพาไปหน้ารวมร่าง':'')+'</span></span></label>';
+  }).join('');
+  modalForm({ title:'ย้าย LINE · '+u.name, emoji:'🔁',
+    body:(opts?'<label class="field-lb">📲 เลือกเครื่องที่รออยู่</label>'+opts:'')+
+         '<label class="field-lb">หรือวาง LineUserID เอง</label>'+
+         '<input type="text" id="lmvManual" placeholder="U1234…" autocomplete="off">'+
+         '<div class="cfm-note">บัญชีเดิมจะใช้งานไม่ได้ทันที · ประวัติทั้งหมดตามมาให้เอง<br>'+
+         'ยืนยันตัวตนกับเจ้าตัวก่อนกดทุกครั้ง — คนอื่นก็ยื่นคำขอในชื่อเขาได้</div>',
+    okLabel:'🔁 ย้ายเลย',
+    onOk:function(c){
+      var pick = c.querySelector('input[name="lmv"]:checked');
+      var manual = (c.querySelector('#lmvManual').value||'').trim();
+      var uid = manual || (pick ? pick.value : '');
+      if(!uid){ toast('เลือกเครื่อง หรือวาง LineUserID ก่อนนะคะ','err'); return; }
+      closeConfirm();
+      // เลือกร่างซ้ำ = ย้ายเฉย ๆ ไม่ได้ (จะเหลือแถวผีไว้กินเงินเดือนอีกใบ) → พาไปรวมร่างให้เลย
+      if(pick && pick.dataset.kd === 'dup'){ openLineMerge(u, pick.dataset.nm); return; }
+      doLineMove(u, uid, pick ? pick.dataset.nm : '');
+    } });
+}
+
+function doLineMove(u, newUserId, candName){
+  confirmModal({ title:'ย้าย LINE ให้ '+u.name, emoji:'🔁',
+    rows:[{k:'พนักงาน', v:u.name+' ('+(u.empId||'-')+')'},
+          {k:'บัญชีใหม่', v:(candName?candName+' · ':'')+shortUid(newUserId)},
+          {k:'ผลที่เกิด', v:'เครื่องเดิมใช้ไม่ได้ · ประวัติอยู่ครบ'}],
+    onConfirm:function(){
+      toast('กำลังย้าย…');
+      api('emLineMove',{empId:u.empId||'', name:u.name||'', newUserId:newUserId}).then(function(r){
+        if(!r.ok){
+          if(r.needMerge){ noticeBox('ต้องรวมร่างแทน', r.error, '🧹'); return; }
+          toast(r.error||'ย้ายไม่สำเร็จ','err'); return;
+        }
+        toast('ย้าย LINE ให้ '+r.name+' แล้ว'+(r.payrollUpdated?' · สลิปตามไปด้วย':''));
+        paintEmpTab();
+      }).catch(function(e){ toast(String(e.message||e),'err'); });
+    } });
+}
+
+/** 🧹 รวมร่างซ้ำ — ตรวจก่อนเสมอ แล้วให้ HR เห็นรายการที่จะลบก่อนยืนยัน */
+function openLineMerge(u, dupName){
+  toast('กำลังตรวจ…');
+  api('emLineMerge',{dupName:dupName, realName:u.name||'', dryRun:true}).then(function(r){
+    if(!r.ok){ toast(r.error||'ตรวจไม่ผ่าน','err'); return; }
+    var del = (r.deletes||[]).map(function(d){
+      return '<div class="cfm-row"><span class="cfm-k">'+esc(d.sheet)+'</span><span class="cfm-v">row '+d.row+'</span></div>'; }).join('');
+    if((r.blockers||[]).length){
+      noticeBox('ยังรวมร่างไม่ได้',
+        r.blockers.join('\n')+'\n\nร่างนี้มีข้อมูลจริงผูกอยู่ ลบแล้วประวัติจะกำพร้า — เคลียร์ส่วนนั้นก่อนนะคะ', '🔴');
+      return;
+    }
+    modalForm({ title:'รวมร่างซ้ำเข้ากับ '+u.name, emoji:'🧹',
+      body:'<div class="cfm-row"><span class="cfm-k">ร่างที่จะลบ</span><span class="cfm-v">'+esc(r.dupName)+'</span></div>'+
+           '<div class="cfm-row"><span class="cfm-k">LINE ที่จะย้ายมา</span><span class="cfm-v">'+esc(shortUid(r.newUserId))+'</span></div>'+
+           '<label class="field-lb">🗑️ จะลบ '+((r.deletes||[]).length)+' แถว</label>'+del+
+           ((r.extras||[]).length
+             ? '<label class="lcand" style="margin-top:8px"><input type="checkbox" id="lmgExtra" checked>'+
+               '<span>ลบแถวซ้ำเก่าใน LineUsers อีก '+r.extras.length+' แถวด้วย</span></label>' : '')+
+           ((r.warnings||[]).length?'<div class="cfm-note">'+esc(r.warnings.join(' · '))+'</div>':'')+
+           '<div class="cfm-note">ยอดโควต้าลา / ประวัติ / ลำดับในชีตเงินเดือน ใช้ของคนเดิมทั้งหมด</div>',
+      okLabel:'🧹 รวมร่างเลย',
+      onOk:function(c){
+        var ex = c.querySelector('#lmgExtra');
+        closeConfirm(); toast('กำลังรวมร่าง…');
+        api('emLineMerge',{dupName:r.dupName, realName:r.realName,
+                           removeExtras:(ex && ex.checked)?'true':'false'}).then(function(res){
+          if(!res.ok){ toast((res.blockers?res.blockers.join(' · '):res.error)||'ไม่สำเร็จ','err'); return; }
+          toast('รวมร่างแล้ว · ลบ '+(res.deleted||[]).length+' แถว');
+          paintEmpTab();
+        }).catch(function(e){ toast(String(e.message||e),'err'); });
+      } });
+  }).catch(function(e){ toast(String(e.message||e),'err'); });
+}
+
+/** 🔌 ปลด LINE — ใช้ตอนมือถือหาย/เข้าบัญชีเดิมไม่ได้ */
+function openLineUnlink(u, r){
+  modalForm({ title:'ปลด LINE ของ '+u.name, emoji:'🔌',
+    body:'<div class="cfm-row"><span class="cfm-k">บัญชีที่จะปลด</span><span class="cfm-v">'+esc(shortUid(r.userId))+'</span></div>'+
+         '<label class="field-lb">📝 เหตุผล (เก็บใน audit)</label>'+
+         '<input type="text" id="lulReason" placeholder="เช่น มือถือหาย / เข้าบัญชีเดิมไม่ได้">'+
+         '<div class="cfm-note">ปลดแล้วพนักงานจะใช้บอทและเว็บไม่ได้จนกว่าจะผูกใหม่<br>'+
+         'ข้อมูลในระบบอยู่ครบ — ให้เจ้าตัวทักบอทแล้วพิมพ์ชื่อ-นามสกุล เพื่อยื่นขอผูกใหม่</div>',
+    okLabel:'🔌 ปลดเลย',
+    onOk:function(c){
+      var reason = (c.querySelector('#lulReason').value||'').trim();
+      closeConfirm(); toast('กำลังปลด…');
+      api('emLineUnlink',{empId:u.empId||'', name:u.name||'', reason:reason}).then(function(res){
+        if(!res.ok){ toast(res.error||'ปลดไม่สำเร็จ','err'); return; }
+        toast('ปลด LINE ของ '+res.name+' แล้ว');
+        paintEmpTab();
       }).catch(function(e){ toast(String(e.message||e),'err'); });
     } });
 }

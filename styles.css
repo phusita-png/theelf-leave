@@ -159,6 +159,14 @@ img{max-width:100%}
   padding:9px 12px;margin-bottom:12px;line-height:1.4}
 .hr-note.ok2{background:var(--green-tint);color:var(--green)}
 
+/* -- 📱 แท็บ LINE ในหน้าพนักงาน -- */
+.hr-note.warn{background:var(--red-tint);color:var(--red-deep)}
+.lcand{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;margin-bottom:8px;
+  border:1px solid var(--line);border-radius:11px;background:#fff;cursor:pointer;font-size:13px;line-height:1.45}
+.lcand input{margin-top:3px;flex:0 0 auto}
+.lcand:has(input:checked){border-color:var(--red);background:var(--red-tint)}
+.hist .btn.btn-sm{align-self:center;flex:0 0 auto;white-space:nowrap}
+
 /* ── แถบตัวกรองสรุป (รอบ/เดือน/ปี/ช่วงวันที่) ── */
 .hr-filter{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:14px}
 .hr-fsel,.hr-fdate{font-family:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--line);
