@@ -1631,7 +1631,7 @@ function wireDocFilter(){
 function renderDocDash(box, ds){
   var KIND = [
     ['leave',     'ใบลา',                    '#2f80ed'],
-    ['ot',        '⏰ ใบ OT',                   '#f2994a'],
+    ['ot',        'ใบ OT',                      '#f2994a'],
     ['register',  'คำขอลงทะเบียน',           '#27ae60'],
     ['unpaidReq', 'ขอสิทธิ์ลาไม่รับค่าจ้าง', '#9b51e0'],
   ];
