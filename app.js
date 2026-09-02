@@ -2779,25 +2779,45 @@ function paintEmpTable(){
 
 /** 📸 ดึงรูปโปรไฟล์ LINE ของทุกคนมาเก็บ (กดเป็นรอบๆ พอ — รูปไม่ได้เปลี่ยนบ่อย) */
 function syncEmpPhotos(btn){
-  if(btn){ btn.disabled = true; btn.textContent = 'กำลังดึงรูป…'; }
-  api('emPhotoSync',{}).then(function(r){
-    if(btn){ btn.disabled = false; btn.textContent = '📸 ดึงรูปจาก LINE'; }
-    if(!r.ok) return toast(r.error||'ดึงรูปไม่สำเร็จ','err');
-    if(r.failed){
-      // ดึงไม่ได้ = มีอะไรต้องแก้ (โทเคน/เพื่อนบอท) — บอกให้ครบ ไม่ใช่ toast วูบเดียว
-      noticeBox('📸 ผลการดึงรูปจาก LINE',
-        'อัปเดตรูปสำเร็จ '+r.updated+' คน'+
-        (r.noPic?'\nไม่ได้ตั้งรูปโปรไฟล์ใน LINE '+r.noPic+' คน':'')+
-        '\nดึงไม่ได้ '+r.failed+' คน\n\nสาเหตุ: '+(r.why||'-')+
-        (r.samples&&r.samples.length?'\nตัวอย่าง: '+r.samples.join(', '):''));
-    } else {
-      toast(r.summary||'ดึงรูปแล้ว','ok');
-    }
-    loadSettings();
-  }).catch(function(e){
-    if(btn){ btn.disabled = false; btn.textContent = '📸 ดึงรูปจาก LINE'; }
-    toast(String(e.message||e),'err');
-  });
+  // ดึงทีละรอบ (รอบละ ~20 คน) แล้วต่อ offset ไปเรื่อย ๆ จน done
+  // เดิมยิงรวดเดียวทุกคน → เกิน 20 วิที่ api() รอไหว ขึ้น "หมดเวลาเชื่อมต่อ" ทั้งที่หลังบ้านยังทำอยู่
+  var acc = { updated:0, failed:0, noPic:0, samples:[], why:'' };
+  var reset = function(){ if(btn){ btn.disabled=false; btn.textContent='📸 ดึงรูปจาก LINE'; } };
+  if(btn) btn.disabled = true;
+
+  var step = function(offset){
+    if(btn) btn.textContent = 'กำลังดึงรูป… '+(offset?offset+' คน':'');
+    api('emPhotoSync',{offset:offset}).then(function(r){
+      if(!r.ok){ reset(); return toast(r.error||'ดึงรูปไม่สำเร็จ','err'); }
+      acc.updated += (r.updated||0);
+      acc.failed  += (r.failed||0);
+      acc.noPic   += (r.noPic||0);
+      if(r.why) acc.why = r.why;
+      (r.samples||[]).forEach(function(x){ if(acc.samples.length<3) acc.samples.push(x); });
+
+      if(!r.done && r.processed){
+        if(btn) btn.textContent = 'กำลังดึงรูป… '+r.nextOffset+'/'+r.total;
+        step(r.nextOffset);
+        return;
+      }
+      reset();
+      if(acc.failed){
+        // ดึงไม่ได้ = มีอะไรต้องแก้ (โทเคน/เพื่อนบอท) — บอกให้ครบ ไม่ใช่ toast วูบเดียว
+        noticeBox('📸 ผลการดึงรูปจาก LINE',
+          'อัปเดตรูปสำเร็จ '+acc.updated+' คน'+
+          (acc.noPic?'\nไม่ได้ตั้งรูปโปรไฟล์ใน LINE '+acc.noPic+' คน':'')+
+          '\nดึงไม่ได้ '+acc.failed+' คน\n\nสาเหตุ: '+(acc.why||'-')+
+          (acc.samples.length?'\nตัวอย่าง: '+acc.samples.join(', '):''));
+      } else {
+        toast('อัปเดตรูป '+acc.updated+' คน'+(acc.noPic?' · ไม่ได้ตั้งรูปใน LINE '+acc.noPic+' คน':''),'ok');
+      }
+      loadSettings();
+    }).catch(function(e){
+      reset();
+      toast(String(e.message||e)+(acc.updated?' (ได้แล้ว '+acc.updated+' คน — กดใหม่เพื่อทำต่อ)':''),'err');
+    });
+  };
+  step(0);
 }
 
 function wireEmpTable(){
@@ -3294,7 +3314,9 @@ function mockApi(action, params){
         : (params&&params.mode==='range') ? '01/08/2569 – 15/08/2569' : '26/7 – 25/8/2569',
       total:642, byKind:{leave:412,ot:198,register:24,unpaidReq:8},
       pendingByKind:{leave:2,ot:1,register:2,unpaidReq:0}});
-    else if(action==='emPhotoSync') resolve({ok:true, updated:9, failed:1, summary:'อัปเดตรูป 9 คน · ดึงไม่ได้ 1 คน'});
+    else if(action==='emPhotoSync') resolve({ok:true, updated:9, failed:1, noPic:2, total:12,
+      offset:0, nextOffset:12, processed:12, done:true, why:'ยังไม่ได้เพิ่มบอทเป็นเพื่อน',
+      samples:['นายทดสอบ ระบบ (404)'], summary:'อัปเดตรูป 9 คน · ดึงไม่ได้ 1 คน'});
     else if(action==='emPhotoUpload') resolve({ok:true, url:(params&&params.dataUrl)||'', summary:'อัปโหลดรูปเรียบร้อย (mock)'});
     else if(action==='emPhotoClear') resolve({ok:true, summary:'ลบรูปที่อัปแล้ว (mock)'});
     else if(action==='emAllowGet') resolve({ok:true, taxYear:2569, status:'อนุมัติ',
