@@ -64,23 +64,24 @@ var STEP_ACTION = {
   setPayDate:        'setPayDate',
   genPayslips:       'genPayslips',
   sendPayslips:      'sendPayslips',
-  cleanRegister:     'cleanRegister',   // 🧹 นอกลำดับ — กดจากปุ่มเหนือตาราง
-  editRegister:      'editRegister',    // ✏️ ขั้น ❺ กรอกเงินได้/เงินหักอื่นๆ
+ cleanRegister: 'cleanRegister', // นอกลำดับ — กดจากปุ่มเหนือตาราง
+ editRegister: 'editRegister', // ขั้น กรอกเงินได้/เงินหักอื่นๆ
 };
 var BATCH_STEPS = { genPayslips: 'BATCH_SLIP', sendPayslips: 'BATCH_SEND' };
 
 // ════════════ โครงหน้าจอ ════════════
 // อยู่ในนี้ ไม่ใช่ index.html — เพราะต้องวาดได้ทั้งในคอนโซลและหน้าเดี่ยว
 // id ทุกตัวมี prefix pay- (คอนโซลมี #app #loader #toast ของตัวเองอยู่แล้ว)
-var TEMPLATE = [
+// เรียกตอนใช้งาน ไม่ใช่ตอนโหลดไฟล์ — ico() อยู่ใน app.js ซึ่งโหลดทีหลัง
+function TEMPLATE_(){ return [
   '<div id="pay-loader" class="loader">',
-    '<div class="loader-mark">💰</div>',
+    '<div class="loader-mark">'+ico('wallet')+'</div>',
     '<div class="loader-bar"><i></i></div>',
     '<div class="loader-text" id="pay-loaderText">กำลังโหลด…</div>',
   '</div>',
 
   '<div id="pay-fail" class="fail hidden">',
-    '<div class="big" id="pay-failIcon">😿</div>',
+    '<div class="big" id="pay-failIcon">'+ico('alert')+'</div>',
     '<h2 id="pay-failTitle">เปิดระบบไม่ได้</h2>',
     '<p id="pay-failMsg"></p>',
   '</div>',
@@ -90,7 +91,7 @@ var TEMPLATE = [
     '<header class="hd">',
       // ชื่อเรื่อง — ซ่อนตอนฝังในคอนโซล (คอนโซลมีหัวเรื่องของมันเองอยู่แล้ว)
       '<div class="hd-titlewrap">',
-        '<div class="hd-title">💰 ระบบเงินเดือน</div>',
+        '<div class="hd-title">'+ico('wallet')+' ระบบเงินเดือน</div>',
         '<div class="hd-sub" id="pay-hdCompany">บจก.ดิเอลฟ์</div>',
       '</div>',
       '<nav class="hd-tabs">',
@@ -106,7 +107,7 @@ var TEMPLATE = [
     '<div class="wrap" id="pay-viewClose">',
       '<div id="pay-dash"></div>',
       '<div class="pre">',
-        '<span>⚠️</span>',
+        '<span>'+ico('alert')+'</span>',
         '<div>',
           '<b>ก่อนเริ่มปิดเดือน</b> — ต้องทำ 2 อย่างนี้ในระบบอื่นให้เสร็จก่อน ',
           'ไม่งั้นตัวเลขที่ดึงมาจะไม่ครบ<br>',
@@ -128,7 +129,7 @@ var TEMPLATE = [
             '<span class="sub" id="pay-tableSub"></span>',
             '<div class="hd-spacer"></div>',
             '<div class="pd-box" id="pay-payDateBox"></div>',
-            '<button class="btn btn-ghost sm" id="pay-btnClean" title="เอาคนที่ไม่ได้เงินในรอบนี้ออกจากทะเบียน (ลาออกกลางรอบยังอยู่)">🧹 ล้างคนที่ไม่ได้เงินรอบนี้</button>',
+            '<button class="btn btn-ghost sm" id="pay-btnClean" title="เอาคนที่ไม่ได้เงินในรอบนี้ออกจากทะเบียน (ลาออกกลางรอบยังอยู่)">'+ico('eraser')+' ล้างคนที่ไม่ได้เงินรอบนี้</button>',
             '<button class="btn btn-ghost sm" id="pay-btnCols">⇥ ดูทุกช่อง</button>',
           '</div>',
           '<div class="tbl-scroll" id="pay-tableWrap"></div>',
@@ -144,7 +145,7 @@ var TEMPLATE = [
           '<span class="sub" id="pay-yearSub"></span>',
           '<div class="hd-spacer"></div>',
           '<select id="pay-yearSel" class="sel" title="เลือกปี"></select>',
-          '<button class="btn btn-ghost sm" id="pay-btnPND1K">📊 ภ.ง.ด.1ก รายปี</button>',
+          '<button class="btn btn-ghost sm" id="pay-btnPND1K">'+ico('chart')+' ภ.ง.ด.1ก รายปี</button>',
         '</div>',
         '<div class="tbl-scroll" id="pay-yearWrap"></div>',
       '</div>',
@@ -154,9 +155,9 @@ var TEMPLATE = [
           '<span class="sub">50 ทวิ · กท.20 — ยอดมาจากทะเบียนทั้งปี ชุดเดียวกับ ภ.ง.ด.1ก</span>',
         '</div>',
         '<div class="yr-docs">',
-          '<button class="btn btn-ghost sm" id="pay-btnWht">🧾 ออก 50 ทวิ</button>',
-          '<button class="btn btn-ghost sm" id="pay-btnWhtSend">📧 ส่ง 50 ทวิ ให้พนักงาน</button>',
-          '<button class="btn btn-ghost sm" id="pay-btnKt20">🏭 กท.20 (กองทุนเงินทดแทน)</button>',
+          '<button class="btn btn-ghost sm" id="pay-btnWht">'+ico('receipt')+' ออก 50 ทวิ</button>',
+          '<button class="btn btn-ghost sm" id="pay-btnWhtSend">'+ico('mail')+' ส่ง 50 ทวิ ให้พนักงาน</button>',
+          '<button class="btn btn-ghost sm" id="pay-btnKt20">'+ico('building')+' กท.20 (กองทุนเงินทดแทน)</button>',
         '</div>',
       '</div>',
       '<div class="card">',
@@ -182,7 +183,7 @@ var TEMPLATE = [
   '</div>',
 
   '<div id="pay-toast"></div>',
-].join('');
+].join(''); }
 
 // ════════════ MOUNT / UNMOUNT ════════════
 /**
@@ -200,7 +201,7 @@ function mount(host, opts) {
 
   ROOT.classList.add('pay-scope');
   if (CFG.embedded) ROOT.classList.add('pay-embed');
-  ROOT.innerHTML = TEMPLATE;
+  ROOT.innerHTML = TEMPLATE_();
 
   $('monthSel').addEventListener('change', onMonthChange);
   $('tabClose').addEventListener('click', function () { goTab('close'); });
@@ -234,7 +235,7 @@ function unmount() {
 
 function initLiff() {
   if (!window.liff || !CFG.LIFF_ID || CFG.LIFF_ID.indexOf('PASTE') === 0)
-    return fail('ยังไม่ได้ตั้งค่า LIFF_ID ใน config.js', '🔧');
+    return fail('ยังไม่ได้ตั้งค่า LIFF_ID ใน config.js', ico('tools'));
 
   liff.init({ liffId: CFG.LIFF_ID }).then(function () {
     if (!liff.isLoggedIn()) { liff.login(); return; }
@@ -243,7 +244,7 @@ function initLiff() {
     if (!tok || tokenExpMs(tok) < Date.now() + 60000) { reauth(); return; }
     S.auth = { idToken: tok };
     bootstrap();
-  }).catch(function (e) { fail('LIFF init ล้มเหลว: ' + e, '🔌'); });
+  }).catch(function (e) { fail('LIFF init ล้มเหลว: ' + e, ico('plug')); });
 }
 
 function tokenExpMs(t) {
@@ -267,7 +268,7 @@ function reauth() {
   try {
     var last = +(sessionStorage.getItem('pay_reauth_ts') || 0);
     if (Date.now() - last < 8000)
-      return fail('ต่ออายุเซสชันไม่สำเร็จ — ปิดแล้วเปิดหน้านี้ใหม่อีกครั้งค่ะ', '🔑');
+      return fail('ต่ออายุเซสชันไม่สำเร็จ — ปิดแล้วเปิดหน้านี้ใหม่อีกครั้งค่ะ', ico('key'));
     sessionStorage.setItem('pay_reauth_ts', Date.now());
   } catch (e) {}
   toast('เซสชันหมดอายุ · กำลังเข้าสู่ระบบใหม่…');
@@ -333,8 +334,8 @@ function bootstrap() {
     if (!r.ok) {
       if (r.forbidden)
         return fail('หน้านี้เปิดได้เฉพาะผู้ดูแลเงินเดือน (ADMIN / OWNER) เท่านั้นค่ะ\n\n' +
-                    'ถ้าคิดว่าควรมีสิทธิ์ ให้ผู้ดูแลระบบตั้ง Role ให้ในชีต LineUsers ของระบบลา', '🔒');
-      return fail(r.error || 'โหลดข้อมูลไม่สำเร็จ', '😿');
+ 'ถ้าคิดว่าควรมีสิทธิ์ ให้ผู้ดูแลระบบตั้ง Role ให้ในชีต LineUsers ของระบบลา', '');
+      return fail(r.error || 'โหลดข้อมูลไม่สำเร็จ', ico('alert'));
     }
 
     S.role    = r.role;
@@ -342,7 +343,7 @@ function bootstrap() {
     S.months  = r.months || [];
 
     $('hdCompany').textContent = S.company;
-    $('roleBadge').textContent = r.role === 'OWNER' ? '👑 เจ้าของ' : '🛡️ ผู้ดูแล';
+ $('roleBadge').textContent = r.role === 'OWNER' ? ' เจ้าของ' : ' ผู้ดูแล';
 
     // เดือนที่จะเปิดตอนแรก = เดือนปัจจุบันใน "ตั้งค่าระบบ" ถ้ามีชีต ไม่งั้นเอาเดือนล่าสุด
     var cur = r.current || {};
@@ -356,7 +357,7 @@ function bootstrap() {
     $('loader').classList.add('hidden');
     $('app').classList.remove('hidden');
     loadMonth();
-  }).catch(function (e) { fail(String(e && e.message || e), '🔌'); });
+  }).catch(function (e) { fail(String(e && e.message || e), ico('plug')); });
 }
 
 function buildMonthOptions() {
@@ -451,7 +452,7 @@ function stepsForRender() {
   // แทรกหลัง "ดึงวันลาไม่รับเงิน" — จุดที่ข้อมูลลา/OT เข้าครบแล้ว ควรปิดก่อนคำนวณเงิน
   var at = list.map(function (x) { return x.key; }).indexOf('importUnpaidLeave');
   var step = {
-    key: 'lockPeriod', label: '🔒 ปิดรอบลา & OT', local: true,
+ key: 'lockPeriod', label: ' ปิดรอบลา & OT', local: true,
     state: both ? 'done' : '', confirmed: both, detail: detail,
   };
   list.splice(at >= 0 ? at + 1 : list.length, 0, step);
@@ -469,12 +470,12 @@ function askPeriodLock() {
       '<input type="checkbox" id="' + id + '"' + (st.locked ? ' checked' : '') + '>' +
       '<span class="lock-name">' + name + '</span>' +
       '<span class="lock-st ' + (st.locked ? 'on' : '') + '">' +
-        (st.locked ? '🔒 ปิดแล้ว' + (st.by ? ' · ' + esc(st.by) : '') + (st.at ? ' · ' + esc(st.at) : '')
-                   : '🔓 ยังเปิดอยู่') +
+        (st.locked ? ico('lock')+' ปิดแล้ว' + (st.by ? ' · ' + esc(st.by) : '') + (st.at ? ' · ' + esc(st.at) : '')
+                   : ico('lock')+' ยังเปิดอยู่') +
       '</span></label>';
   };
 
-  openModal('🔒 ปิดรอบ ' + period, 'ปิดแล้วจะแก้ใบลา/OT ของรอบนี้ไม่ได้',
+  openModal(ico('lock')+' ปิดรอบ ' + period, 'ปิดแล้วจะแก้ใบลา/OT ของรอบนี้ไม่ได้',
     '<div id="pay-lockDriftBox" class="drift checking">⏳ กำลังตรวจว่าชีตคำนวณ OT ตรงกับใบจริง…</div>' +
     '<div class="paste-help">ติ๊ก = ปิด · เอาติ๊กออก = ปลดล็อก<br>' +
     'ปิดก่อนคำนวณเงินเดือน กันมีคนแก้ใบย้อนหลังหลังจากคิดเงินไปแล้ว<br>' +
@@ -501,7 +502,7 @@ function checkCalcDrift() {
       var box = $('lockDriftBox'); if (!box) return;       // ปิดกล่องไปแล้ว
       if (!r || !r.ok) { box.className = 'drift'; box.textContent = 'ตรวจชีตคำนวณไม่ได้ — ' + ((r && r.error) || ''); return; }
       box.className = 'drift ' + (r.inSync ? 'ok' : 'warn');
-      box.innerHTML = (r.inSync ? '✅ ' : '⚠️ ') + esc(r.summary).replace(/\n/g, '<br>') +
+      box.innerHTML = (r.inSync ? ico('check')+' ' : ico('alert')+' ') + esc(r.summary).replace(/\n/g, '<br>') +
         (r.inSync ? '' : '<div class="drift-sub">ชีต ' + r.sheetCount + ' ใบ · ใบจริงตอนนี้ ' + r.liveCount + ' ใบ</div>');
     })
     .catch(function () {
@@ -524,7 +525,7 @@ function submitPeriodLock() {
   if (!jobs.length) { closeModal(); return toast('ไม่มีอะไรเปลี่ยนค่ะ'); }
 
   S.busy = true;
-  setModal('🔒 ปิดรอบ', 'กำลังบันทึก…', '<div class="empty">กำลังบันทึก…</div>', '');
+  setModal(ico('lock')+' ปิดรอบ', 'กำลังบันทึก…', '<div class="empty">กำลังบันทึก…</div>', '');
 
   // ⚠️ ห้ามยิงขนาน — 2 คำสั่งจะกลายเป็น 2 execution ใน Apps Script ที่มองไม่เห็นแถวของกันและกัน
   //    แล้วต่างคนต่างสร้างแถวในชีต "ล็อกรอบ" (เคสจริง 27 ส.ค. 69: งวดเดียวมี 8 แถว อ่านกลับได้ไม่ครบ)
@@ -551,8 +552,8 @@ function submitPeriodLock() {
     var on  = jobs.filter(function (j) { return j.locked; }).map(nameOfKind);
     var off = jobs.filter(function (j) { return !j.locked; }).map(nameOfKind);
     var msg = [];
-    if (on.length)  msg.push('🔒 ปิดรอบ ' + on.join(' + '));
-    if (off.length) msg.push('🔓 ปลดล็อก ' + off.join(' + '));
+ if (on.length) msg.push('ปิดรอบ ' + on.join('+ '));
+ if (off.length) msg.push('ปลดล็อก ' + off.join('+ '));
     toast(msg.join(' · ') + ' — ' + (res[0] && res[0].period ? res[0].period : ''));
 
     // อัปเดตจอทันทีจากผลลัพธ์ที่ backend ตอบกลับ (ไม่รอรอบอ่านใหม่)
@@ -700,7 +701,7 @@ function renderTable(r) {
     sub.textContent = '';
     var pdEmpty = $('payDateBox');
     if (pdEmpty) pdEmpty.innerHTML = '';
-    wrap.innerHTML = '<div class="empty"><span class="big">📋</span>' +
+    wrap.innerHTML = '<div class="empty"><span class="big">'+ico('clipboard')+'</span>' +
       'ยังไม่มีทะเบียนเดือน ' + pad2(S.cur.month) + '/' + S.cur.yearBE + '<br>' +
       'กด "สร้างทะเบียนเดือนใหม่" ทางซ้ายเพื่อเริ่มค่ะ</div>';
     return;
@@ -763,7 +764,7 @@ function renderTable(r) {
 //    ใช้ flow เดียวกับขั้นอื่น: ดูก่อน (dryRun) → ยืนยัน → ทำจริง
 function startCleanRegister() {
   if (S.busy) return;
-  var step = { key: 'cleanRegister', label: '🧹 ล้างคนที่ไม่ได้เงินรอบนี้', state: 'ok' };
+ var step = { key: 'cleanRegister', label: ' ล้างคนที่ไม่ได้เงินรอบนี้', state: 'ok' };
   if (!S.steps.filter(function (s2) { return s2.key === 'cleanRegister'; }).length) S.steps.push(step);
   preview('cleanRegister', step);
 }
@@ -791,7 +792,7 @@ function slipCell(x) {
       ? '<a class="pill wait" href="' + esc(x.slipLink) + '" target="_blank" rel="noopener">ดูสลิป</a>'
       : '<span class="pill wait">สร้างแล้ว</span>';
   }
-  if (em.indexOf('Error') >= 0 || em.indexOf('❌') >= 0)
+ if (em.indexOf('Error') >= 0 || em.indexOf('') >= 0)
     return '<span class="pill" style="background:#fdeced;color:#a30d14">มีปัญหา</span>';
   if (em.indexOf('ข้าม') >= 0) return '<span class="pill muted">ข้าม</span>';
   return '<span class="pill">รอ</span>';
@@ -825,7 +826,7 @@ function preview(key, step, extraParams) {
 
     var warn = '';
     if (step.state === 'warn' && step.blockedBy)
-      warn = '<div class="finding yell">⚠️ ยังไม่ได้ทำขั้น “' + esc(labelOf(step.blockedBy)) +
+      warn = '<div class="finding yell">'+ico('alert')+' ยังไม่ได้ทำขั้น “' + esc(labelOf(step.blockedBy)) +
              '” — ถ้าทำในชีตมาแล้วก็กดต่อได้ แต่ถ้ายังไม่ได้ทำจริง ตัวเลขจะไม่ครบ</div>';
 
     var nothing = isNoop(key, r);
@@ -867,7 +868,7 @@ function commitStep(key) {
   api(STEP_ACTION[key], p).then(function (r) {
     S.busy = false;
     if (!r.ok) return showError(step.label, r.error);
-    setModal(step.label, '✅ เสร็จแล้ว',
+    setModal(step.label, ico('check')+' เสร็จแล้ว',
       '<pre class="report">' + esc(r.report || r.summary) + '</pre>',
       btn('เสร็จสิ้น', 'btn-primary', 'closeModal(); loadMonth();'));
   }).catch(function (e) {
@@ -918,10 +919,10 @@ function runBatch(key, step, extra) {
       S.busy = false;
       var body = '<pre class="report">' + esc(r.report || r.summary) + '</pre>';
       if (problems.length)
-        body += '<div style="margin-top:14px"><b>⚠️ ต้องตามแก้ ' + problems.length + ' รายการ</b>' +
+        body += '<div style="margin-top:14px"><b>'+ico('alert')+' ต้องตามแก้ ' + problems.length + ' รายการ</b>' +
                 problems.map(function (t) { return '<div class="finding yell">' + esc(t) + '</div>'; }).join('') +
                 '</div>';
-      setModal(step.label, '✅ เสร็จแล้ว (' + rounds + ' รอบ)', body,
+ setModal(step.label, ' เสร็จแล้ว ('+ rounds + ' รอบ)', body,
         btn('เสร็จสิ้น', 'btn-primary', 'closeModal(); loadMonth();'));
     }).catch(function (e) {
       S.busy = false;
@@ -937,7 +938,7 @@ function runBatch(key, step, extra) {
 // ระบบเดิมคิดภาษีด้วยสูตรยาวใน col T (แก้ยาก · ไม่มีค่าลดหย่อนรายคน)
 // ขั้นนี้ให้ระบบคิดจากค่าลดหย่อนที่ HR อนุมัติแล้ว → ดูก่อน → ค่อยเขียนลงทะเบียน
 function runCalcTax() {
-  openModal('🧾 คิดภาษีหัก ณ ที่จ่าย', 'ดูผลก่อน — ยังไม่มีอะไรถูกแก้',
+  openModal(ico('receipt')+' คิดภาษีหัก ณ ที่จ่าย', 'ดูผลก่อน — ยังไม่มีอะไรถูกแก้',
     '<div class="empty">กำลังคำนวณ…</div>', '');
 
   api('calcTax', { month: S.cur.month, yearBE: S.cur.yearBE }).then(function (r) {
@@ -949,7 +950,7 @@ function runCalcTax() {
 function commitCalcTax() {
   if (S.busy) return;
   S.busy = true;
-  setModal('🧾 คิดภาษีหัก ณ ที่จ่าย', 'กำลังเขียนลงทะเบียน…',
+  setModal(ico('receipt')+' คิดภาษีหัก ณ ที่จ่าย', 'กำลังเขียนลงทะเบียน…',
     '<div class="empty">กำลังบันทึก… อย่าปิดหน้านี้นะคะ</div>', '');
 
   api('calcTax', { month: S.cur.month, yearBE: S.cur.yearBE, mode: 'commit' }).then(function (r) {
@@ -982,16 +983,16 @@ function renderCalcTax(r, done) {
   var warn = '';
   if (!done) {
     if (r.closed)
-      warn += '<div class="finding red">⛔ เดือนนี้ปิดไปแล้ว — ' + esc(r.closedReason) +
+      warn += '<div class="finding red">'+ico('ban')+' เดือนนี้ปิดไปแล้ว — ' + esc(r.closedReason) +
               ' · ดูตัวเลขได้ แต่เขียนทับไม่ได้ (ทะเบียนจะไม่ตรงกับสลิป/ภ.ง.ด.1 ที่ส่งไปแล้ว)</div>';
     if (r.prevMonthMissing)
-      warn += '<div class="finding yell">⚠️ ไม่พบทะเบียนเดือนก่อน — คิดเสมือนเริ่มปีภาษีที่เดือนนี้</div>';
+      warn += '<div class="finding yell">'+ico('alert')+' ไม่พบทะเบียนเดือนก่อน — คิดเสมือนเริ่มปีภาษีที่เดือนนี้</div>';
     if (r.legacyRelevant && r.legacyMismatch)
-      warn += '<div class="finding red">⛔ โหมดจำลองสูตรเดิมยังไม่ตรงกับ col T อยู่ ' + r.legacyMismatch +
-              ' คน — ต้องดูเมนู 🧾 เทียบภาษี ในชีตก่อน ยังเขียนไม่ได้</div>';
+      warn += '<div class="finding red">'+ico('ban')+' โหมดจำลองสูตรเดิมยังไม่ตรงกับ col T อยู่ ' + r.legacyMismatch +
+              ' คน — ต้องดูเมนู '+ico('receipt')+' เทียบภาษี ในชีตก่อน ยังเขียนไม่ได้</div>';
     else if (r.legacyRelevant)
       warn += '<div class="finding" style="border-color:#1e8e3e;background:#e6f4ea">' +
-              '✅ ด่านพิสูจน์ผ่าน — โค้ดอ่านค่าจากชีตได้ตรงกับสูตรเดิมทุกคน ' +
+              ico('check')+' ด่านพิสูจน์ผ่าน — โค้ดอ่านค่าจากชีตได้ตรงกับสูตรเดิมทุกคน ' +
               'ส่วนต่างข้างล่างจึงมาจากกฎที่ตั้งใจเปลี่ยน ไม่ใช่การอ่านผิด</div>';
   }
 
@@ -1004,7 +1005,7 @@ function renderCalcTax(r, done) {
       '</tr></thead><tbody>' +
       changed.map(function (x) {
         return '<tr><td>' + x.seq + '</td>' +
-          '<td class="l">' + esc(x.name) + (x.hasAllowance ? ' 🧾' : '') + '</td>' +
+          '<td class="l">' + esc(x.name) + (x.hasAllowance ? ' '+ico('receipt') : '') + '</td>' +
           '<td>' + money(x.income) + '</td>' +
           '<td>' + money(x.current) + '</td>' +
           '<td>' + money(x.expect) + '</td>' +
@@ -1016,25 +1017,25 @@ function renderCalcTax(r, done) {
       (r.preview.length >= 30 ? '<div class="paste-help">แสดง 30 คนที่ยอดขยับมากที่สุด — ดูครบในชีต "เทียบภาษี"</div>' : '');
   } else {
     body += '<div class="finding" style="border-color:#1e8e3e;background:#e6f4ea">' +
-            '✅ ภาษีในทะเบียนตรงกับที่ระบบคิดได้แล้วทุกคน — ไม่มีอะไรต้องเขียนทับ</div>';
+            ico('check')+' ภาษีในทะเบียนตรงกับที่ระบบคิดได้แล้วทุกคน — ไม่มีอะไรต้องเขียนทับ</div>';
   }
 
   if (done) {
     body += '<div class="paste-help" style="margin-top:12px">' +
-            '📌 ภาษีเปลี่ยน = ยอดสุทธิและภาษีสะสมเปลี่ยนตาม — กด 📊 อัปเดต YTD สะสม ต่อได้เลยค่ะ</div>';
-    return setModal('🧾 คิดภาษี — ' + esc(r.sheetName), '✅ เขียนลงทะเบียนแล้ว', body,
+            ico('pin')+' ภาษีเปลี่ยน = ยอดสุทธิและภาษีสะสมเปลี่ยนตาม — กด '+ico('chart')+' อัปเดต YTD สะสม ต่อได้เลยค่ะ</div>';
+ return setModal('คิดภาษี — ' + esc(r.sheetName), ' เขียนลงทะเบียนแล้ว', body,
       btn('เสร็จสิ้น', 'btn-primary', 'closeModal(); loadMonth();'));
   }
 
   // เขียนได้ต่อเมื่อ: เดือนยังไม่ปิด · ผ่านด่านสูตรเดิม · และมีอะไรให้เปลี่ยนจริง
   var canWrite = !r.closed && !(r.legacyRelevant && r.legacyMismatch) && changed.length > 0;
-  setModal('🧾 คิดภาษี — ' + esc(r.sheetName), 'ดูผลก่อน — ยังไม่มีอะไรถูกแก้', body,
+ setModal('คิดภาษี — ' + esc(r.sheetName), 'ดูผลก่อน — ยังไม่มีอะไรถูกแก้', body,
     btn('ปิด', 'btn-ghost', 'closeModal()') +
     (canWrite ? btn('ยืนยัน เขียนภาษีลงทะเบียน', 'btn-primary', 'commitCalcTax()') : ''));
 }
 
 function runAudit() {
-  openModal('🔍 ตรวจทะเบียน 13 ข้อ', 'อ่านอย่างเดียว — ไม่แก้ข้อมูลใดๆ',
+  openModal(ico('search')+' ตรวจทะเบียน 13 ข้อ', 'อ่านอย่างเดียว — ไม่แก้ข้อมูลใดๆ',
     '<div class="empty">กำลังตรวจ…</div>', '');
 
   api('auditMonth', { month: S.cur.month, yearBE: S.cur.yearBE }).then(function (r) {
@@ -1043,28 +1044,28 @@ function runAudit() {
     var head =
       '<div class="audit-sum">' +
         '<div class="audit-box ' + (r.red.length ? 'red' : 'green') + '">' +
-          '<div class="n">' + r.red.length + '</div><div class="t">🔴 ต้องแก้ก่อนจ่าย</div></div>' +
+          '<div class="n">' + r.red.length + '</div><div class="t">'+ico('dot')+' ต้องแก้ก่อนจ่าย</div></div>' +
         '<div class="audit-box ' + (r.yellow.length ? 'yell' : 'green') + '">' +
-          '<div class="n">' + r.yellow.length + '</div><div class="t">🟡 ควรตรวจดู</div></div>' +
+          '<div class="n">' + r.yellow.length + '</div><div class="t">'+ico('dot')+' ควรตรวจดู</div></div>' +
         '<div class="audit-box green"><div class="n">' + r.rows + '</div><div class="t">คนในทะเบียน</div></div>' +
       '</div>';
 
     var body = head;
     if (r.passed && !r.yellow.length) {
       body += '<div class="finding" style="border-color:#1e8e3e;background:#e6f4ea">' +
-              '✅ ผ่านทุกข้อ — ไม่พบความผิดปกติ พร้อมทำขั้นต่อไปค่ะ</div>';
+              ico('check')+' ผ่านทุกข้อ — ไม่พบความผิดปกติ พร้อมทำขั้นต่อไปค่ะ</div>';
     } else {
       if (r.red.length)
-        body += '<div style="margin-bottom:6px"><b>🔴 ต้องแก้ก่อนจ่าย</b></div>' +
+        body += '<div style="margin-bottom:6px"><b>'+ico('dot')+' ต้องแก้ก่อนจ่าย</b></div>' +
                 r.red.map(function (t) { return '<div class="finding red">' + esc(t) + '</div>'; }).join('');
       if (r.yellow.length)
-        body += '<div style="margin:14px 0 6px"><b>🟡 ควรตรวจดู</b></div>' +
+        body += '<div style="margin:14px 0 6px"><b>'+ico('dot')+' ควรตรวจดู</b></div>' +
                 r.yellow.map(function (t) { return '<div class="finding yell">' + esc(t) + '</div>'; }).join('');
       body += '<div class="paste-help" style="margin-top:14px">' +
-              '📌 แก้ที่ Google Sheet แล้วกด “ตรวจ” ใหม่อีกครั้งค่ะ</div>';
+              ico('pin')+' แก้ที่ Google Sheet แล้วกด “ตรวจ” ใหม่อีกครั้งค่ะ</div>';
     }
 
-    setModal('🔍 ตรวจทะเบียน ' + r.sheetName, 'รอบ ' + r.periodText, body,
+ setModal('ตรวจทะเบียน ' + r.sheetName, 'รอบ ' + r.periodText, body,
       btn('ปิด', 'btn-ghost', 'closeModal()') +
       btn('ตรวจใหม่', 'btn-primary', 'runAudit()'));
 
@@ -1227,31 +1228,31 @@ function renderPayDash(r) {
     '<div class="dash-2col">' +
 
         '<div class="card dcard">' +
-          '<div class="card-hd"><h2>💰 เงินเดือนทั้งปี</h2>' +
+          '<div class="card-hd"><h2>'+ico('wallet')+' เงินเดือนทั้งปี</h2>' +
             '<span class="sub">รวม ' + money(sum(income)) + ' บาท' +
             (last ? ' · ล่าสุด ' + pad2(last.month) + '/' + last.yearBE + ' = ' + money(last.income) + ' บาท' : '') +
             '</span>' + yrSel + '</div>' +
           '<div class="card-bd">' + barChart(income, MO, '#2f80ed') + '</div>' +
         '</div>' +
         '<div class="card dcard">' +
-          '<div class="card-hd"><h2>🧾 ภาษีหัก ณ ที่จ่าย (ภ.ง.ด.1)</h2>' +
+          '<div class="card-hd"><h2>'+ico('receipt')+' ภาษีหัก ณ ที่จ่าย (ภ.ง.ด.1)</h2>' +
             '<span class="sub">รวมทั้งปี (ภ.ง.ด.1ก) ' + money(sum(tax)) + ' บาท</span></div>' +
           '<div class="card-bd">' + barChart(tax, MO, '#cc1019') + '</div>' +
         '</div>' +
 
         '<div class="stat-3">' +
-          statCard('💰', 'เงินเดือน', pick('salary'), '',
+          statCard(ico('wallet'), 'เงินเดือน', pick('salary'), '',
             'ประจำเดือน ' + MO[(S.dashM.salary || 1) - 1], money(valOf('salary', income)),
             'สะสมทั้งปี ' + r.yearBE, money(sum(income))) +
-          statCard('🧾', 'ภาษี ภ.ง.ด.1', pick('tax'), 'red',
+          statCard(ico('receipt'), 'ภาษี ภ.ง.ด.1', pick('tax'), 'red',
             'ประจำเดือน ' + MO[(S.dashM.tax || 1) - 1], money(valOf('tax', tax)),
             'ภ.ง.ด.1ก ประจำปี ' + r.yearBE, money(sum(tax))) +
-          statCard('🏥', 'ประกันสังคม', pick('sso'), 'green',
+          statCard(ico('building'), 'ประกันสังคม', pick('sso'), 'green',
             'ประจำเดือน ' + MO[(S.dashM.sso || 1) - 1], money(valOf('sso', sso) * 2),
             'สะสมทั้งปี ' + r.yearBE, money(sum(sso) * 2)) +
         '</div>' +
         '<div class="card dcard">' +
-          '<div class="card-hd"><h2>🏥 เงินสมทบประกันสังคม</h2>' +
+          '<div class="card-hd"><h2>'+ico('building')+' เงินสมทบประกันสังคม</h2>' +
             '<span class="sub">พนักงาน ' + money(sum(sso)) + ' + บริษัท ' + money(sum(sso)) +
               ' = ' + money(sum(sso) * 2) + ' บาท</span></div>' +
           '<div class="card-bd">' + barChart(sso, MO, '#27ae60') + '</div>' +
@@ -1358,7 +1359,7 @@ function renderYearTable(r) {
 
   var wrap = $('yearWrap');
   if (!r.months.length) {
-    wrap.innerHTML = '<div class="empty"><span class="big">📅</span>ยังไม่มีทะเบียนของปี ' + r.yearBE + '</div>';
+    wrap.innerHTML = '<div class="empty"><span class="big">'+ico('calendar')+'</span>ยังไม่มีทะเบียนของปี ' + r.yearBE + '</div>';
     return;
   }
 
@@ -1406,9 +1407,9 @@ function renderFiles(r) {
   var wrap = $('filesWrap');
 
   if (!r.count) {
-    wrap.innerHTML = '<div class="empty"><span class="big">📁</span>' +
+    wrap.innerHTML = '<div class="empty"><span class="big">'+ico('folder')+'</span>' +
       'ยังไม่เคยออกไฟล์รายงานของปีนี้<br>' +
-      'กดปุ่ม 📦 ในตารางข้างบนเพื่อออกทะเบียนจ่ายรายเดือน</div>';
+      'กดปุ่ม '+ico('inbox')+' ในตารางข้างบนเพื่อออกทะเบียนจ่ายรายเดือน</div>';
     return;
   }
 
@@ -1450,7 +1451,7 @@ function openMonth(month, yearBE) {
 // ── 📅 ตั้งวันที่จ่ายจริง ────────────────────────────────────
 function askPayDate(month, yearBE) {
   var iso = S.curPayDateISO || '';
-  openModal('📅 วันที่จ่ายจริง — ' + pad2(month) + '/' + yearBE,
+  openModal(ico('calendar')+' วันที่จ่ายจริง — ' + pad2(month) + '/' + yearBE,
     'ตั้งก่อนสร้างสลิป — วันที่นี้กระทบสลิปเงินเดือน',
     '<div class="paste-help">ใส่วันที่ที่โอนเงินให้พนักงานจริง<br>' +
     'เว้นว่างแล้วกดบันทึก = ล้างค่า</div>' +
@@ -1497,13 +1498,13 @@ function submitPayDate(month, yearBE) {
 
 // ── 📦 ออกไฟล์ Excel ทะเบียนจ่ายรายเดือน ────────────────────
 function runExportRegister(month, yearBE) {
-  exportFlow('📦 ส่งออกทะเบียนจ่าย ' + pad2(month) + '/' + yearBE,
+ exportFlow('ส่งออกทะเบียนจ่าย ' + pad2(month) + '/' + yearBE,
     'exportRegister', { month: month, yearBE: yearBE });
 }
 
 // ── 📊 ออก ภ.ง.ด.1ก รายปี ───────────────────────────────────
 function runExportPND1K() {
-  exportFlow('📊 ภ.ง.ด.1ก ปี ' + S.repYear, 'exportPND1K', { yearBE: S.repYear });
+ exportFlow('ภ.ง.ด.1ก ปี ' + S.repYear, 'exportPND1K', { yearBE: S.repYear });
 }
 
 /** ออกไฟล์รายงาน: ดูก่อน → ยืนยัน → สร้างจริง → จดลงทะเบียนไฟล์ */
@@ -1528,12 +1529,12 @@ function doExport(title, action, params) {
   api(action, p).then(function (r) {
     S.busy = false;
     if (!r.ok) return showError(title, r.error);
-    setModal(title, '✅ สร้างไฟล์แล้ว',
+    setModal(title, ico('check')+' สร้างไฟล์แล้ว',
       '<pre class="report">' + esc(r.report || r.summary) + '</pre>' +
       (function () {
         var url = r.xlsxUrl || r.fileUrl || r.folderUrl || '';   // กท.20 คืน fileUrl · 50 ทวิ คืน folderUrl
         return url ? '<div style="margin-top:13px"><a class="btn btn-primary" style="text-decoration:none;display:inline-block"' +
-               ' href="' + esc(url) + '" target="_blank" rel="noopener">📄 เปิดไฟล์รายงาน</a></div>' : '';
+               ' href="' + esc(url) + '" target="_blank" rel="noopener">'+ico('file')+' เปิดไฟล์รายงาน</a></div>' : '';
       })(),
       btn('เสร็จสิ้น', 'btn-primary', 'closeModal(); loadReports();'));
   }).catch(function (e) { S.busy = false; showError(title, String(e && e.message || e)); });
@@ -1543,9 +1544,9 @@ function doExport(title, action, params) {
 // ยอดทั้งหมดมาจาก whtCertDataCore_ ฝั่ง backend (ชุดเดียวกับ ภ.ง.ด.1ก)
 // ทุกปุ่มเป็น "ดูก่อน → ยืนยัน" เหมือนขั้นปิดเงินเดือน
 
-/** 🧾 ออก 50 ทวิ — ดูรายชื่อ + ด่านตรวจก่อน */
+/** ออก 50 ทวิ — ดูรายชื่อ + ด่านตรวจก่อน */
 function runWhtIssue() {
-  var title = '🧾 50 ทวิ ปี ' + S.repYear;
+ var title = ' 50 ทวิ ปี ' + S.repYear;
   openModal(title, 'กำลังตรวจสอบ…', '<div class="empty">กำลังเตรียม…</div>', '');
 
   api('whtPreview', { yearBE: S.repYear }).then(function (r) {
@@ -1555,7 +1556,7 @@ function runWhtIssue() {
     // ด่าน 🔴 ยังไม่ผ่าน = ไม่ให้กดออก (backend กันซ้ำอีกชั้น)
     var foot = btn('ปิด', 'btn-ghost', 'closeModal()') +
       (r.canIssue ? btn('ออกเอกสาร', 'btn-primary', 'doWhtIssue()') : '');
-    setModal(title, r.canIssue ? 'ตรวจสอบก่อน — ยังไม่ได้ออกเอกสาร' : 'ยังออกไม่ได้ — แก้ 🔴 ก่อนค่ะ', body, foot);
+ setModal(title, r.canIssue ? 'ตรวจสอบก่อน — ยังไม่ได้ออกเอกสาร' : 'ยังออกไม่ได้ — แก้ ก่อนค่ะ', body, foot);
   }).catch(function (e) { showError(title, String(e && e.message || e)); });
 }
 
@@ -1577,25 +1578,25 @@ function whtTable(people) {
 }
 
 function doWhtIssue() {
-  var title = '🧾 50 ทวิ ปี ' + S.repYear;
+ var title = ' 50 ทวิ ปี ' + S.repYear;
   S.busy = true;
   setModal(title, 'กำลังออกเอกสาร…', '<div class="empty">กำลังสร้าง PDF ทีละคน อย่าปิดหน้านี้นะคะ</div>', '');
 
   api('whtIssue', { yearBE: S.repYear, mode: 'commit' }).then(function (r) {
     S.busy = false;
     if (!r.ok) return showError(title, r.error);
-    setModal(title, '✅ ออกเอกสารแล้ว',
+    setModal(title, ico('check')+' ออกเอกสารแล้ว',
       '<pre class="report">' + esc(r.report || r.summary) + '</pre>' +
       (r.folderUrl ? '<div style="margin-top:13px"><a class="btn btn-primary" style="text-decoration:none;display:inline-block"' +
-                     ' href="' + esc(r.folderUrl) + '" target="_blank" rel="noopener">📁 เปิดโฟลเดอร์เอกสาร</a></div>' : ''),
+                     ' href="' + esc(r.folderUrl) + '" target="_blank" rel="noopener">'+ico('folder')+' เปิดโฟลเดอร์เอกสาร</a></div>' : ''),
       btn('ปิด', 'btn-ghost', 'closeModal(); loadReports();') +
       btn('ส่งให้พนักงานต่อ', 'btn-primary', 'runWhtSend()'));
   }).catch(function (e) { S.busy = false; showError(title, String(e && e.message || e)); });
 }
 
-/** 📧 ส่ง 50 ทวิ — เลือกช่องทางได้ (ต้องออกเอกสารไว้ก่อน) */
+/** ส่ง 50 ทวิ — เลือกช่องทางได้ (ต้องออกเอกสารไว้ก่อน) */
 function runWhtSend() {
-  var title = '📧 ส่ง 50 ทวิ ปี ' + S.repYear;
+ var title = ' ส่ง 50 ทวิ ปี ' + S.repYear;
   openModal(title, 'กำลังตรวจสอบ…', '<div class="empty">กำลังเตรียม…</div>', '');
 
   api('whtSend', { yearBE: S.repYear }).then(function (r) {
@@ -1610,21 +1611,21 @@ function runWhtSend() {
 }
 
 function doWhtSend(channel) {
-  var title = '📧 ส่ง 50 ทวิ ปี ' + S.repYear;
+ var title = ' ส่ง 50 ทวิ ปี ' + S.repYear;
   S.busy = true;
   setModal(title, 'กำลังส่ง…', '<div class="empty">กำลังส่ง อย่าปิดหน้านี้นะคะ</div>', '');
 
   api('whtSend', { yearBE: S.repYear, channel: channel, mode: 'commit' }).then(function (r) {
     S.busy = false;
     if (!r.ok) return showError(title, r.error);
-    setModal(title, '✅ ส่งแล้ว', '<pre class="report">' + esc(r.report || r.summary) + '</pre>',
+    setModal(title, ico('check')+' ส่งแล้ว', '<pre class="report">' + esc(r.report || r.summary) + '</pre>',
       btn('เสร็จสิ้น', 'btn-primary', 'closeModal(); loadReports();'));
   }).catch(function (e) { S.busy = false; showError(title, String(e && e.message || e)); });
 }
 
-/** 🏭 กท.20 — ใช้ flow ออกไฟล์รายงานร่วมกับ ภ.ง.ด.1ก */
+/** กท.20 — ใช้ flow ออกไฟล์รายงานร่วมกับ ภ.ง.ด.1ก */
 function runKt20() {
-  exportFlow('🏭 กท.20 ปี ' + S.repYear, 'kt20', { yearBE: S.repYear });
+ exportFlow('กท.20 ปี ' + S.repYear, 'kt20', { yearBE: S.repYear });
 }
 
 // ════════════ MODAL ════════════
@@ -1690,7 +1691,7 @@ function fail(msg, icon) {
   $('loader').classList.add('hidden');
   $('app').classList.add('hidden');
   var f = $('fail');
-  $('failIcon').textContent = icon || '😿';
+ $('failIcon').textContent = icon || '';
   $('failMsg').textContent  = msg;
   f.classList.remove('hidden');
 }
@@ -1723,17 +1724,17 @@ function mockResult(action, params) {
 
   if (action === 'stepStatus') {
     var defs = [
-      ['createMonth', '📋 สร้างทะเบียนเดือนใหม่', null],
-      ['importOT', '🔗 ดึง OT', 'createMonth'],
-      ['importUnpaidLeave', '💸 ดึงวันลาไม่รับเงิน', 'createMonth'],
-      ['calcByDays', '💵 คำนวณเงินเดือนตามวัน', 'importUnpaidLeave'],
-      ['importStudentLoan', '💳 ดึงยอด กยศ.', 'createMonth'],
-      ['calcTax', '🧾 คิดภาษีหัก ณ ที่จ่าย', 'calcByDays'],
-      ['audit', '🔍 ตรวจทะเบียน 13 ข้อ', 'calcTax'],
-      ['updateYTD', '📊 อัปเดต YTD สะสม', 'audit'],
-      ['setPayDate', '📅 กำหนดวันที่จ่าย', 'updateYTD'],
-      ['genPayslips', '📄 สร้างสลิป PDF', 'setPayDate'],
-      ['sendPayslips', '📧 ส่ง Email + LINE', 'genPayslips'],
+ ['createMonth', ' สร้างทะเบียนเดือนใหม่', null],
+ ['importOT', ' ดึง OT', 'createMonth'],
+ ['importUnpaidLeave', ' ดึงวันลาไม่รับเงิน', 'createMonth'],
+ ['calcByDays', ' คำนวณเงินเดือนตามวัน', 'importUnpaidLeave'],
+ ['importStudentLoan', ' ดึงยอด กยศ.', 'createMonth'],
+ ['calcTax', ' คิดภาษีหัก ณ ที่จ่าย', 'calcByDays'],
+ ['audit', ' ตรวจทะเบียน 13 ข้อ', 'calcTax'],
+ ['updateYTD', ' อัปเดต YTD สะสม', 'audit'],
+ ['setPayDate', ' กำหนดวันที่จ่าย', 'updateYTD'],
+ ['genPayslips', ' สร้างสลิป PDF', 'setPayDate'],
+ ['sendPayslips', ' ส่ง Email + LINE', 'genPayslips'],
     ];
     var byKey = {}, next = null;
     var steps = defs.map(function (d) {
@@ -1769,11 +1770,11 @@ function mockResult(action, params) {
                 { seq: 5, name: 'ทาริกา เจียนจันทร์วงศ์', reason: 'ลาออก 12/07/2569 (ก่อนต้นรอบ)' }];
     var lines = gone.map(function (g) { return '• ' + g.name + ' (#' + g.seq + ') — ' + g.reason; }).join('\n');
     return Promise.resolve({ ok: true, dryRun: params.mode !== 'commit', removed: gone, skipped: [], keptCount: 26,
-      report: '🧹 ล้างทะเบียน ทะเบียน 08-2569\nรอบ 26/07/2569 − 25/08/2569\n━━━━━━━━━━━━\n' +
+ report: ' ล้างทะเบียน ทะเบียน 08-2569\nรอบ 26/07/2569 − 25/08/2569\n━━━━━━━━━━━━\n' +
               (params.mode === 'commit'
-                ? '✅ เอาออกแล้ว 2 คน · เหลือ 26 คน\n\n'
+ ? ' เอาออกแล้ว 2 คน · เหลือ 26 คน\n\n'
                 : 'จะเอาออก 2 คน (เหลือ 26 คนที่ได้เงินรอบนี้)\n\n') +
-              lines + '\n\n📌 ใบ ปกส./ภ.ง.ด.1 ไม่กระทบ — คนพวกนี้ถูกกรองออกอยู่แล้วเพราะยอดเป็น 0',
+ lines + '\n\n ใบ ปกส./ภ.ง.ด.1 ไม่กระทบ — คนพวกนี้ถูกกรองออกอยู่แล้วเพราะยอดเป็น 0',
       summary: 'เอาออก 2 คน · เหลือ 26 คน' });
   }
   if (action === 'registerRows') {
@@ -1798,10 +1799,10 @@ function mockResult(action, params) {
   if (action === 'auditMonth') {
     return { ok: true, month: 8, yearBE: 2569, sheetName: 'ทะเบียน 08-2569',
       periodText: '26/07/2569 − 25/08/2569', rows: 4,
-      red: ['#2 สมหญิง รักงาน: 🔴 มีลาไม่รับเงิน 2 วัน แต่เงินเดือนยังเต็ม 18,000.00 — ยังไม่ได้กด "💵 คำนวณเงินเดือนตามจำนวนวัน"'],
+ red: ['#2 สมหญิง รักงาน: มีลาไม่รับเงิน 2 วัน แต่เงินเดือนยังเต็ม 18,000.00 — ยังไม่ได้กด " คำนวณเงินเดือนตามจำนวนวัน"'],
       yellow: ['#1 สมชาย ใจดี: ภาษี 420.00 ต่างจากที่คำนวณได้ ~455.00 (ฐาน 26,250.00) — ถ้ามีลดหย่อนพิเศษก็ข้ามได้'],
       info: [], passed: false,
-      report: '(พรีวิว)', summary: '🔴 1 · 🟡 1 (4 คน)' };
+ report: '(พรีวิว)', summary: ' 1 · 1 (4 คน)' };
   }
 
   if (action === 'calcTax') {
@@ -1908,9 +1909,9 @@ var EDIT_FIELDS = [
   { key: 'studentLoan', label: 'หัก กยศ.',        group: 'deduct' },
 ];
 
-/** กดขั้น ❺ ในลำดับ → ให้เลือกวิธีกรอก */
+/** กดขั้น ในลำดับ → ให้เลือกวิธีกรอก */
 function askEditRegister() {
-  openModal('✏️ กรอกเงินได้ / เงินหักอื่นๆ', 'เลือกวิธีที่สะดวก',
+  openModal(ico('pencil')+' กรอกเงินได้ / เงินหักอื่นๆ', 'เลือกวิธีที่สะดวก',
     '<div class="paste-help">' +
       '<b>ทีละคน</b> — ปิดกล่องนี้แล้วคลิกที่แถวของคนนั้นในตารางข้างบนได้เลย<br>' +
       '<b>ทั้งตาราง</b> — เตรียมไฟล์ Excel ที่มีคอลัมน์ "ลำดับ" (หรือ "ชื่อ") + ช่องที่จะกรอก แล้ววางในช่องข้างล่าง' +
@@ -1933,8 +1934,8 @@ function submitEditPaste() {
 
 /** หา step object (ขั้นเสริมอาจยังไม่อยู่ใน S.steps ถ้า backend เก่า) */
 var STEP_FALLBACK_LABEL = {
-  editRegister:  '✏️ กรอกเงินได้/เงินหักอื่นๆ',
-  cleanRegister: '🧹 ล้างคนที่ไม่ได้เงินรอบนี้',
+ editRegister: ' กรอกเงินได้/เงินหักอื่นๆ',
+ cleanRegister: ' ล้างคนที่ไม่ได้เงินรอบนี้',
 };
 function stepOf(key) {
   var s = (S.steps || []).filter(function (x) { return x.key === key; })[0];
@@ -1955,7 +1956,7 @@ function openEditRow(seq) {
     '</label>';
   };
 
-  openModal('✏️ ' + esc(x.name), 'ลำดับ ' + esc(String(x.seq)) + ' · ทะเบียน ' + pad2(S.cur.month) + '-' + S.cur.yearBE,
+  openModal(ico('pencil')+' ' + esc(x.name), 'ลำดับ ' + esc(String(x.seq)) + ' · ทะเบียน ' + pad2(S.cur.month) + '-' + S.cur.yearBE,
     '<div class="ed-sec">รายได้</div>' +
     EDIT_FIELDS.filter(function (f) { return f.group === 'income'; }).map(row).join('') +
     '<div class="ed-sec">รายการหัก</div>' +
