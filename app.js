@@ -1249,12 +1249,15 @@ function paintDbPending(n){
 function paintDbLeaveOt(r){
   var box=document.getElementById('dbLeaveOt'); if(!box) return;
   if(!r){ box.innerHTML=''; return; }
-  box.innerHTML='<div class="card">'+
-    '<div class="emp-thead"><div class="card-title" style="margin:0"><span class="ic"></span>สรุปการลา &amp; OT</div>'+
-      '<button class="btn btn-primary btn-sm" data-go="mgleave">จัดการการลา ›</button></div>'+
-    hrSumGrids(r.leave, r.ot, r.label)+
+  // ยกมาทั้งชุดเหมือนหน้าอนุมัติ — มีตัวกรองช่วงเวลา (รอบ/เดือน/ปี/ช่วงวันที่) + ปุ่มดูข้อมูล
+  // ใช้ id hrSumGrid เดิม เพื่อให้ wireHrSumFilter()/loadHrSummary() ทำงานได้ตรง ๆ
+  // ไม่มีปุ่มลัด — การ์ดนี้คลุมทั้งลาและ OT ถ้าจะใส่ต้องใส่ 2 ปุ่ม (พี่กี้เลือกให้ดูเฉย ๆ)
+  box.innerHTML='<div class="card hr-sum-card">'+
+    '<div class="card-title"><span class="ic"></span>สรุปการลา &amp; OT</div>'+
+    hrSumFilterBar()+
+    '<div id="hrSumGrid">'+hrSumGrids(r.leave, r.ot, r.label)+'</div>'+
   '</div>';
-  var b=box.querySelector('[data-go]'); if(b) b.addEventListener('click', function(){ goTo('mgleave'); });
+  wireHrSumFilter();
 }
 
 /** ③ เงินเดือน — ยกบล็อกกราฟทั้งปีของหน้า Payroll มาทั้งดุ้น (ADMIN/OWNER) */
@@ -1868,7 +1871,9 @@ function wireHrSumFilter(){
   if(mode) mode.addEventListener('change', function(){
     S.hrSum.mode=mode.value;
     // re-render แถบตัวกรอง (input เปลี่ยนตามโหมด) — คงค่าการ์ดเดิมไว้
-    var bar=document.querySelector('.hr-filter'); if(bar) bar.outerHTML=hrSumFilterBar(); wireHrSumFilter();
+    // หาแถบของ "การ์ดตัวเอง" — หน้าแดชบอร์ดมีแถบตัวกรองมากกว่า 1 ใบ
+    // (querySelector('.hr-filter') เฉย ๆ จะไปแก้การ์ดเอกสารที่อยู่ข้างบนแทน)
+    var bar=mode.closest('.hr-filter'); if(bar) bar.outerHTML=hrSumFilterBar(); wireHrSumFilter();
   });
   var go=document.getElementById('hrSumGo');
   if(go) go.addEventListener('click', loadHrSummary);
