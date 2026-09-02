@@ -194,8 +194,68 @@ function initLiff() {
 
 // ════════════ API (JSONP) ════════════
 var _seq = 0;
+// ════════════ API (JSONP) ════════════
+// อาการ "หมดเวลาเชื่อมต่อ" ที่เจอบ่อย มาจาก 3 อย่างรวมกัน:
+//   ① Apps Script ทำคำขอของผู้ใช้คนเดียว "ทีละคำขอ" — หน้าอนุมัติยิงทีเดียว 6 ชุด
+//      ตัวท้ายจึงนั่งรอคิว แล้วนาฬิกาฝั่งเว็บหมดก่อนทั้งที่เซิร์ฟเวอร์ยังทำงานอยู่
+//   ② เวลารอ 20 วิ สั้นไปเมื่อ GAS ตื่นจากหลับ (cold start) หรือคำขอหนัก
+//   ③ หมดเวลาแล้วยอมแพ้เลย ไม่ลองใหม่
+// แก้: คิวฝั่งเว็บ (ทีละ 2) + เริ่มจับเวลาเมื่อได้คิวจริง + ขยายเป็น 45 วิ + ลองใหม่ 1 ครั้ง
+var API_TIMEOUT_MS = 45000;     // เวลารอต่อ 1 คำขอ (เริ่มนับตอนยิงจริง ไม่ใช่ตอนเข้าคิว)
+var API_MAX_PARALLEL = 2;       // ยิงพร้อมกันได้กี่คำขอ
+var _apiQueue = [], _apiActive = 0;
+
+// คำขอที่ "เขียนข้อมูล" — ห้ามลองใหม่เอง เดี๋ยวได้ใบซ้ำ/อนุมัติซ้ำ
+var API_WRITE_RE = /^(submit|decide|add|set|update|approve|reject|cancel|edit|save|send|gen|calc|close|lock|unlock|upload|delete|remove|merge|move|unlink|proxy|import|backfill|revoke|register|mg(Cancel|Edit|Proxy|Set|Export|Report(Export|Backfill))|em(Set|Add|Allow(Save|Decide)|Line(Move|Merge|Unlink)|Photo))/i;
+
 function api(action, params) {
   if (CFG.MOCK) return mockApi(action, params);
+  return new Promise(function(resolve, reject){
+    _apiQueue.push({ action: action, params: params, resolve: resolve, reject: reject,
+                     tries: 0, queuedAt: Date.now() });
+    _apiPump();
+  });
+}
+
+function _apiPump(){
+  while (_apiActive < API_MAX_PARALLEL && _apiQueue.length) {
+    var job = _apiQueue.shift();
+    _apiActive++;
+    _apiSend(job);
+  }
+}
+
+function _apiSend(job){
+  var t0 = Date.now();
+  _apiRaw(job.action, job.params).then(function(d){
+    _apiDone(job, t0);
+    job.resolve(d);
+  }).catch(function(e){
+    var msg = String(e && e.message || e);
+    var timedOut = msg.indexOf('หมดเวลา') >= 0 || msg.indexOf('เชื่อมต่อ API ไม่ได้') >= 0;
+    var canRetry = timedOut && job.tries < 1 && !API_WRITE_RE.test(String(job.action||''));
+    if (canRetry) {
+      job.tries++;
+      _apiSend(job);            // ลองใหม่ทันที (ยังไม่คืนคิว — กันคำขออื่นแซงจนคิวยาวขึ้นอีก)
+      return;
+    }
+    _apiDone(job, t0);
+    job.reject(timedOut ? new Error('เซิร์ฟเวอร์ตอบช้ากว่าปกติ — กดใหม่อีกครั้งค่ะ') : e);
+  });
+}
+
+function _apiDone(job, t0){
+  _apiActive--;
+  try {
+    var ms = Date.now() - t0;
+    S.apiSlow = S.apiSlow || [];
+    if (ms > 8000) S.apiSlow.push({ action: job.action, ms: ms, retried: job.tries });  // ไว้ไล่ดูว่าคำขอไหนช้า
+  } catch (e) {}
+  _apiPump();
+}
+
+/** ยิง JSONP 1 คำขอ (ตัวจับเวลาเริ่มที่นี่ = ตอนยิงจริง) */
+function _apiRaw(action, params) {
   return new Promise(function(resolve, reject){
     if (!CFG.API_URL || CFG.API_URL.indexOf('PASTE') === 0)
       return reject(new Error('ยังไม่ได้ตั้งค่า API_URL ใน config.js'));
@@ -204,7 +264,7 @@ function api(action, params) {
     var all = Object.assign({}, S.auth || {}, params || {});
     Object.keys(all).forEach(function(k){ if (all[k]!=null){ var v=all[k]; if (typeof v==='object') v=JSON.stringify(v); q.push(encodeURIComponent(k)+'='+encodeURIComponent(v)); } });
     var sc = document.createElement('script'), done = false;
-    var t = setTimeout(function(){ if(done)return; done=true; clean(); reject(new Error('หมดเวลาเชื่อมต่อ')); }, 20000);
+    var t = setTimeout(function(){ if(done)return; done=true; clean(); reject(new Error('หมดเวลาเชื่อมต่อ')); }, API_TIMEOUT_MS);
     window[cb] = function(d){ if(done)return; done=true; clearTimeout(t); clean();
       if (d && d.ok===false && _isAuthErr_(d.error)) reauth();   // token หมดกลางคัน → ต่ออายุอัตโนมัติ
       resolve(d); };
