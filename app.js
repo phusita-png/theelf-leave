@@ -3239,7 +3239,7 @@ function loadRptMonths(group){
     box.innerHTML=
       '<div class="mg-tbwrap"><table class="mg-table rpt-tbl"><thead><tr>'+
         '<th class="ce">ลำดับ</th><th>เดือน</th><th>ตั้งแต่</th><th>ถึงวันที่</th>'+
-        '<th class="ce">จำนวนคน</th><th>แท็บในชีต</th><th class="ce">จัดการ</th>'+
+        '<th class="ce">จำนวนรายการ</th><th>แท็บในชีต</th><th class="ce">จัดการ</th>'+
       '</tr></thead><tbody>'+
       r.months.map(function(m,i){
         return '<tr>'+
