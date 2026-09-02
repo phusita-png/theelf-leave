@@ -437,7 +437,7 @@ function render(){
   else if (S.view==='documents'){ m.innerHTML = '<div class="card"><div class="skel" style="height:60px"></div></div>'; loadDocuments(); }
   else if (S.view==='hr'){ m.innerHTML = '<div class="card"><div class="skel" style="height:120px"></div></div>'; loadHr(); }
   else if (S.view==='leavecal'){ m.innerHTML = viewLeaveCal(); wireLeaveCal(); loadLeaveCal(); }
-  else if (S.view==='dashboard'){ m.innerHTML = viewSoon(ico('chart')+' แดชบอร์ด','วันนี้ใครลา/OT · สถิติเดือนนี้ · จำนวนพนักงาน/แผนก · เข้าใหม่-ลาออก'); }
+  else if (S.view==='dashboard'){ loadDashboard(); }
   else if (S.view==='mgleave'){ m.innerHTML = viewMgleave(); wireMgleave(); loadMgleave(); }
   else if (S.view==='mgot'){ m.innerHTML = viewMgot(); wireMgot(); }
   else if (S.view==='mgpay'){ mountPayroll(m); }
@@ -1185,6 +1185,154 @@ function loadDocuments(){
     m.innerHTML = backBar()+'<div class="card"><div class="card-title"><span class="ic"></span>เอกสาร '+r.documents.length+' รายการ</div>'+list+'</div>';
     bindBack(); wireFiles();
   }).catch(function(e){ var m=document.getElementById('main'); if(m){ m.innerHTML=backBar()+emptyBox(ico('alert','e-ico'),String(e.message||e)); bindBack(); } });
+}
+
+
+// ════════════ 📊 แดชบอร์ด (รวมภาพรวมทั้งบริษัท) ════════════
+// เดิม HR ต้องเดินเข้า 3 เมนู (อนุมัติ · พนักงาน · payroll) ถึงจะเห็นภาพรวม
+// หน้านี้รวมให้จบในจอเดียว + กดลัดไปหน้าที่ต้องทำต่อ
+//   • ฝั่งลา/คน = คำขอเดียว (hrOverview)
+//   • ฝั่งเงินเดือน = คนละ Apps Script project จึงเรียกของ payroll แยก
+//     และเห็นเฉพาะ ADMIN/OWNER (ข้อมูลเงินเดือน)
+function loadDashboard(){
+  var m = document.getElementById('main'); if(!m) return;
+  var canPay = S.profile && S.profile.canAdmin;
+  m.innerHTML = backBar()+
+    '<div id="dbPend"><div class="card"><div class="skel" style="height:96px"></div></div></div>'+
+    '<div id="dbPeople"><div class="card"><div class="skel" style="height:120px"></div></div></div>'+
+    '<div id="dbLeaveOt"><div class="card"><div class="skel" style="height:120px"></div></div></div>'+
+    (canPay ? '<div id="dbPay"><div class="card"><div class="skel" style="height:120px"></div></div></div>' : '');
+  bindBack();
+
+  api('hrOverview',{}).then(function(r){
+    if(!r || !r.ok){ document.getElementById('dbPend').innerHTML = emptyBox(ico('lock'), (r&&r.error)||'ไม่มีสิทธิ์'); return; }
+    paintDbPending(r.pending);
+    paintDbPeople(r.people);
+    paintDbLeaveOt(r.leaveOt);
+  }).catch(function(e){
+    var b=document.getElementById('dbPend'); if(b) b.innerHTML = emptyBox(ico('alert','e-ico'), String(e.message||e));
+  });
+
+  if(canPay) loadDbPayroll();
+}
+
+/** ① ค้างอนุมัติ — ตัวเลขค้าง + กดลัดไปหน้าอนุมัติ */
+function paintDbPending(n){
+  var box=document.getElementById('dbPend'); if(!box) return;
+  if(!n){ box.innerHTML=''; return; }
+  var cell=function(lb,v,go){ return '<button class="db-cell'+(v?' hot':'')+'"'+(go?' data-go="'+go+'"':'')+'>'+
+    '<div class="db-num">'+v+'</div><div class="db-lb">'+esc(lb)+'</div></button>'; };
+  box.innerHTML='<div class="card">'+
+    '<div class="emp-thead"><div class="card-title" style="margin:0"><span class="ic"></span>ค้างรออนุมัติ'+
+      (n.total?' <b style="color:var(--red)">'+n.total+'</b>':'')+'</div>'+
+      '<button class="btn btn-primary btn-sm" data-go="hr">ไปหน้าอนุมัติ ›</button></div>'+
+    '<div class="db-grid">'+
+      cell('ใบลา', n.leave, 'hr')+cell('ใบ OT', n.ot, 'hr')+
+      cell('ลงทะเบียน', n.register, 'hr')+cell('เปลี่ยน LINE', n.lineChange, 'hr')+
+      cell('ขอสิทธิ์ลาไม่รับค่าจ้าง', n.unpaidReq, 'hr')+
+    '</div>'+
+    (n.total ? '' : '<div class="mg-sub2" style="margin-top:8px">'+ico('check')+' ไม่มีรายการค้าง</div>')+
+  '</div>';
+  box.querySelectorAll('[data-go]').forEach(function(el){
+    el.addEventListener('click', function(){ goTo(el.dataset.go); }); });
+}
+
+/** ② คน — จำนวนพนักงาน + เข้าใหม่/ลาออกปีนี้ + แผนก */
+function paintDbPeople(r){
+  var box=document.getElementById('dbPeople'); if(!box) return;
+  if(!r){ box.innerHTML=''; return; }
+  var st=function(lb,v){ return '<div class="db-cell"><div class="db-num">'+v+'</div><div class="db-lb">'+esc(lb)+'</div></div>'; };
+  var depts=(r.byDept||[]).slice(0,8).map(function(d){
+    return '<div class="db-dept"><span>'+esc(d.dept||d.name||'-')+'</span><b>'+(d.count||d.n||0)+'</b></div>'; }).join('');
+  box.innerHTML='<div class="card">'+
+    '<div class="emp-thead"><div class="card-title" style="margin:0"><span class="ic"></span>พนักงาน</div>'+
+      '<button class="btn btn-primary btn-sm" data-go="emps">ไปหน้าพนักงาน ›</button></div>'+
+    '<div class="db-grid">'+
+      st('ทำงานอยู่', r.active||0)+st('เข้าใหม่ปีนี้', r.joinTotal||0)+
+      st('ลาออกปีนี้', r.exitTotal||0)+st('ยังไม่ผูก LINE', r.noLine||0)+
+    '</div>'+
+    (depts?'<div class="db-depts">'+depts+'</div>':'')+
+  '</div>';
+  var b=box.querySelector('[data-go]'); if(b) b.addEventListener('click', function(){ goTo('emps'); });
+}
+
+/** ③ ลา & OT รอบนี้ + ใครใช้วันลามากสุด */
+function paintDbLeaveOt(r){
+  var box=document.getElementById('dbLeaveOt'); if(!box) return;
+  if(!r){ box.innerHTML=''; return; }
+  var lv=r.leave||{}, ot=r.ot||{};
+  var st=function(lb,v){ return '<div class="db-cell"><div class="db-num">'+(v||0)+'</div><div class="db-lb">'+esc(lb)+'</div></div>'; };
+  var top=(r.topLeave||[]).map(function(x,i){
+    return '<div class="db-dept"><span>'+(i+1)+'. '+esc(x.name)+(x.dept?' <span class="mg-sub2">'+esc(x.dept)+'</span>':'')+'</span><b>'+x.days+' วัน</b></div>'; }).join('');
+  box.innerHTML='<div class="card">'+
+    '<div class="emp-thead"><div class="card-title" style="margin:0"><span class="ic"></span>ลา &amp; OT รอบนี้'+
+      (r.label?' <span class="mg-sub2">'+esc(r.label)+'</span>':'')+'</div>'+
+      '<button class="btn btn-primary btn-sm" data-go="mgleave">จัดการการลา ›</button></div>'+
+    '<div class="db-grid">'+
+      st('ใบลาทั้งหมด', lv.total)+st('อนุมัติแล้ว', lv.approved)+
+      st('ใบ OT', ot.count)+st('ชั่วโมง OT', ot.hours)+
+    '</div>'+
+    (top?('<div class="db-sub">'+ico('ticket')+' ใช้วันลามากสุด <span class="mg-sub2">(สะสมทั้งปี)</span></div><div class="db-depts">'+top+'</div>'):'')+
+  '</div>';
+  var b=box.querySelector('[data-go]'); if(b) b.addEventListener('click', function(){ goTo('mgleave'); });
+}
+
+/** ④ เงินเดือนรอบล่าสุด — ยอดรวมบริษัท + ปิดรอบถึงขั้นไหน (ADMIN/OWNER) */
+function loadDbPayroll(){
+  var box=document.getElementById('dbPay'); if(!box) return;
+  if(!window.PAY || !PAY.api || !PAY.configure){ box.innerHTML=''; return; }
+  if(!CFG.PAYROLL_API_URL || CFG.PAYROLL_API_URL.indexOf('PASTE')===0){ box.innerHTML=''; return; }
+  // ยืมค่าตั้งค่า + ช่องทางล็อกอินของคอนโซลให้โมดูลเงินเดือน (ยังไม่ต้องเปิดหน้า Payroll)
+  PAY.configure({ PAYROLL_API_URL: CFG.PAYROLL_API_URL, MOCK: !!CFG.PAYROLL_MOCK,
+    host: { getAuth: function(){ return S.auth; }, onAuthExpired: reauth } });
+  var nowY=new Date().getFullYear()+543;
+  Promise.all([
+    PAY.api('yearSummary',{yearBE:nowY}).catch(function(){ return null; }),
+    PAY.api('stepStatus',{}).catch(function(){ return null; }),
+  ]).then(function(a){ paintDbPayroll(a[0], a[1]); })
+    .catch(function(){ box.innerHTML=''; });
+}
+
+function paintDbPayroll(sum, step){
+  var box=document.getElementById('dbPay'); if(!box) return;
+  if((!sum||!sum.ok) && (!step||!step.ok)){ box.innerHTML=''; return; }
+
+  // เดือนล่าสุดที่มีข้อมูลจริง
+  var last=null;
+  if(sum && sum.ok) (sum.months||[]).forEach(function(m){ if((Number(m.net)||0)>0) last=m; });
+
+  var money=function(n){ return (Number(n)||0).toLocaleString('th-TH',{maximumFractionDigits:0})+' บาท'; };
+  var st=function(lb,v){ return '<div class="db-cell"><div class="db-num sm">'+v+'</div><div class="db-lb">'+esc(lb)+'</div></div>'; };
+
+  var stepLine='';
+  if(step && step.ok){
+    var steps=step.steps||[], done=steps.filter(function(s){ return s.done; }).length;
+    var nextLb=''; for(var i=0;i<steps.length;i++){ if(steps[i].key===step.next){ nextLb=steps[i].label; break; } }
+    stepLine='<div class="db-sub">'+ico('clipboard')+' ปิดเดือน '+esc(step.label||step.periodLabel||'')+
+      ' — ทำแล้ว <b>'+done+'/'+steps.length+'</b> ขั้น'+
+      (step.allDone ? ' '+ico('check')+' ครบแล้ว' : (nextLb?' · ขั้นถัดไป: <b>'+esc(nextLb)+'</b>':''))+'</div>';
+  }
+
+  box.innerHTML='<div class="card">'+
+    '<div class="emp-thead"><div class="card-title" style="margin:0"><span class="ic"></span>เงินเดือน'+
+      (last?' <span class="mg-sub2">รอบ '+esc(_dbMonthLabel(last))+'</span>':'')+'</div>'+
+      '<button class="btn btn-primary btn-sm" data-go="mgpay">จัดการ Payroll ›</button></div>'+
+    (last?('<div class="db-grid">'+
+      st('จ่ายรวม', money(last.net))+
+      st('ภาษีหัก ณ ที่จ่าย', money(last.tax))+
+      st('ประกันสังคม', money(last.sso))+
+      st('จำนวนคน', (last.emp||0)+' คน')+
+    '</div>'):'<div class="mg-sub2">ยังไม่มีข้อมูลเงินเดือนปีนี้</div>')+
+    stepLine+
+    '<div class="paste-help">ยอดรวมทั้งบริษัทเท่านั้น — ดูรายคนได้ที่หน้าจัดการ Payroll</div>'+
+  '</div>';
+  var b=box.querySelector('[data-go]'); if(b) b.addEventListener('click', function(){ goTo('mgpay'); });
+}
+
+/** ป้ายเดือนของรอบเงินเดือน เช่น "ส.ค. 2569" */
+function _dbMonthLabel(m){
+  var TH=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  return (TH[(m.month||1)-1]||'') + ' ' + (m.yearBE||'');
 }
 
 // ════════════ VIEW: HR DASHBOARD (read-only) ════════════
@@ -3801,6 +3949,14 @@ function mockApi(action, params){
     }
     else if(action==='mgEditOt') resolve({ok:true,otId:(params&&params.otId)||'OT-MOCK',hours:1.5,wasApproved:true,warn:''});
     else if(action==='approve') resolve({ok:true,id:'(mock)',status:'✅'});
+    else if(action==='hrOverview') resolve({ok:true,role:'OWNER',
+      pending:{leave:2,ot:1,register:2,lineChange:1,unpaidReq:0,total:6},
+      people:{ok:true,yearBE:2569,total:32,active:23,left:5,notCounted:1,noLine:2,
+        byDept:[{name:'CRM & Telesale',count:6},{name:'Content Creator',count:3},{name:'Live Sale',count:3},{name:'Marketing',count:3}],
+        joinTotal:9,exitTotal:5},
+      leaveOt:{label:'26/8 – 25/9/2569',leave:{total:8,approved:5,pending:2,rejected:1},
+        ot:{count:6,hours:24.5,approved:4,pending:1,rejected:1},
+        topLeave:[{name:'นางสาวชนัญชิดา โชคธนอนันต์',dept:'สำนักงานใหญ่',days:5},{name:'นายตัวอย่าง ทดสอบ',dept:'ฝ่ายขาย',days:3}]}});
     else if(action==='hrBundle'){ Promise.all([mockApi('hrDashboard',params),mockApi('pendingRegistrations',params),
       mockApi('lineChangeList',params),mockApi('unpaidReqList',params),mockApi('hrDocStats',params)])
       .then(function(a){ resolve({ok:true,dashboard:a[0],pendingReg:a[1],lineChange:a[2],unpaidReq:a[3],docStats:a[4]}); }); }

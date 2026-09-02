@@ -193,6 +193,16 @@ function TEMPLATE_(){ return [
  *
  * ฝังในคอนโซล (embedded) = ไม่ล็อกอินเอง ยืม idToken ของคอนโซล → HR ล็อกอินครั้งเดียว
  */
+/**
+ * configure — ตั้งค่า + ช่องทาง auth โดยไม่ต้องเปิดหน้า Payroll
+ * ใช้ตอนแดชบอร์ดของคอนโซลอยากได้แค่ยอดรวม (ยังไม่ mount หน้าจอเงินเดือน)
+ */
+function configure(opts) {
+  CFG = Object.assign({}, CFG || {}, opts || {});
+  if (opts && opts.host) HOST = opts.host;
+  return CFG;
+}
+
 function mount(host, opts) {
   if (!host) return;
   ROOT = host;
@@ -2009,6 +2019,8 @@ function submitEditRow(seq) {
 // ════════════ EXPORT ════════════
 // เปิดเฉพาะที่ปุ่ม onclick กับคอนโซลต้องเรียก — ที่เหลือปิดไว้ในโมดูล
 return {
+  api: api,          // หน้าแดชบอร์ดของคอนโซลเรียกยอดรวมเงินเดือนผ่านตัวนี้
+  configure: configure,
   mount: mount,
   unmount: unmount,
   goTab: goTab,
