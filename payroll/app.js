@@ -1676,6 +1676,7 @@ function money(n) {
 var _toastTimer;
 function toast(msg) {
   var el = $('toast');
+  if (!el) return;              // ออกจากหน้าไปแล้ว (เช่นสลับเมนูระหว่างรอคำตอบ) — ไม่ต้องโยน error
   el.textContent = msg;
   el.classList.add('show');
   clearTimeout(_toastTimer);

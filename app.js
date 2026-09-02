@@ -1984,7 +1984,7 @@ function mgListTabHtml(){
     '<div class="hr-note ok2">'+ico('clipboard')+' ดู/แก้/ยกเลิกใบลารายใบ · คลิกแถวดูรายละเอียด</div>'+
     mgFilterBar()+
     '<div class="mg-tools">'+
-      '<input type="text" id="mgSearch" class="mg-srch" placeholder="'+ico('search')+' ค้นชื่อ/รหัสพนักงาน…" value="'+esc(S.mgSearch||'')+'">'+
+      '<input type="text" id="mgSearch" class="mg-srch" placeholder="ค้นชื่อ/รหัสพนักงาน…" value="'+esc(S.mgSearch||'')+'">'+
       '<select id="mgStatus" class="hr-fsel">'+
         [['all','ทุกสถานะ'],['pending','รออนุมัติ'],['approved','อนุมัติแล้ว'],['rejected','ไม่อนุมัติ'],['cancel','ยกเลิก']]
           .map(function(o){return '<option value="'+o[0]+'"'+(S.mgStatus===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('')+
@@ -2473,7 +2473,7 @@ function otListTabHtml(){
     '<div class="hr-note ok2">'+ico('clipboard')+' ดู/แก้/ยกเลิก OT รายใบ · คลิกแถวดูรายละเอียด · OT ไม่มีโควต้า</div>'+
     otFilterBar('otl', S.mgotFilter)+
     '<div class="mg-tools">'+
-      '<input type="text" id="otSearch" class="mg-srch" placeholder="'+ico('search')+' ค้นชื่อ / รหัส / เลขที่ OT…" value="'+esc(S.mgotSearch||'')+'">'+
+      '<input type="text" id="otSearch" class="mg-srch" placeholder="ค้นชื่อ / รหัส / เลขที่ OT…" value="'+esc(S.mgotSearch||'')+'">'+
       '<select id="otStatusF" class="hr-fsel">'+
         [['all','ทุกสถานะ'],['pending','รออนุมัติ'],['approved','อนุมัติแล้ว'],['rejected','ไม่อนุมัติ'],['cancel','ยกเลิก']]
           .map(function(o){return '<option value="'+o[0]+'"'+(S.mgotStatus===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('')+
@@ -2931,7 +2931,7 @@ function renderSettings(r){
     '<div class="card">'+
       '<div class="card-title"><span class="ic"></span>รายชื่อพนักงาน ('+r.users.length+') · OWNER '+r.ownerCount+' คน</div>'+
       '<div class="mg-tools">'+
-        '<input type="text" id="empSearch" class="mg-srch" placeholder="'+ico('search')+' ค้นชื่อ / รหัส / แผนก / ตำแหน่ง…" value="'+esc(S.empQ||'')+'">'+
+        '<input type="text" id="empSearch" class="mg-srch" placeholder="ค้นชื่อ / รหัส / แผนก / ตำแหน่ง…" value="'+esc(S.empQ||'')+'">'+
         '<select id="empStatusF" class="hr-fsel">'+
           [['all','ทุกสถานะ'],['active','ทำงานอยู่'],['left','ลาออกแล้ว']].map(function(o){
             return '<option value="'+o[0]+'"'+((S.empStatus||'active')===o[0]?' selected':'')+'>'+o[1]+'</option>'; }).join('')+
@@ -3344,7 +3344,7 @@ function paintAvatar(){ if(!S.avatar)return; var img='<img src="'+S.avatar+'">';
   var t=document.getElementById('tb-avatar'); if(t) t.innerHTML=img; }
 function emptyBox(emo,txt){ return '<div class="card"><div class="empty"><div class="e-emo">'+emo+'</div><div class="e-txt">'+escIco(txt)+'</div></div></div>'; }
 function viewSoon(title,desc){ return '<div class="card"><div class="soon"><div class="soon-emo">'+ico('tools')+'</div>'+
-  '<div class="soon-t">'+esc(title)+'</div><div class="soon-d">'+esc(desc)+'</div>'+
+  '<div class="soon-t">'+escIco(title)+'</div><div class="soon-d">'+escIco(desc)+'</div>'+
   '<div class="soon-b">กำลังพัฒนา — เร็วๆ นี้ค่ะ</div></div></div>'; }
 /**
  * escIco — esc() ที่ยอมให้ไอคอนของระบบผ่านได้
