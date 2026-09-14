@@ -44,6 +44,8 @@ var ICONS = {
   send:      '<path d="M21 3 10.5 13.5"/><path d="M21 3l-6.8 18-3.7-7.5L3 9.8 21 3Z"/>',
   lock:      '<rect x="4.5" y="10.5" width="15" height="9.5" rx="2"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/>',
   wallet:    '<rect x="3" y="6" width="18" height="12.5" rx="2.4"/><path d="M3 10.5h18"/><circle cx="16.5" cy="14.6" r="1.4"/>',
+  building:  '<path d="M4 21V5.5A1.5 1.5 0 0 1 5.5 4h7A1.5 1.5 0 0 1 14 5.5V21"/><path d="M14 10h4.5A1.5 1.5 0 0 1 20 11.5V21"/><path d="M3 21h18"/><path d="M7 8h4M7 12h4M7 16h4M17 14h1M17 17.5h1"/>',
+  bank:      '<path d="M3.5 9.5 12 4l8.5 5.5"/><path d="M5.5 9.5V18M9.8 9.5V18M14.2 9.5V18M18.5 9.5V18"/><path d="M3 21h18"/>',
   user:      '<circle cx="12" cy="8.5" r="3.6"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/>',
   tools:     '<path d="M14.5 6.5a3.8 3.8 0 0 0 5 5l-8 8a2.4 2.4 0 0 1-3.4-3.4l8-8a3.8 3.8 0 0 0-1.6-1.6Z"/>',
   upload:    '<path d="M12 16V4.5"/><path d="M7 9.5 12 4.5l5 5"/><path d="M4.5 15v3.5a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V15"/>',
@@ -1463,7 +1465,8 @@ function paintCfgPayroll(){
       '<div id="cfgPaySample">'+cfgSampleHtml(r.sample)+'</div>'+
       '<button class="btn btn-primary mg-full" id="cfgPaySave" style="margin-top:14px">'+ico('save')+' บันทึก</button>'+
       '<div class="paste-help">อัตราพิมพ์ 5 หรือ 0.05 ก็ได้ · ทุกการเปลี่ยนบันทึก audit</div>'+
-    '</div>';
+    '</div>'+
+    cfgWelfareHtml(r.welfare);
 
   var b=document.getElementById('cfgPaySave');
   if(b) b.addEventListener('click', function(){
@@ -1477,6 +1480,73 @@ function paintCfgPayroll(){
       else toast(res.count ? ('บันทึกแล้ว '+res.count+' รายการ') : 'ไม่มีอะไรเปลี่ยน','ok');
       loadCfgPayroll();
     }).catch(function(e){ b.disabled=false; b.innerHTML=ico('save')+' บันทึก'; toast(String(e.message||e),'err'); });
+  });
+
+  bindCfgWelfare();
+}
+
+/**
+ * 🏛️ กองทุนสงเคราะห์ลูกจ้าง — การ์ดในแท็บ "ค่าคำนวณเงินเดือน/ภาษี"
+ *   ประกาศบริษัท 7 ก.ย. 69: เริ่มหักเดือน ต.ค. 69 · 0.25% → 0.50% ปี 2574
+ *   อัตราเก็บเป็นรายการช่วง (MM/YYYY=อัตรา) → ถึงปีที่กฎหมายขยับ แก้ที่นี่ได้เลย
+ */
+function cfgWelfareHtml(w){
+  if(!w || !w.fields) return '';
+
+  var fieldHtml = function(f, idx){
+    var input;
+    if(f.kind==='yesno'){
+      input = '<select data-wf="'+idx+'">'+
+        ['ใช่','ไม่ใช่'].map(function(o){
+          return '<option value="'+o+'"'+(f.value===o?' selected':'')+'>'+o+'</option>'; }).join('')+
+        '</select>';
+    } else if(f.kind==='choice'){
+      input = '<select data-wf="'+idx+'">'+
+        (f.options||[]).map(function(o){
+          return '<option value="'+esc(o)+'"'+(f.value===o?' selected':'')+'>'+esc(o)+'</option>'; }).join('')+
+        '</select>';
+    } else {
+      input = '<input type="text" data-wf="'+idx+'" value="'+esc(f.value||'')+'" autocomplete="off">';
+    }
+    return '<div class="set-row col"><label>'+esc(f.label)+'</label>'+input+
+           '<div class="set-hint">'+esc(f.hint||'')+'</div></div>';
+  };
+
+  var rateRows=(w.rates||[]).map(function(x){
+    return '<div class="cfm-row"><span class="cfm-k">ตั้งแต่ '+esc(x.from)+'</span>'+
+      '<span class="cfm-v">พนักงาน <b>'+x.empPct+'%</b> · บริษัท <b>'+x.erPct+'%</b> — '+
+      'เงินเดือน 20,000 หัก <b>'+_cfgMoney(x.emp20k)+'</b> บริษัทสมทบ <b>'+_cfgMoney(x.er20k)+'</b></span></div>'; }).join('');
+
+  var ready=w.ready||{};
+  var status = ready.ok
+    ? '<div class="hr-note ok2">'+ico('check')+' ตั้งค่าครบแล้ว — ระบบจะหักตามเดือนที่กำหนด</div>'
+    : '<div class="hr-note warn">'+ico('alert')+' ยังใช้งานไม่ได้: '+esc((ready.missing||[]).join(' · '))+'</div>';
+
+  return '<div class="card" style="margin-top:14px">'+
+    '<div class="set-sec">'+ico('bank')+' กองทุนสงเคราะห์ลูกจ้าง</div>'+
+    '<div class="hr-note">ตามประกาศบริษัท 7 ก.ย. 2569 — เริ่มหักจากค่าจ้างเดือน ต.ค. 2569 · '+
+      'พนักงานสะสม 0.25% บริษัทสมทบเท่ากัน · ขยับเป็น 0.50% วันที่ 1 ต.ค. 2574</div>'+
+    status+
+    w.fields.map(fieldHtml).join('')+
+    (rateRows ? '<div class="set-sec">อัตราที่ระบบอ่านได้</div>'+rateRows : '')+
+    '<button class="btn btn-primary mg-full" id="cfgWfSave" style="margin-top:14px">'+ico('save')+' บันทึกค่ากองทุน</button>'+
+    '<div class="paste-help">อัตราเขียนเป็นช่วงเวลาได้หลายบรรทัด เช่น <b>10/2569=0.0025; 10/2574=0.005</b> — '+
+      'ถึงปีที่กฎหมายขยับ เพิ่มบรรทัดใหม่ได้เลย ไม่ต้องแก้ระบบ</div>'+
+  '</div>';
+}
+
+function bindCfgWelfare(){
+  var b=document.getElementById('cfgWfSave'); if(!b) return;
+  b.addEventListener('click', function(){
+    var payload={};
+    document.querySelectorAll('[data-wf]').forEach(function(el){ payload['w'+el.dataset.wf]=el.value; });
+    b.disabled=true; b.innerHTML=ico('save')+' กำลังบันทึก…';
+    api('cfgWelfareSave', payload).then(function(res){
+      b.disabled=false; b.innerHTML=ico('save')+' บันทึกค่ากองทุน';
+      if(!res.ok) return noticeBox('บันทึกไม่ได้', res.error||'ตรวจค่าอีกครั้งค่ะ', ico('alert'));
+      toast(res.count ? ('บันทึกแล้ว '+res.count+' รายการ') : 'ไม่มีอะไรเปลี่ยน','ok');
+      loadCfgPayroll();
+    }).catch(function(e){ b.disabled=false; b.innerHTML=ico('save')+' บันทึกค่ากองทุน'; toast(String(e.message||e),'err'); });
   });
 }
 
@@ -4364,7 +4434,20 @@ function mockApi(action, params){
         {key:'อัตราพนักงาน (%)',label:'อัตราหักประกันสังคม',kind:'rate',hint:'พิมพ์ 5 หรือ 0.05 ก็ได้',value:0.05,ref:0.05,differs:false,missing:false},
         {key:'ค่าใช้จ่าย (% รายได้)',label:'หักค่าใช้จ่าย (คิดภาษี)',kind:'rate',hint:'ตามประมวลรัษฎากร 50%',value:0.5,ref:0.5,differs:false,missing:false},
         {key:'ค่าใช้จ่ายสูงสุด/ปี',label:'เพดานค่าใช้จ่าย/ปี',kind:'money',hint:'ปัจจุบัน 100,000 บาท',value:100000,ref:100000,differs:false,missing:false},
-        {key:'ลดหย่อนส่วนตัว',label:'ลดหย่อนส่วนตัว/ปี',kind:'money',hint:'ปัจจุบัน 60,000 บาท',value:60000,ref:60000,differs:false,missing:false}]});
+        {key:'ลดหย่อนส่วนตัว',label:'ลดหย่อนส่วนตัว/ปี',kind:'money',hint:'ปัจจุบัน 60,000 บาท',value:60000,ref:60000,differs:false,missing:false}],
+      welfare:{
+        ready:{ok:true,missing:[]},
+        rates:[{from:'10/2569',empPct:0.25,erPct:0.25,emp20k:50,er20k:50},
+               {from:'10/2574',empPct:0.5,erPct:0.5,emp20k:100,er20k:100}],
+        fields:[
+          {key:'กองทุนสงเคราะห์ เปิดใช้',label:'เปิดใช้กองทุนสงเคราะห์',kind:'yesno',value:'ใช่',hint:'ปิดไว้ = ระบบไม่หักอะไรเลย · เปิดเมื่อพร้อมหักจริง'},
+          {key:'กองทุนสงเคราะห์ เริ่มเดือน (MM/YYYY)',label:'เริ่มหักเดือน',kind:'month',value:'10/2569',hint:'ตามประกาศ = 10/2569 (เดือนก่อนหน้านี้ระบบไม่หักย้อนหลัง)'},
+          {key:'กองทุนสงเคราะห์ อัตราพนักงาน',label:'อัตราพนักงาน (ตามช่วงเวลา)',kind:'rates',value:'10/2569=0.0025; 10/2574=0.005',hint:'รูปแบบ: 10/2569=0.0025; 10/2574=0.005 (พิมพ์ 0.25% ก็ได้)'},
+          {key:'กองทุนสงเคราะห์ อัตราบริษัท',label:'อัตราบริษัทสมทบ',kind:'rates',value:'',hint:'ว่าง = เท่ากับฝั่งพนักงาน (ตามประกาศ)'},
+          {key:'กองทุนสงเคราะห์ เพดานฐาน/เดือน',label:'เพดานฐานค่าจ้าง/เดือน',kind:'money',value:'',hint:'ว่าง = ไม่มีเพดาน (กฎหมายยังไม่กำหนด)'},
+          {key:'กองทุนสงเคราะห์ ปัดเศษ',label:'ปัดเศษ',kind:'choice',options:['สตางค์','บาท'],value:'สตางค์',hint:'สตางค์ = ทศนิยม 2 ตำแหน่ง · บาท = ปัดเต็มบาทแบบประกันสังคม'},
+          {key:'กองทุนสงเคราะห์ ลดหย่อนภาษีได้',label:'เงินสะสมลดหย่อนภาษีได้',kind:'yesno',value:'ไม่ใช่',hint:'⚠️ ยืนยันกับผู้สอบบัญชีก่อนเปิด — กระทบภาษีหัก ณ ที่จ่ายทุกคน'}]}});
+    else if(action==='cfgWelfareSave') resolve({ok:true,count:1,changed:['เปิดใช้กองทุนสงเคราะห์: ไม่ใช่ → ใช่ (mock)']});
     else if(action==='cfgPayrollSave') resolve({ok:true,count:1,notes:[],ssoMax:875,
       changed:['ลดหย่อนส่วนตัว: 60000 → (mock)'],
       sample:[{salary:10000,sso:500},{salary:20000,sso:875},{salary:40000,sso:875}]});

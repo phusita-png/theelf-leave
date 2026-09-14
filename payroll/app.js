@@ -57,6 +57,7 @@ var STEP_ACTION = {
   importOT:          'importOT',
   importUnpaidLeave: 'importUnpaidLeave',
   calcByDays:        'calcByDays',
+  calcWelfare:       'calcWelfare',
   calcTax:           'calcTax',
   importStudentLoan: 'importStudentLoan',
   audit:             'auditMonth',
@@ -675,6 +676,7 @@ var REG_COLS = [
   { key: 'ot',          label: 'OT',          slim: true, dash: true },
   { key: 'posAllow',    label: 'ค่าตำแหน่ง',  dash: true },
   { key: 'incentive',   label: 'Incentive',   dash: true },
+  { key: 'commission',  label: 'ค่าคอม',      dash: true },
   { key: 'utility',     label: 'ค่าน้ำ-ไฟ',   dash: true },
   { key: 'attendance',  label: 'เบี้ยขยัน',   dash: true },
   { key: 'backpay',     label: 'ตกเบิก',      dash: true },
@@ -1652,8 +1654,20 @@ function runKt20() {
 }
 
 // ════════════ MODAL ════════════
+
+/** _escIco — escape ข้อความ แต่ยอมให้ไอคอนเส้นของเราเอง (<svg class="ico">) ผ่าน */
+function _escIco(v) {
+  return String(v == null ? '' : v)
+    .split(/(<svg class="ico[\s\S]*?<\/svg>)/)
+    .map(function (p, i) { return i % 2 ? p : esc(p); })
+    .join('');
+}
+
 function openModal(title, sub, body, foot) {
-  $('mTitle').textContent = title;
+  // หัวโมดัลมีไอคอนเส้น (ico() = <svg>) ปนมาด้วย — textContent จะโชว์เป็นโค้ดดิบเต็มบรรทัด
+  //   (เคสจริง 14 ก.ย. 69: โมดัลปิดรอบ/คิดภาษี ขึ้น <svg class="ico" …> ให้ HR อ่าน)
+  //   → ปล่อยเฉพาะ <svg class="ico"> ผ่าน ส่วนข้อความอื่น escape ตามเดิม (กฎเดียวกับ escIco ฝั่งคอนโซล)
+  $('mTitle').innerHTML   = _escIco(title);
   $('mSub').textContent   = sub || '';
   $('mBody').innerHTML    = body || '';
   $('mFoot').innerHTML    = foot || '';
@@ -1753,6 +1767,7 @@ function mockResult(action, params) {
  ['importUnpaidLeave', ' ดึงวันลาไม่รับเงิน', 'createMonth'],
  ['calcByDays', ' คำนวณเงินเดือนตามวัน', 'importUnpaidLeave'],
  ['importStudentLoan', ' ดึงยอด กยศ.', 'createMonth'],
+ ['calcWelfare', ' คิดกองทุนสงเคราะห์', 'calcByDays'],
  ['calcTax', ' คิดภาษีหัก ณ ที่จ่าย', 'calcByDays'],
  ['audit', ' ตรวจทะเบียน 13 ข้อ', 'calcTax'],
  ['updateYTD', ' อัปเดต YTD สะสม', 'audit'],
@@ -1827,6 +1842,31 @@ function mockResult(action, params) {
       yellow: ['#1 สมชาย ใจดี: ภาษี 420.00 ต่างจากที่คำนวณได้ ~455.00 (ฐาน 26,250.00) — ถ้ามีลดหย่อนพิเศษก็ข้ามได้'],
       info: [], passed: false,
  report: '(พรีวิว)', summary: ' 1 · 1 (4 คน)' };
+  }
+
+  if (action === 'calcWelfare') {
+    var wfCommit = params && params.mode === 'commit';
+    return { ok: true, dryRun: !wfCommit, month: 10, yearBE: 2569,
+      rate: { emp: 0.0025, er: 0.0025 }, totalEmp: 156.25, totalEr: 156.25,
+      rows: [
+        { seq: 1, name: 'สมชาย ใจดี',    wage: 25000, base: 25000, emp: 62.5, er: 62.5, before: 0 },
+        { seq: 2, name: 'สมหญิง รักงาน',  wage: 18000, base: 18000, emp: 45,   er: 45,   before: 0 },
+        { seq: 3, name: 'ประเสริฐ มั่นคง', wage: 15000, base: 15000, emp: 37.5, er: 37.5, before: 0 },
+      ],
+      skipped: ['ณัฐวัฒน์ พากเพียร: ไม่เข้ากองทุน (ชีตพนักงาน col Q)'],
+      report: (wfCommit ? '✅ บันทึกแล้ว' : '👀 ดูก่อน (ยังไม่บันทึก)') +
+        ' — กองทุนสงเคราะห์ลูกจ้าง ทะเบียน 10-2569\n' +
+        '━━━━━━━━━━━━━━━━\n' +
+        'อัตรา: พนักงาน 0.25% · บริษัทสมทบ 0.25% · ปัดทศนิยม 2 ตำแหน่ง\n' +
+        'ฐานคำนวณ: เงินเดือนที่จ่ายจริงเดือนนั้น (col I)\n\n' +
+        'พนักงานที่ต้องหัก 3 คน\n' +
+        '  • สมชาย ใจดี: ฐาน 25,000.00 → หัก 62.50 (บริษัทสมทบ 62.50)\n' +
+        '  • สมหญิง รักงาน: ฐาน 18,000.00 → หัก 45.00 (บริษัทสมทบ 45.00)\n' +
+        '  • ประเสริฐ มั่นคง: ฐาน 15,000.00 → หัก 37.50 (บริษัทสมทบ 37.50)\n\n' +
+        'รวมหักจากพนักงาน  156.25 บาท\n' +
+        'รวมบริษัทสมทบ     156.25 บาท\n' +
+        'รวมนำส่งกองทุน    312.50 บาท',
+      summary: (wfCommit ? 'หักแล้ว ' : 'จะหัก ') + '3 คน รวม 156.25 บาท' };
   }
 
   if (action === 'calcTax') {
@@ -1923,6 +1963,7 @@ var EDIT_FIELDS = [
   { key: 'salary',      label: 'เงินเดือน',       group: 'income' },
   { key: 'posAllow',    label: 'ค่าประจำตำแหน่ง', group: 'income' },
   { key: 'incentive',   label: 'Incentive',       group: 'income' },
+  { key: 'commission',  label: 'ค่าคอมมิชชั่น',   group: 'income' },
   { key: 'utility',     label: 'ค่าน้ำ-ไฟ',       group: 'income' },
   { key: 'attendance',  label: 'เบี้ยขยัน',       group: 'income' },
   { key: 'backpay',     label: 'ค่าตกเบิก',       group: 'income' },
@@ -2001,7 +2042,7 @@ function openEditRow(seq) {
 function paintEditLive(x) {
   var box = $('edLive'); if (!box) return;
   var vals = readEditForm();
-  var income = ['salary', 'posAllow', 'incentive', 'utility', 'attendance', 'backpay', 'incomeOther']
+  var income = ['salary', 'posAllow', 'incentive', 'commission', 'utility', 'attendance', 'backpay', 'incomeOther']
     .reduce(function (a, k) { return a + (vals[k] === '' ? Number(x[k] || 0) : Number(vals[k] || 0)); }, 0)
     + Number(x.ot || 0);
   var deduct = ['otherDed', 'damage', 'insurance', 'studentLoan']
