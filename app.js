@@ -43,6 +43,7 @@ var ICONS = {
   scroll:    '<path d="M6 4.5h10.5a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-11a2 2 0 0 1 2-2Z"/><path d="M8 9h6.5M8 12.5h6.5M8 16h4"/>',
   send:      '<path d="M21 3 10.5 13.5"/><path d="M21 3l-6.8 18-3.7-7.5L3 9.8 21 3Z"/>',
   lock:      '<rect x="4.5" y="10.5" width="15" height="9.5" rx="2"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/>',
+  plus:      '<path d="M12 5v14"/><path d="M5 12h14"/>',
   wallet:    '<rect x="3" y="6" width="18" height="12.5" rx="2.4"/><path d="M3 10.5h18"/><circle cx="16.5" cy="14.6" r="1.4"/>',
   building:  '<path d="M4 21V5.5A1.5 1.5 0 0 1 5.5 4h7A1.5 1.5 0 0 1 14 5.5V21"/><path d="M14 10h4.5A1.5 1.5 0 0 1 20 11.5V21"/><path d="M3 21h18"/><path d="M7 8h4M7 12h4M7 16h4M17 14h1M17 17.5h1"/>',
   bank:      '<path d="M3.5 9.5 12 4l8.5 5.5"/><path d="M5.5 9.5V18M9.8 9.5V18M14.2 9.5V18M18.5 9.5V18"/><path d="M3 21h18"/>',
@@ -1495,6 +1496,14 @@ function cfgWelfareHtml(w){
 
   var fieldHtml = function(f, idx){
     var input;
+    // 🔒 ช่องที่ระบบยังไม่รองรับ — โชว์ค่าปัจจุบันแบบแก้ไม่ได้ (ยังส่งค่าเดิมกลับไปตอนบันทึก)
+    if(f.locked){
+      input = '<select data-wf="'+idx+'" disabled>'+
+        '<option value="'+esc(f.value||'ไม่ใช่')+'" selected>'+esc(f.value||'ไม่ใช่')+'</option></select>';
+      return '<div class="set-row col"><label>'+esc(f.label)+
+             ' <span class="mg-sub2">'+ico('lock')+' ยังตั้งไม่ได้</span></label>'+input+
+             '<div class="set-hint">'+esc(f.hint||'')+'</div></div>';
+    }
     if(f.kind==='yesno'){
       input = '<select data-wf="'+idx+'">'+
         ['ใช่','ไม่ใช่'].map(function(o){
