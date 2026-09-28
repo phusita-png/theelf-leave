@@ -3273,7 +3273,7 @@ function paintOtList(){
   var head='<div class="mg-head">'+ico('clipboard')+' '+esc(S.mgotData.label||'')+' · '+S.mgotData.count+' ใบ'+(S.mgotData.count>500?' (แสดง 500 ล่าสุด)':'')+'</div>';
   var table=!list.length?emptyBox(ico('leaf'),'ไม่มี OT ตามเงื่อนไข'):
     '<div class="mg-tbwrap"><table class="mg-table"><thead><tr>'+
-      '<th>เลขที่</th><th>วันที่ยื่น</th><th class="ce">รหัส</th><th>พนักงาน</th><th>แผนก</th><th>วันที่ทำ</th><th class="ce">เวลา</th><th class="ce">ชม.</th><th>ประเภท</th><th class="ce">ไม่หักพัก</th><th class="ce">สถานะ</th><th class="ce">จัดการ</th>'+
+      '<th>เลขที่</th><th>วันที่ยื่น</th><th class="ce">รหัส</th><th>พนักงาน</th><th>แผนก</th><th>วันที่ทำ</th><th class="ce">เวลา</th><th class="ce">ชม.</th><th>ประเภท</th><th class="ce">ไม่หักพัก</th><th class="ce">ไม่หักพักเที่ยง</th><th class="ce">สถานะ</th><th class="ce">จัดการ</th>'+
     '</tr></thead><tbody>'+list.map(otRowTable).join('')+'</tbody></table></div>';
   box.innerHTML='<div class="card">'+head+otSummaryBar(counts)+table+'</div>';
   box.querySelectorAll('[data-otf]').forEach(function(el){ el.addEventListener('click',function(){ S.mgotStatus=el.dataset.otf; var ss=document.getElementById('otStatusF'); if(ss) ss.value=el.dataset.otf; paintOtList(); }); });
@@ -3282,14 +3282,15 @@ function paintOtList(){
   box.querySelectorAll('[data-otnb]').forEach(function(el){ el.addEventListener('click',function(ev){ ev.stopPropagation(); toggleOtNoBreak(el); }); });
   box.querySelectorAll('[data-otcancel]').forEach(function(el){ el.addEventListener('click',function(ev){ ev.stopPropagation(); openOtCancel(el.dataset.otcancel); }); });
 }
-/** ติ๊ก/ปลด "ไม่หักพัก" จากตาราง — อัปเดตในที่ ไม่ต้องโหลดตารางใหม่ทั้งหน้า */
+/** ติ๊ก/ปลด "ไม่หักพัก" / "ไม่หักพักเที่ยง" จากตาราง — อัปเดตในที่ ไม่ต้องโหลดตารางใหม่ทั้งหน้า */
 function toggleOtNoBreak(el){
-  var id=el.dataset.otnb, want=el.dataset.nbval;
+  var id=el.dataset.otnb, want=el.dataset.nbval, lunch=el.dataset.kind==='lunch';
   el.disabled=true;                                  // กันกดรัวระหว่างรอ
-  api('mgSetOtNoBreak',{otId:id,noBreak:want}).then(function(r){
+  var p=lunch?{otId:id,kind:'lunch',noLunch:want}:{otId:id,noBreak:want};
+  api('mgSetOtNoBreak',p).then(function(r){
     el.disabled=false;
     if(!r.ok){ paintOtList(); return toast(r.error||'บันทึกไม่สำเร็จ','err'); }
-    var o=otFind(id); if(o) o.noBreak=r.noBreak;    // อัปเดตข้อมูลในหน่วยความจำด้วย
+    var o=otFind(id); if(o){ if(lunch) o.noLunch=r.noLunch; else o.noBreak=r.noBreak; }   // อัปเดตข้อมูลในหน่วยความจำด้วย
     paintOtList();
     toast(r.summary||'บันทึกแล้ว','ok');
     if(r.warn) noticeBox('บันทึกแล้ว — แต่มีเรื่องต้องทำต่อ', r.warn);
@@ -3298,14 +3299,17 @@ function toggleOtNoBreak(el){
 
 function otFind(id){ return (S.mgotData&&S.mgotData.ot||[]).filter(function(x){return x.otId===id;})[0]; }
 /**
- * ช่อง "ไม่หักพัก" ในตาราง — ติ๊กบ็อกซ์เหมือนในชีต ติ๊กได้เลยไม่ต้องเปิดฟอร์ม
- * ติ๊ก = ไม่หักพัก 0.5 ชม. · ใบที่ยกเลิก/ไม่อนุมัติ ติ๊กไม่ได้ (แต่ยังเห็นค่าเดิม)
+ * ช่อง "ไม่หักพัก" / "ไม่หักพักเที่ยง" ในตาราง — ติ๊กบ็อกซ์เหมือนในชีต ติ๊กได้เลยไม่ต้องเปิดฟอร์ม
+ * ไม่หักพัก = ไม่หัก 0.5 ชม. · ไม่หักพักเที่ยง = ไม่หัก 1 ชม. (มีผลเฉพาะ OT ที่คร่อม 12:00–13:00)
+ * ใบที่ยกเลิก/ไม่อนุมัติ ติ๊กไม่ได้ (แต่ยังเห็นค่าเดิม)
  */
-function nbCell(o, grp){
-  var on = !!o.noBreak, ro = (grp!=='pending' && grp!=='approved');
+function nbCell(o, grp, kind){
+  var lunch = kind==='lunch';
+  var on = lunch ? !!o.noLunch : !!o.noBreak, ro = (grp!=='pending' && grp!=='approved');
+  var tip = lunch ? 'ติ๊ก = ไม่หักพักเที่ยง 1 ชม. (มีผลเมื่อ OT คร่อม 12:00–13:00)' : 'ติ๊ก = ไม่หักพัก 0.5 ชม. (พนักงานไม่ได้พักจริง)';
   return '<input type="checkbox" class="nb-box"'+(on?' checked':'')+(ro?' disabled':'')+
-    (ro?'':' data-otnb="'+esc(o.otId)+'" data-nbval="'+(on?'0':'1')+'"')+
-    ' title="'+(ro?'ใบนี้ปิดแล้ว แก้ไม่ได้':'ติ๊ก = ไม่หักพัก 0.5 ชม. (พนักงานไม่ได้พักจริง)')+'">';
+    (ro?'':' data-otnb="'+esc(o.otId)+'" data-nbval="'+(on?'0':'1')+'"'+(lunch?' data-kind="lunch"':''))+
+    ' title="'+(ro?'ใบนี้ปิดแล้ว แก้ไม่ได้':tip)+'">';
 }
 
 function otRowTable(o){
@@ -3327,6 +3331,7 @@ function otRowTable(o){
     '<td class="ce"><b>'+esc(o.hours)+'</b></td>'+
     '<td>'+esc(o.otType)+'</td>'+
     '<td class="ce">'+nbCell(o,grp)+'</td>'+
+    '<td class="ce">'+nbCell(o,grp,'lunch')+'</td>'+
     '<td class="ce">'+statusBadge(o.status)+'</td>'+
     '<td class="mg-actcell">'+acts+'</td>'+
   '</tr>';
@@ -3346,6 +3351,7 @@ function openOtDetail(id){
     (o.reason?row('เหตุผล',esc(o.reason)):'')+
     (o.by?row('ผู้ดำเนินการ',esc(o.by)+(o.decidedAt?' · '+esc(o.decidedAt):'')):'')+
     row('หักพัก',o.noBreak?'<b>ไม่หักพัก</b> (HR ตั้งไว้)':'หักตามปกติ')+
+    row('พักเที่ยง',o.noLunch?'<b>ไม่หักพักเที่ยง</b> (HR ตั้งไว้)':'หักตามปกติ (ถ้าคร่อมเที่ยง)')+
     row('เลขที่',esc(o.otId))+
     ((grp==='pending'||grp==='approved')?'<div class="mg-dacts">'+'<button class="pend-btn redit" id="otdEdit">'+ico('pencil')+' แก้ไข</button>'+'<button class="pend-btn no" id="otdCancel">'+ico('ban')+' ยกเลิก</button></div>':'');
   modalForm({ title:'รายละเอียด OT', emoji:'⏰', accent:'ot', okLabel:'ปิด', body:body,
@@ -3374,15 +3380,16 @@ function otFormBody(o){
     '<label class="field-lb">'+ico('clock')+' เวลา (เริ่ม – สิ้นสุด)</label><div class="mg-drow"><input type="time" class="hr-fdate" id="otfSt" value="'+esc(o.start||'')+'"><span class="hr-fdash">–</span><input type="time" class="hr-fdate" id="otfEt" value="'+esc(o.end||'')+'"></div>'+
     '<label class="field-lb">'+ico('clipboard')+' ประเภท OT</label><select id="otfType" class="hr-fsel mg-full">'+otTypeOptions(o.type)+'</select>'+
     '<label class="field-lb">'+ico('pencil')+' เหตุผล / รายละเอียดงาน</label><textarea id="otfReason" rows="2" placeholder="รายละเอียดงาน…">'+esc(o.reason||'')+'</textarea>'+
-    // override ของระบบคำนวณ OT — ติ๊กแล้วรายการนี้ไม่ถูกหักพัก 0.5 ชม.
-    // (พักเที่ยง 1 ชม. ยังหักปกติถ้า OT คร่อมเที่ยง)
-    '<label class="mg-check"><input type="checkbox" id="otfNoBreak"'+(o.noBreak?' checked':'')+'><span>'+ico('coffee')+' ไม่หักพัก 0.5 ชม. (พนักงานไม่ได้พักจริง)</span></label>';
+    // override ของระบบคำนวณ OT — 2 ช่องแยกกัน ติ๊กช่องหนึ่งไม่ลามไปอีกช่อง
+    '<label class="mg-check"><input type="checkbox" id="otfNoBreak"'+(o.noBreak?' checked':'')+'><span>'+ico('coffee')+' ไม่หักพัก 0.5 ชม. (พนักงานไม่ได้พักจริง)</span></label>'+
+    '<label class="mg-check"><input type="checkbox" id="otfNoLunch"'+(o.noLunch?' checked':'')+'><span>'+ico('coffee')+' ไม่หักพักเที่ยง 1 ชม. (OT คร่อมเที่ยง แต่ไม่ได้พักจริง)</span></label>';
 }
 function otReadForm(c){
-  var nb=c.querySelector('#otfNoBreak');
+  var nb=c.querySelector('#otfNoBreak'), nl=c.querySelector('#otfNoLunch');
   return { otDate:isoToThai(c.querySelector('#otfDate').value), startTime:(c.querySelector('#otfSt')||{}).value||'', endTime:(c.querySelector('#otfEt')||{}).value||'', otType:c.querySelector('#otfType').value, reason:(c.querySelector('#otfReason').value||'').trim(),
     // ส่ง 1/0 เสมอ — ส่งค่าว่างแปลว่า "ไม่แตะ" ฝั่งหลังบ้านจะไม่ล้างค่าที่ติ๊กไว้
-    noBreak: nb && nb.checked ? '1' : '0' };
+    noBreak: nb && nb.checked ? '1' : '0',
+    noLunch: nl && nl.checked ? '1' : '0' };
 }
 function openOtEdit(id){
   var o=otFind(id); if(!o) return;
@@ -3392,7 +3399,7 @@ function openOtEdit(id){
       (wasApproved
         ? ' — ใบนี้<b>อนุมัติแล้ว</b> บันทึกแล้วยัง<b>อนุมัติอยู่</b> ไม่ต้องอนุมัติซ้ำ'
         : ' — บันทึกแล้วยังต้องอนุมัติอีกครั้ง')+'</div>'+
-      otFormBody({ dateIso:thaiToIso(o.otDate), start:o.startTime, end:o.endTime, type:otTypeKeyOf(o.otType), reason:o.reason, noBreak:o.noBreak }),
+      otFormBody({ dateIso:thaiToIso(o.otDate), start:o.startTime, end:o.endTime, type:otTypeKeyOf(o.otType), reason:o.reason, noBreak:o.noBreak, noLunch:o.noLunch }),
     onOk:function(c){ var p=otReadForm(c); if(!p.otDate) return toast('เลือกวันที่','err'); if(!p.startTime||!p.endTime) return toast('ใส่เวลาให้ครบ','err'); p.otId=id;
       var btn=c.querySelector('[data-cfm-ok]'); if(btn){btn.disabled=true;btn.textContent='กำลังบันทึก…';}
  api('mgEditOt',p).then(function(r){ if(!r.ok){ if(btn){btn.disabled=false;btn.textContent=' บันทึก';} return toast(r.error||'บันทึกไม่สำเร็จ','err'); }
@@ -4417,9 +4424,15 @@ function mockApi(action, params){
     else if(action==='mgReportFiles') resolve({ok:true,files:MOCK_RPT_FILES.filter(function(f){return !params||!params.group||f.group===params.group;})});
     else if(action==='mgSetOtNoBreak'){
       var _o=(MOCK_OT_LIST.filter(function(x){return x.otId===(params&&params.otId);})[0])||{};
-      _o.noBreak=String((params&&params.noBreak)||'')==='1';
-      resolve({ok:true,otId:_o.otId,noBreak:_o.noBreak,warn:'',
+      if(params&&params.kind==='lunch'){
+        _o.noLunch=String(params.noLunch||'')==='1';
+        resolve({ok:true,otId:_o.otId,kind:'lunch',noLunch:_o.noLunch,warn:'',
+ summary:(_o.noLunch?' ตั้งไม่หักพักเที่ยง · ':' หักพักเที่ยงตามปกติ · ')+(_o.name||'')});
+      } else {
+        _o.noBreak=String((params&&params.noBreak)||'')==='1';
+        resolve({ok:true,otId:_o.otId,noBreak:_o.noBreak,warn:'',
  summary:(_o.noBreak?' ตั้งไม่หักพัก · ':' หักพักตามปกติ · ')+(_o.name||'')});
+      }
     }
     else if(action==='mgEditOt') resolve({ok:true,otId:(params&&params.otId)||'OT-MOCK',hours:1.5,wasApproved:true,warn:''});
     else if(action==='approve') resolve({ok:true,id:'(mock)',status:'✅'});
