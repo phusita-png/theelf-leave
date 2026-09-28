@@ -690,6 +690,8 @@ var REG_COLS = [
   { key: 'damage',      label: 'ค่าเสียหาย',  dash: true },
   { key: 'insurance',   label: 'ประกันทำงาน', dash: true },
   { key: 'studentLoan', label: 'กยศ.',        slim: true, dash: true },
+  { key: 'advance',     label: 'เบิกล่วงหน้า', dash: true },
+  { key: 'prepaid',     label: 'จ่ายล่วงหน้าแล้ว', dash: true },
   { key: 'deductTotal', label: 'รวมหัก',      slim: true, formula: true, neg: true },
   { key: 'net',         label: 'สุทธิ',       slim: true, formula: true, bold: true },
 
@@ -1972,6 +1974,9 @@ var EDIT_FIELDS = [
   { key: 'damage',      label: 'หักค่าเสียหาย',   group: 'deduct' },
   { key: 'insurance',   label: 'ประกันการทำงาน',  group: 'deduct' },
   { key: 'studentLoan', label: 'หัก กยศ.',        group: 'deduct' },
+  // AN/AO — หักจากสุทธิ ไม่กระทบภาษี/ปกส. (ต้องกดเมนูติดตั้งคอลัมน์ต่อท้ายในชีตก่อน ไม่งั้นระบบไม่ยอมเขียน)
+  { key: 'advance',     label: 'หักเบิกเงินล่วงหน้า',       group: 'deduct' },
+  { key: 'prepaid',     label: 'หักเงินที่จ่ายล่วงหน้าแล้ว', group: 'deduct' },
 ];
 
 /** กดขั้น ในลำดับ → ให้เลือกวิธีกรอก */
@@ -2045,7 +2050,7 @@ function paintEditLive(x) {
   var income = ['salary', 'posAllow', 'incentive', 'commission', 'utility', 'attendance', 'backpay', 'incomeOther']
     .reduce(function (a, k) { return a + (vals[k] === '' ? Number(x[k] || 0) : Number(vals[k] || 0)); }, 0)
     + Number(x.ot || 0);
-  var deduct = ['otherDed', 'damage', 'insurance', 'studentLoan']
+  var deduct = ['otherDed', 'damage', 'insurance', 'studentLoan', 'advance', 'prepaid']
     .reduce(function (a, k) { return a + (vals[k] === '' ? Number(x[k] || 0) : Number(vals[k] || 0)); }, 0)
     + Number(x.sso || 0) + Number(x.tax || 0);
   box.innerHTML =
