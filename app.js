@@ -3991,21 +3991,60 @@ function afterEmpEdit(){
   }).catch(function(){ loadSettings(); });
 }
 
+/**
+ * แก้ข้อมูลพื้นฐาน — สถานะเป็นดรอปดาวน์ + วันที่
+ * เปลี่ยนสถานะ = บันทึกลงประวัติการจ้าง + ชีตพนักงานฝั่งเงินเดือนให้ด้วย (หลังบ้าน _empSetStatus_)
+ * เดิมเป็นช่องพิมพ์เขียนแค่ LineUsers — สถานะจริงมาจากประวัติการจ้าง พิมพ์ "ลาออก" ไปก็ไม่เปลี่ยน
+ */
 function openInfoModal(uid){
   var u=_findUser_('lineUserId',uid); if(!u) return;
-  var fields=[['dept','แผนก'],['email','Email'],['startDate','วันเริ่มงาน (dd/MM/yyyy)'],['branch','สาขา'],['status','สถานะพนักงาน']];
+  var curSt = /ลาออก|เลิกจ้าง|พ้นสภาพ/.test(String(u.status||'')) ? 'ลาออก' : 'ทำงานอยู่';
+  var startIso = thaiToIso(u.startDate);
+  var txt=[['dept','แผนก'],['email','Email'],['branch','สาขา']];
+  var stOpts=['ทำงานอยู่','ลาออก','เลิกจ้าง'].map(function(s){
+    return '<option value="'+s+'"'+(s===curSt?' selected':'')+'>'+s+'</option>'; }).join('');
   var body='<div class="set-ro">ชื่อ: <b>'+esc(u.name)+'</b> · รหัส '+esc(u.empId||'-')+' <span style="color:var(--muted)">(แก้ไม่ได้)</span></div>'+
-    fields.map(function(f){
+    txt.map(function(f){
       return '<div class="set-row col"><label>'+f[1]+'</label><input type="text" data-f="'+f[0]+'" value="'+esc(u[f[0]]||'')+'"></div>';
-    }).join('');
- _settingsModal_('ข้อมูล · '+esc(u.name), body, function(cc){
+    }).join('')+
+    '<div class="set-row col"><label>วันเริ่มงาน</label><input type="date" id="infStart" value="'+esc(startIso)+'"></div>'+
+    '<div class="set-row col"><label>สถานะพนักงาน</label><select id="infStatus">'+stOpts+'</select>'+
+      (curSt==='ลาออก'&&u.resignDate?'<div class="mg-sub2">ลาออกเมื่อ '+esc(u.resignDate)+'</div>':'')+'</div>'+
+    '<div id="infStBox" style="display:none">'+
+      '<div class="set-row col"><label id="infDateLb">วันลาออก</label><input type="date" id="infStDate" value="'+esc(dkeyISO(new Date()))+'"></div>'+
+      '<div class="set-row col"><label>เหตุผล / หมายเหตุ (ไม่บังคับ)</label><input type="text" id="infStNote" placeholder="เช่น ลาออกเพื่อศึกษาต่อ"></div>'+
+      '<div class="cfm-note" id="infStHelp"></div>'+
+    '</div>';
+  var c=_settingsModal_('ข้อมูล · '+esc(u.name), body, function(cc){
     var payload={targetUserId:uid}; cc.querySelectorAll('[data-f]').forEach(function(el){ payload[el.dataset.f]=el.value; });
+    var sIso=cc.querySelector('#infStart').value;
+    if(sIso!==startIso) payload.startDate=sIso?isoToThai(sIso):'';     // ส่งเฉพาะตอนเปลี่ยน
+    var st=cc.querySelector('#infStatus').value;
+    if(st!==curSt){
+      var dIso=cc.querySelector('#infStDate').value;
+      if(!dIso) return toast(st==='ทำงานอยู่'?'ใส่วันที่กลับเข้าทำงานก่อนนะคะ':'ใส่วัน'+st+'ก่อนนะคะ','err');
+      payload.status=st; payload.statusDate=isoToThai(dIso);
+      payload.statusNote=(cc.querySelector('#infStNote').value||'').trim();
+    }
     closeConfirm(); toast('กำลังบันทึก…');
     api('updateEmployee',payload).then(function(r){
       if(!r.ok) return toast(r.error||'ไม่สำเร็จ','err');
- toast('แก้ข้อมูลแล้ว'+(r.changed&&r.changed.length?' ('+r.changed.length+' ช่อง)':''),'ok'); afterEmpEdit();
+ toast('แก้ข้อมูลแล้ว'+(r.changed&&r.changed.length?' ('+r.changed.length+' ช่อง)':''),'ok');
+      if(r.warn) noticeBox('บันทึกแล้ว — แต่มีเรื่องต้องดูต่อ', r.warn);
+      afterEmpEdit();
     }).catch(function(e){ toast(String(e.message||e),'err'); });
   });
+  // เลือกสถานะต่างจากเดิม → โชว์ช่องวันที่ (ลาออก = วันสุดท้ายที่ทำงาน · กลับมา = วันเข้างานใหม่)
+  var sel=c.querySelector('#infStatus');
+  var paint=function(){
+    var st=sel.value, chg=st!==curSt;
+    c.querySelector('#infStBox').style.display=chg?'':'none';
+    c.querySelector('#infDateLb').textContent = st==='ทำงานอยู่' ? 'วันที่กลับเข้าทำงาน' : 'วัน'+st+' (วันสุดท้ายที่ทำงาน)';
+    c.querySelector('#infStHelp').textContent = st==='ทำงานอยู่'
+      ? 'บันทึกเป็น "เข้างาน" ในประวัติการจ้าง และตั้งสถานะในชีตพนักงานฝั่งเงินเดือนกลับเป็นปกติ'
+      : 'ยังนับเป็นพนักงานถึงวันนี้ (พ้นสภาพวันถัดไป) · เงินเดือนคิดตามวันถึงวันนี้ · บันทึกลงประวัติการจ้างและชีตพนักงานฝั่งเงินเดือนให้ด้วย';
+  };
+  sel.addEventListener('change', paint);
 }
 
 // ════════════ HELPERS ════════════
