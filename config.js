@@ -29,6 +29,11 @@ window.LEAVE_CONFIG = {
   // 6) พรีวิวหน้าเงินเดือนด้วยข้อมูลปลอม (ไม่ต่อ backend) — production = false
   PAYROLL_MOCK: false,
 
+  // ⚡ ที่ฝากสำเนาคำตอบ (Cloudflare Worker theelf-worker · 29 ก.ย. 69)
+  //    เปิดหน้า = เอาสำเนาล่าสุดมาโชว์ทันที แล้วถาม Google ตรงเบื้องหลัง · ไม่มีสำเนา = ถาม Google ตรงเหมือนเดิม
+  //    ปิด = ลบค่าให้เป็น "" แล้ว push (ทุกอย่างกลับไปถาม Google ตรงเหมือนก่อน 29 ก.ย.)
+  CACHE_URL: "https://theelf-worker.phusita.workers.dev/c",
+
   // 7) จำนวนคนต่อรอบของขั้นที่ทำทีละคน (สร้างสลิป / ส่งสลิป)
   //    สร้างสลิปเว้น 5 วิ/คน กัน Google บล็อก → 5 คน ≈ 25 วิ/รอบ
   PAYROLL_BATCH_SLIP: 5,

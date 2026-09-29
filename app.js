@@ -212,8 +212,100 @@ var _apiQueue = [], _apiActive = 0;
 // คำขอที่ "เขียนข้อมูล" — ห้ามลองใหม่เอง เดี๋ยวได้ใบซ้ำ/อนุมัติซ้ำ
 var API_WRITE_RE = /^(submit|decide|add|set|update|approve|reject|cancel|edit|save|send|gen|calc|close|lock|unlock|upload|delete|remove|merge|move|unlink|proxy|import|backfill|revoke|register|mg(Cancel|Edit|Proxy|Set|Export|Report(Export|Backfill))|em(Set|Add|Allow(Save|Decide)|Line(Move|Merge|Unlink)|Photo))/i;
 
+// ════════════ สำเนาคำตอบ (theelf-worker) ════════════
+// ทำไม (วัด 29 ก.ย. 69): Apps Script ทำงานจริง 1–4 วิ แต่หน้าเว็บรอ 3–57 วิ เพราะ Google ปลุกสคริปต์/ส่งคำตอบช้าเป็นพัก ๆ
+//   → เปิดหน้าให้เอาสำเนาล่าสุดจาก Worker มาโชว์ทันที (~0.1 วิ) แล้วถาม Google ตรงเบื้องหลัง ต่างเมื่อไหร่ค่อยวาดจอใหม่
+// ⚠️ Worker ห้ามไปถาม Google แทนเรา — วัดแล้วช้ากว่าเบราว์เซอร์ถามตรง ~3 เท่า
+// รายชื่อ action อ่าน = ชุดเดียวกับ APPS.leave ใน theelf-worker/src/index.js (แก้ที่หนึ่งต้องแก้อีกที่)
+var CACHE_READS = {};
+'bootstrap history otHistory documents hrBundle hrDashboard hrOverview hrSummary hrAllHistory hrEmpHistory hrLeaveCalendar hrDocStats hrReviewDocs adminBootstrap emStats emNameList emSalaryList emSalaryHistory emJobHistory emLeaveSummary emSchedule emLineInfo emAllowList emAllowGet cfgCompanyGet cfgFilesGet cfgLeaveGet cfgPayrollGet cfgHolidayList mgLeaveList mgOtList mgOtStatus mgOtSummary mgPeriodLocks mgLeaveReportStatus mgMonthlyReports mgReportFiles mgLeaveReport pendingRegistrations lineChangeList unpaidReqList'.split(' ').forEach(function(a){ CACHE_READS[a] = 1; });
+var CACHE_FRESH_SEC = 30;      // สำเนาเก่ากว่านี้ → ถาม Google ใหม่เบื้องหลัง
+var _cacheOffUntil = 0;        // เพิ่งบันทึก → 60 วิ ไม่ใช้สำเนา (เผื่อสัญญาณทิ้งสำเนาไปไม่ถึง)
+
 function api(action, params) {
   if (CFG.MOCK) return mockApi(action, params);
+  var tok = (S.auth || {}).idToken;
+  if (!CFG.CACHE_URL || !tok) return _apiDirect(action, params);
+  if (!CACHE_READS[action]) {
+    var isWrite = API_WRITE_RE.test(String(action || '')) || (params && params.mode === 'commit');
+    var p = _apiDirect(action, params);
+    if (isWrite) p.then(function(){ _cacheBump(action); }, function(){ _cacheBump(action); });   // ล้มก็ทิ้ง — อาจบันทึกไปแล้ว
+    return p;
+  }
+  if ((params && params.fresh) || Date.now() < _cacheOffUntil) return _apiDirectStore(action, params, null);
+  var mk = action + '|' + JSON.stringify(_cacheParams(params)), mem = _cacheMem[mk];
+  if (mem && Date.now() - mem.t < 15000) return Promise.resolve(mem.d);   // เพิ่งได้ของสดจาก Google — ไม่ต้องถามซ้ำ (ตอนวาดจอใหม่)
+  return _cachePeek(action, params).then(function(pk){
+    if (pk && pk.hit) {
+      if (pk.age > CACHE_FRESH_SEC) _revalidate(action, params, pk.body, pk.gen);
+      return pk.body;
+    }
+    return _apiDirectStore(action, params, pk ? pk.gen : null);
+  });
+}
+
+function _apiDirectStore(action, params, gen){
+  return _apiDirect(action, params).then(function(d){
+    if (d && d.ok === true) {
+      _cacheStore(action, params, gen, d);
+      _cacheMem[action + '|' + JSON.stringify(_cacheParams(params))] = { t: Date.now(), d: d };
+    }
+    return d;
+  });
+}
+var _cacheMem = {};   // คำตอบสดล่าสุดในหน้านี้ (15 วิ) · ล้างทุกครั้งที่บันทึก
+function _cacheParams(params){
+  var o = {};
+  Object.keys(params || {}).forEach(function(k){
+    var v = params[k];
+    if (v == null || k === 'fresh') return;
+    o[k] = (typeof v === 'object') ? JSON.stringify(v) : String(v);
+  });
+  return o;
+}
+/** ถามสำเนา — ช้าเกิน 2.5 วิ/พัง = ทำเหมือนไม่มี (ไปถาม Google ตรง) */
+function _cachePeek(action, params){
+  var q = Object.assign({ action: action, idToken: (S.auth || {}).idToken }, _cacheParams(params));
+  var ctl = window.AbortController ? new AbortController() : null;
+  var t = setTimeout(function(){ if (ctl) ctl.abort(); }, 2500);
+  return fetch(CFG.CACHE_URL + '/leave?' + new URLSearchParams(q).toString(), { signal: ctl ? ctl.signal : undefined, cache: 'no-store' })
+    .then(function(r){ return r.json(); })
+    .then(function(j){ clearTimeout(t); return (j && j.ok) ? j : null; }, function(){ clearTimeout(t); return null; });
+}
+function _cachePost(path, body){
+  // text/plain = ไม่มี preflight
+  return fetch(CFG.CACHE_URL + '/leave' + path, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(Object.assign({ idToken: (S.auth || {}).idToken }, body)) }).catch(function(){});
+}
+function _cacheStore(action, params, gen, d){ _cachePost('/store', { action: action, params: _cacheParams(params), gen: gen, body: d }); }
+function _cacheBump(action){ _cacheOffUntil = Date.now() + 60000; _cacheMem = {}; _cachePost('/bump', { action: action }); }
+
+/** โชว์สำเนาไปแล้ว → ถาม Google ตรง · ต่าง = วาดจอใหม่ (เฉพาะหน้าที่ไม่มีฟอร์ม/หน้าต่างค้าง) */
+var _REVAL_VIEWS = { home: 1, history: 1, payslip: 1, documents: 1, hr: 1, dashboard: 1, leavecal: 1, profile: 1 };
+function _revalidate(action, params, staleBody, gen){
+  var view = S.view;
+  _apiDirectStore(action, params, gen).then(function(fresh){
+    if (!fresh || fresh.ok !== true) return;
+    if (JSON.stringify(fresh) === JSON.stringify(staleBody)) return;
+    if (action === 'bootstrap') apply(fresh);
+    if (S.view !== view || !_REVAL_VIEWS[S.view] || S.busy || _overlayOpen_()) return;
+    var ae = document.activeElement;
+    if (ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)) return;
+    render();
+  }).catch(function(){});
+}
+function _overlayOpen_(){
+  var els = document.querySelectorAll('.show');
+  for (var i = 0; i < els.length; i++) {
+    if (els[i].id === 'toast') continue;
+    var cs = getComputedStyle(els[i]);
+    if (cs.position === 'fixed' && cs.display !== 'none' && cs.visibility !== 'hidden') return true;
+  }
+  return false;
+}
+
+/** ถาม Apps Script ตรง (คิว + ลองใหม่เดิม) */
+function _apiDirect(action, params) {
   return new Promise(function(resolve, reject){
     _apiQueue.push({ action: action, params: params, resolve: resolve, reject: reject,
                      tries: 0, queuedAt: Date.now() });
@@ -475,6 +567,7 @@ function mountPayroll(m){
   m.innerHTML = '<div id="payHost"></div>';
   PAY.mount(document.getElementById('payHost'), {
     PAYROLL_API_URL: CFG.PAYROLL_API_URL,
+    CACHE_URL:  CFG.CACHE_URL || '',
     MOCK:       !!CFG.PAYROLL_MOCK,
     BATCH_SLIP: CFG.PAYROLL_BATCH_SLIP || 5,
     BATCH_SEND: CFG.PAYROLL_BATCH_SEND || 5,
@@ -1814,7 +1907,7 @@ function loadDbPayroll(){
   var b=box.querySelector('[data-go]'); if(b) b.addEventListener('click', function(){ goTo('mgpay'); });
   // ยืมค่าตั้งค่า + ช่องทางล็อกอินของคอนโซลให้โมดูลเงินเดือน (ยังไม่ต้องเปิดหน้า Payroll)
   PAY.dashboardInto(document.getElementById('dbPayHost'), {
-    PAYROLL_API_URL: CFG.PAYROLL_API_URL, MOCK: !!CFG.PAYROLL_MOCK,
+    PAYROLL_API_URL: CFG.PAYROLL_API_URL, MOCK: !!CFG.PAYROLL_MOCK, CACHE_URL: CFG.CACHE_URL || '',
     host: { getAuth: function(){ return S.auth; }, onAuthExpired: reauth }
   });
 }
@@ -4884,7 +4977,8 @@ function postApi(action, payload){
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },   // text/plain = ไม่มี preflight (Apps Script ไม่ตอบ OPTIONS)
     body: JSON.stringify(body)
-  }).then(function(res){ return res.json(); });
+  }).then(function(res){ return res.json(); })
+    .then(function(d){ if (CFG.CACHE_URL) _cacheBump(action); return d; });   // POST = เขียนเสมอ → ทิ้งสำเนา
 }
 
 /**

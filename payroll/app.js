@@ -310,8 +310,83 @@ var _seq = 0;
 // (กราฟทั้งปี + สถานะขั้นตอน + ตารางทะเบียน) ตัวท้ายคิวรอ 30–45 วิ แล้วหลุด "เชื่อมต่อ API ไม่ได้"
 // ทั้งที่ยิงทีละตัวใช้ ~6 วิ → เข้าคิวฝั่งหน้าเว็บเอง ตัวไหนหลุดตัวอื่นยังได้คำตอบ
 var _apiQueue = Promise.resolve();
+
+// ── สำเนาคำตอบ (theelf-worker) — ดูเหตุผลที่ theelf-leave/app.js "สำเนาคำตอบ" ──
+// รายชื่อ = APPS.payroll ใน theelf-worker/src/index.js (แก้ที่หนึ่งต้องแก้อีกที่)
+var CACHE_READS = { payrollBootstrap: 1, monthBundle: 1, stepStatus: 1, registerRows: 1, registerStatus: 1, yearSummary: 1, reportFiles: 1 };
+// ไม่มี mode=commit แต่แก้สิ่งที่หน้าเว็บอ่าน: ตรวจผ่าน = ปั๊มขั้น · ออกไฟล์ = รายการไฟล์
+var CACHE_BUMP_EXTRA = { auditMonth: 1, exportRegister: 1, exportPND1K: 1 };
+var CACHE_FRESH_SEC = 30;
+var _cacheOffUntil = 0;
+
 function api(action, params) {
   if (CFG.MOCK) return mockApi(action, params);
+  var tok = (authParams() || {}).idToken;
+  if (!CFG.CACHE_URL || !tok) return _apiQueued(action, params);
+  if (!CACHE_READS[action]) {
+    var isWrite = (params && params.mode === 'commit') || CACHE_BUMP_EXTRA[action];
+    var p = _apiQueued(action, params);
+    if (isWrite) p.then(function(){ _cacheBump(action); }, function(){ _cacheBump(action); });
+    return p;
+  }
+  if ((params && params.fresh) || Date.now() < _cacheOffUntil) return _apiDirectStore(action, params, null);
+  var mk = action + '|' + JSON.stringify(_cacheParams(params)), mem = _cacheMem[mk];
+  if (mem && Date.now() - mem.t < 15000) return Promise.resolve(mem.d);   // เพิ่งได้ของสดจาก Google — ไม่ต้องถามซ้ำ
+  return _cachePeek(action, params).then(function (pk) {
+    if (pk && pk.hit) {
+      if (pk.age > CACHE_FRESH_SEC) _revalidate(action, params, pk.body, pk.gen);
+      return pk.body;
+    }
+    return _apiDirectStore(action, params, pk ? pk.gen : null);
+  });
+}
+function _apiDirectStore(action, params, gen) {
+  return _apiQueued(action, params).then(function (d) {
+    if (d && d.ok === true) {
+      _cacheStore(action, params, gen, d);
+      _cacheMem[action + '|' + JSON.stringify(_cacheParams(params))] = { t: Date.now(), d: d };
+    }
+    return d;
+  });
+}
+var _cacheMem = {};   // คำตอบสดล่าสุดในหน้านี้ (15 วิ) · ล้างทุกครั้งที่บันทึก
+function _cacheParams(params) {
+  var o = {};
+  Object.keys(params || {}).forEach(function (k) {
+    var v = params[k];
+    if (v == null || k === 'fresh') return;
+    o[k] = (typeof v === 'object') ? JSON.stringify(v) : String(v);
+  });
+  return o;
+}
+function _cachePeek(action, params) {
+  var q = Object.assign({ action: action, idToken: (authParams() || {}).idToken }, _cacheParams(params));
+  var ctl = window.AbortController ? new AbortController() : null;
+  var t = setTimeout(function () { if (ctl) ctl.abort(); }, 2500);
+  return fetch(CFG.CACHE_URL + '/payroll?' + new URLSearchParams(q).toString(), { signal: ctl ? ctl.signal : undefined, cache: 'no-store' })
+    .then(function (r) { return r.json(); })
+    .then(function (j) { clearTimeout(t); return (j && j.ok) ? j : null; }, function () { clearTimeout(t); return null; });
+}
+function _cachePost(path, body) {
+  return fetch(CFG.CACHE_URL + '/payroll' + path, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(Object.assign({ idToken: (authParams() || {}).idToken }, body)) }).catch(function () {});
+}
+function _cacheStore(action, params, gen, d) { _cachePost('/store', { action: action, params: _cacheParams(params), gen: gen, body: d }); }
+function _cacheBump(action) { _cacheOffUntil = Date.now() + 60000; _cacheMem = {}; _cachePost('/bump', { action: action }); }
+
+/** โชว์สำเนาไปแล้ว → ถาม Google ตรง · ต่าง = โหลดส่วนนั้นใหม่ (ตอนนี้ได้สำเนาสดแล้ว ขึ้นทันที) */
+function _revalidate(action, params, staleBody, gen) {
+  _apiDirectStore(action, params, gen).then(function (fresh) {
+    if (!fresh || fresh.ok !== true) return;
+    if (JSON.stringify(fresh) === JSON.stringify(staleBody)) return;
+    if (S.busy || !$('mask').classList.contains('hidden')) return;
+    if (action === 'monthBundle' && S.cur && String(params.month) === String(S.cur.month) && String(params.yearBE) === String(S.cur.yearBE)) loadMonth();
+    else if (action === 'yearSummary') loadPayDash();
+  }).catch(function () {});
+}
+
+/** ถาม Apps Script ตรง (คิวทีละ 1 เดิม) */
+function _apiQueued(action, params) {
   // ⚡ คำขออ่านอย่างเดียวที่หลุด (Google ตอบ error ตอนคิวแน่น) → ลองใหม่เองอีก 1 ครั้ง ไม่ต้องให้ HR กดเอง
   //    คำขอเขียน (mode=commit) ห้ามยิงซ้ำ — ใช้ verifyAfterFail เช็คสถานะแทน
   var isWrite = params && params.mode === 'commit';
