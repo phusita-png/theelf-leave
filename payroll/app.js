@@ -352,7 +352,7 @@ function isAuthErr(m) {
 }
 
 // ════════════ BOOTSTRAP ════════════
-function bootstrap() {
+function bootstrap(retried) {
   setLoaderText('กำลังตรวจสอบสิทธิ์…');
   api('payrollBootstrap', {}).then(function (r) {
     if (!r.ok) {
@@ -381,7 +381,11 @@ function bootstrap() {
     $('loader').classList.add('hidden');
     $('app').classList.remove('hidden');
     loadMonth();
-  }).catch(function (e) { fail(String(e && e.message || e), ico('plug')); });
+  }).catch(function (e) {
+    // ต่อไม่ติดครั้งแรก (เช่น เพิ่ง deploy — Google ตอบ 404 ชั่วคราว) → ลองอีกรอบเองก่อนขึ้นจอพัง
+    if (!retried) { setLoaderText('ต่อระบบไม่ติด กำลังลองใหม่…'); return setTimeout(function () { bootstrap(true); }, 2000); }
+    fail(String(e && e.message || e), ico('plug'));
+  });
 }
 
 function buildMonthOptions() {
@@ -1731,7 +1735,7 @@ function fail(msg, icon) {
   $('loader').classList.add('hidden');
   $('app').classList.add('hidden');
   var f = $('fail');
- $('failIcon').textContent = icon || '';
+ $('failIcon').innerHTML = icon || '';      // ico() เป็น SVG — textContent จะโชว์โค้ดดิบ (ทุกตัวที่ส่งมาสร้างจากโค้ดเรา ไม่ใช่ข้อความผู้ใช้)
   $('failMsg').textContent  = msg;
   f.classList.remove('hidden');
 }
