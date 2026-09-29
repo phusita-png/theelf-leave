@@ -24,7 +24,7 @@ window.LEAVE_CONFIG = {
   //       เขียน (กดยืนยัน) ยังส่งต่อไป /exec เดิมทุกครั้ง · repo C:\Users\User\Documents\theelf-worker
   //       ปิดกลับ = เปลี่ยนบรรทัดนี้กลับเป็น /exec เดิม (บรรทัดคอมเมนต์ข้างล่าง) แล้ว push
   // PAYROLL_API_URL: "https://script.google.com/macros/s/AKfycbx29_6MQBu4jc5Yd1YpYCd7DwJ_TIdVwiIdZVwabUY-gDPV_YBn968B8z_A3t3h8EKjsA/exec",
-  PAYROLL_API_URL: "https://theelf-worker.phusita.workers.dev/payroll",
+  PAYROLL_API_URL: "https://script.google.com/macros/s/AKfycbx29_6MQBu4jc5Yd1YpYCd7DwJ_TIdVwiIdZVwabUY-gDPV_YBn968B8z_A3t3h8EKjsA/exec",
 
   // 6) พรีวิวหน้าเงินเดือนด้วยข้อมูลปลอม (ไม่ต่อ backend) — production = false
   PAYROLL_MOCK: false,
