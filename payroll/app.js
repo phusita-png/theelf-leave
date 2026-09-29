@@ -304,8 +304,20 @@ function reauth() {
 
 // ════════════ API (JSONP — เลี่ยง CORS ของ Apps Script) ════════════
 var _seq = 0;
+
+// ── คิวคำขอ: ส่งทีละ 1 ตัว (29 ก.ย. 69) ─────────────────────────
+// Apps Script ทำคำขอของผู้ใช้คนเดียวกันต่อคิว — หน้านี้เคยยิงพร้อมกัน 3–4 ตัว
+// (กราฟทั้งปี + สถานะขั้นตอน + ตารางทะเบียน) ตัวท้ายคิวรอ 30–45 วิ แล้วหลุด "เชื่อมต่อ API ไม่ได้"
+// ทั้งที่ยิงทีละตัวใช้ ~6 วิ → เข้าคิวฝั่งหน้าเว็บเอง ตัวไหนหลุดตัวอื่นยังได้คำตอบ
+var _apiQueue = Promise.resolve();
 function api(action, params) {
   if (CFG.MOCK) return mockApi(action, params);
+  var run = function () { return _apiSend(action, params); };
+  var p = _apiQueue.then(run, run);
+  _apiQueue = p.then(function () {}, function () {});
+  return p;
+}
+function _apiSend(action, params) {
 
   return new Promise(function (resolve, reject) {
     if (!CFG.PAYROLL_API_URL || CFG.PAYROLL_API_URL.indexOf('PASTE') === 0)
