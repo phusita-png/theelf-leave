@@ -391,11 +391,16 @@ function _apiQueued(action, params) {
   //    คำขอเขียน (mode=commit) ห้ามยิงซ้ำ — ใช้ verifyAfterFail เช็คสถานะแทน
   var isWrite = params && params.mode === 'commit';
   var run = function () {
-    return _apiSend(action, params).catch(function (e) {
-      if (isWrite || String(e && e.message || e).indexOf('เชื่อมต่อ API ไม่ได้') < 0) throw e;
-      return new Promise(function (ok) { setTimeout(ok, 1500); })
-        .then(function () { return _apiSend(action, params); });
-    });
+    // 29 ก.ย. 69 ดึก: Google ฝั่งเงินเดือนตอบ 404 ราวครึ่งหนึ่ง (วัดเทียบรุ่นเก่า/ใหม่แล้ว ไม่ใช่โค้ดเรา) → คำขออ่านลองได้ 3 รอบ
+    var tries = 0;
+    var once = function () {
+      return _apiSend(action, params).catch(function (e) {
+        if (isWrite || tries >= 2 || String(e && e.message || e).indexOf('เชื่อมต่อ API ไม่ได้') < 0) throw e;
+        tries++;
+        return new Promise(function (ok) { setTimeout(ok, 1500); }).then(once);
+      });
+    };
+    return once();
   };
   var p = _apiQueue.then(run, run);
   _apiQueue = p.then(function () {}, function () {});
