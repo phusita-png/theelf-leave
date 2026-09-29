@@ -312,7 +312,16 @@ var _seq = 0;
 var _apiQueue = Promise.resolve();
 function api(action, params) {
   if (CFG.MOCK) return mockApi(action, params);
-  var run = function () { return _apiSend(action, params); };
+  // ⚡ คำขออ่านอย่างเดียวที่หลุด (Google ตอบ error ตอนคิวแน่น) → ลองใหม่เองอีก 1 ครั้ง ไม่ต้องให้ HR กดเอง
+  //    คำขอเขียน (mode=commit) ห้ามยิงซ้ำ — ใช้ verifyAfterFail เช็คสถานะแทน
+  var isWrite = params && params.mode === 'commit';
+  var run = function () {
+    return _apiSend(action, params).catch(function (e) {
+      if (isWrite || String(e && e.message || e).indexOf('เชื่อมต่อ API ไม่ได้') < 0) throw e;
+      return new Promise(function (ok) { setTimeout(ok, 1500); })
+        .then(function () { return _apiSend(action, params); });
+    });
+  };
   var p = _apiQueue.then(run, run);
   _apiQueue = p.then(function () {}, function () {});
   return p;
@@ -428,13 +437,18 @@ function onMonthChange() {
 
 // ════════════ โหลดข้อมูลเดือนที่เลือก ════════════
 function loadMonth() {
-  loadPayDash();     // แดชบอร์ดทั้งปี — โหลดคู่กับข้อมูลเดือน (ตอนนี้ S.cur มีปีแล้วแน่นอน)
-  if (!S.cur) return;
+  if (!S.cur) { loadPayDash(); return; }
   $('stepList').innerHTML = skeleton(9);
   $('tableWrap').innerHTML = '<div class="empty">กำลังโหลด…</div>';
 
+  // ⚡ สถานะขั้นตอน + ตาราง = คำขอเดียว (monthBundle) · กราฟทั้งปีโหลดทีหลัง ไม่ขวางตาราง (29 ก.ย. 69)
+  //    เดิมยิง กราฟ → สถานะ → ตาราง ต่อคิวกัน 3 คำขอ ตารางขึ้นช้าสุด
   var p = { month: S.cur.month, yearBE: S.cur.yearBE };
-  Promise.all([api('stepStatus', p), api('registerRows', p)]).then(function (res) {
+  api('monthBundle', p).then(function (b) {
+    if (!b.ok) return [b, b];
+    return [b.step, b.rows];
+  }).then(function (res) {
+    loadPayDash();
     var st = res[0], rows = res[1];
     if (!st.ok)   return toast(st.error || 'โหลดสถานะไม่สำเร็จ');
     if (!rows.ok) return toast(rows.error || 'โหลดตารางไม่สำเร็จ');
@@ -448,7 +462,7 @@ function loadMonth() {
     renderSteps(st);
     renderTable(rows);
     loadLocks();
-  }).catch(function (e) { toast(String(e && e.message || e)); });
+  }).catch(function (e) { toast(String(e && e.message || e)); loadPayDash(); });
 }
 
 function skeleton(n) {
@@ -908,6 +922,7 @@ function commitStep(key) {
   setModal(step.label, 'กำลังดำเนินการ…', '<div class="empty">กำลังบันทึก… อย่าปิดหน้านี้นะคะ</div>', '');
 
   var p = Object.assign({ month: S.cur.month, yearBE: S.cur.yearBE, mode: 'commit' }, extra || {});
+  var startedAt = Date.now();
   api(STEP_ACTION[key], p).then(function (r) {
     S.busy = false;
     if (!r.ok) return showError(step.label, r.error);
@@ -916,8 +931,40 @@ function commitStep(key) {
       btn('เสร็จสิ้น', 'btn-primary', 'closeModal(); loadMonth();'));
   }).catch(function (e) {
     S.busy = false;
-    showError(step.label, String(e && e.message || e));
+    verifyAfterFail(key, step.label, startedAt, String(e && e.message || e));
   });
+}
+
+/**
+ * verifyAfterFail — กดยืนยันแล้วหน้าเว็บขึ้น "เชื่อมต่อไม่ได้/หมดเวลา" แต่ฝั่งระบบอาจทำเสร็จไปแล้ว
+ *   (เคสจริง 29 ก.ย. 69: ขั้นล็อกรอบขึ้นหมดเวลา ทั้งที่ล็อกสำเร็จ → HR ตกใจ กดซ้ำ)
+ *   → ถามสถานะขั้นตอนก่อน ถ้าขั้นนี้ถูกบันทึกหลังเวลาที่กด = สำเร็จแล้ว
+ */
+function verifyAfterFail(key, label, startedAt, msg) {
+  setModal(label, 'กำลังเช็คว่าบันทึกไปแล้วหรือยัง…',
+    '<div class="empty">การเชื่อมต่อหลุดระหว่างรอคำตอบ — กำลังเช็คสถานะจากระบบ อย่าเพิ่งกดซ้ำนะคะ</div>', '');
+  api('stepStatus', { month: S.cur.month, yearBE: S.cur.yearBE }).then(function (st) {
+    var s = (st && st.steps || []).filter(function (x) { return x.key === key; })[0];
+    var at = s && s.confirmed ? _parseDoneAt_(s.doneAt) : 0;
+    if (at && at >= startedAt - 120000) {
+      S.steps = st.steps; S.next = st.next; renderSteps(st);
+      return setModal(label, ico('check') + ' เสร็จแล้ว',
+        '<div class="paste-help">หน้าเว็บหลุดระหว่างรอคำตอบ แต่ระบบบันทึกขั้นนี้สำเร็จแล้ว (' + esc(s.doneAt) + ')<br>' +
+        esc(s.detail || '') + '</div>',
+        btn('เสร็จสิ้น', 'btn-primary', 'closeModal(); loadMonth();'));
+    }
+    showError(label, msg + '\n\nเช็คแล้ว: ระบบยังไม่ได้บันทึกขั้นนี้ — กดใหม่ได้เลยค่ะ');
+  }).catch(function () {
+    showError(label, msg + '\n\nยังเช็คสถานะไม่ได้ — กดโหลดหน้าใหม่ แล้วดูว่าขั้นนี้ขึ้น ✓ หรือยัง ก่อนกดซ้ำนะคะ');
+  });
+}
+
+/** doneAt จากระบบ = "dd/MM/yyyy HH:mm" (ค.ศ.) → ms */
+function _parseDoneAt_(t) {
+  var m = String(t || '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})/);
+  if (!m) return 0;
+  var y = +m[3]; if (y > 2400) y -= 543;
+  return new Date(y, +m[2] - 1, +m[1], +m[4], +m[5]).getTime();
 }
 
 // ── ขั้นที่ทำทีละคน: วนเรียกทีละ batch จนกว่า done ────────────
@@ -996,12 +1043,13 @@ function commitCalcTax() {
   setModal(ico('receipt')+' คิดภาษีหัก ณ ที่จ่าย', 'กำลังเขียนลงทะเบียน…',
     '<div class="empty">กำลังบันทึก… อย่าปิดหน้านี้นะคะ</div>', '');
 
+  var startedAt = Date.now();
   api('calcTax', { month: S.cur.month, yearBE: S.cur.yearBE, mode: 'commit' }).then(function (r) {
     S.busy = false;
     if (!r.ok) return showError('คิดภาษี', r.error);
     renderCalcTax(r, true);
     loadMonthQuiet();
-  }).catch(function (e) { S.busy = false; showError('คิดภาษี', String(e && e.message || e)); });
+  }).catch(function (e) { S.busy = false; verifyAfterFail('calcTax', 'คิดภาษี', startedAt, String(e && e.message || e)); });
 }
 
 function renderCalcTax(r, done) {
@@ -1772,6 +1820,8 @@ function mockApi(action, params) {
 }
 
 function mockResult(action, params) {
+  if (action === 'monthBundle')
+    return { ok: true, step: mockResult('stepStatus', params), rows: mockResult('registerRows', params) };
   if (action === 'payrollBootstrap') {
     return { ok: true, role: 'OWNER', company: 'บจก.ดิเอลฟ์ (พรีวิว)',
       current: { month: 8, yearBE: 2569 },
