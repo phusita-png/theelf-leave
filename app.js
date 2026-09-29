@@ -425,6 +425,13 @@ function closeHelp(){
   var f=h.querySelector('.help-frame'); if(f) f.src='about:blank';   // คืน memory
 }
 
+/**
+ * _mainFor_ — กล่องเนื้อหาหลัก เฉพาะตอนที่ยังอยู่เมนูเดิม
+ *   คำขอช้า (5–40 วิ) ตอบกลับมาหลังผู้ใช้กดไปเมนูอื่นแล้ว เคยวาดหน้าเก่าทับหน้าใหม่
+ *   (เคสจริง 29 ก.ย. 69: กดจัดการ Payroll ระหว่างหน้าอนุมัติยังโหลด → จอกลับเป็นหน้าอนุมัติ)
+ */
+function _mainFor_(v){ return S.view===v ? document.getElementById('main') : null; }
+
 function render(){
   var h = VIEW_HEAD[S.view] || ['',''];
   document.getElementById('hdTitle').textContent = h[0];
@@ -975,12 +982,13 @@ function pfUsedRows(){
 
 // ════════════ VIEW: PAYSLIP ════════════
 function loadPayslip(){
+  var _v = S.view;   // โหลดเสร็จทีหลัง แต่ผู้ใช้กดไปเมนูอื่นแล้ว → ห้ามวาดทับ (_mainFor_)
   api('payslip',{}).then(function(r){
-    var m = document.getElementById('main'); if(!m) return;
+    var m = _mainFor_(_v); if(!m) return;
     if(!r.ok) return m.innerHTML = emptyBox(r.needLink?ico('link'):ico('alert'), r.error||'โหลดสลิปไม่ได้');
     if(!r.slips || !r.slips.length) return m.innerHTML = emptyBox(ico('receipt'),'ยังไม่มีสลิปเงินเดือน');
     m.innerHTML = renderPayslip(r); wirePayslip();
-  }).catch(function(e){ var m=document.getElementById('main'); if(m) m.innerHTML=emptyBox(ico('alert','e-ico'),String(e.message||e)); });
+  }).catch(function(e){ var m=_mainFor_(_v); if(m) m.innerHTML=emptyBox(ico('alert','e-ico'),String(e.message||e)); });
 }
 function renderPayslip(r){
   var s = r.latest;
@@ -1178,8 +1186,9 @@ function baht0(n){ return (Number(n)||0).toLocaleString('th-TH',{maximumFraction
 function backBar(){ return '<button class="backbar" data-back="1">‹ กลับหน้าหลัก</button>'; }
 function bindBack(){ var b=document.querySelector('[data-back]'); if(b) b.addEventListener('click',function(){ goTo('home'); }); }
 function loadDocuments(){
+  var _v = S.view;   // โหลดเสร็จทีหลัง แต่ผู้ใช้กดไปเมนูอื่นแล้ว → ห้ามวาดทับ (_mainFor_)
   api('documents',{}).then(function(r){
-    var m=document.getElementById('main'); if(!m) return;
+    var m=_mainFor_(_v); if(!m) return;
     if(!r.ok){ m.innerHTML = backBar()+emptyBox(ico('alert'), r.error||'โหลดไม่ได้'); bindBack(); return; }
     if(!r.documents.length){ m.innerHTML = backBar()+emptyBox(ico('inbox'),'ยังไม่มีเอกสารสำหรับคุณ'); bindBack(); return; }
     var list = r.documents.map(function(d){
@@ -1189,7 +1198,7 @@ function loadDocuments(){
         '<button class="slip-mini" data-doc="'+esc(d.url)+'">⬇</button></div>'; }).join('');
     m.innerHTML = backBar()+'<div class="card"><div class="card-title"><span class="ic"></span>เอกสาร '+r.documents.length+' รายการ</div>'+list+'</div>';
     bindBack(); wireFiles();
-  }).catch(function(e){ var m=document.getElementById('main'); if(m){ m.innerHTML=backBar()+emptyBox(ico('alert','e-ico'),String(e.message||e)); bindBack(); } });
+  }).catch(function(e){ var m=_mainFor_(_v); if(m){ m.innerHTML=backBar()+emptyBox(ico('alert','e-ico'),String(e.message||e)); bindBack(); } });
 }
 
 
@@ -1809,6 +1818,7 @@ function loadDbPayroll(){
 
 // ════════════ VIEW: HR DASHBOARD (read-only) ════════════
 function loadHr(){
+  var _v = S.view;   // โหลดเสร็จทีหลัง แต่ผู้ใช้กดไปเมนูอื่นแล้ว → ห้ามวาดทับ (_mainFor_)
   // ขอทีเดียวได้ครบ (แดชบอร์ด + คำขอลงทะเบียน + เปลี่ยน LINE + ลาไม่รับค่าจ้าง + เอกสาร)
   // ทุกคำขอมีต้นทุนคงที่ ~4.5 วิ — เดิมยิง 5-6 คำขอ รวมแล้วเกินเวลารอจนขึ้น "หมดเวลาเชื่อมต่อ"
   S.hrHistData=null;   // reset cache — โหลดประวัติสดทุกครั้งเปิดแผง HR
@@ -1816,7 +1826,7 @@ function loadHr(){
   S.docF = S.docF || { mode:'period', year:now.getFullYear()+543, month:now.getMonth()+1, from:'', to:'' };
   var f = S.docF;
   api('hrBundle',{ mode:f.mode, year:f.year, month:f.month, from:f.from, to:f.to }).then(function(b){
-    var m=document.getElementById('main'); if(!m) return;
+    var m=_mainFor_(_v); if(!m) return;
     var r = b && b.dashboard;
     if(!b || !b.ok || !r || !r.ok){
       m.innerHTML = backBar()+emptyBox(ico('lock'), (b&&b.error) || (r&&r.error) || 'ไม่มีสิทธิ์'); bindBack(); return;
@@ -1828,7 +1838,7 @@ function loadHr(){
     paintUnpaidReqs(b.unpaidReq);
     paintDocDash(b.docStats);
     loadHrHistory();                     // ประวัติทั้งบริษัทหนัก — โหลดแยกทีหลัง
-  }).catch(function(e){ var m=document.getElementById('main'); if(m){ m.innerHTML=backBar()+emptyBox(ico('alert','e-ico'),String(e.message||e)); bindBack(); } });
+  }).catch(function(e){ var m=_mainFor_(_v); if(m){ m.innerHTML=backBar()+emptyBox(ico('alert','e-ico'),String(e.message||e)); bindBack(); } });
 }
 function wireHrHistTabs(){
   document.querySelectorAll('[data-hh]').forEach(function(el){
@@ -3677,12 +3687,13 @@ function otExportResult(r){
 
 // ════════════ VIEW: SETTINGS (admin · ADMIN/OWNER) ════════════
 function loadSettings(){
+  var _v = S.view;   // โหลดเสร็จทีหลัง แต่ผู้ใช้กดไปเมนูอื่นแล้ว → ห้ามวาดทับ (_mainFor_)
   api('adminBootstrap',{}).then(function(r){
-    var m=document.getElementById('main'); if(!m) return;
+    var m=_mainFor_(_v); if(!m) return;
     if(!r.ok){ m.innerHTML=backBar()+emptyBox(ico('lock','e-ico'),r.error||'ไม่มีสิทธิ์'); bindBack(); return; }
     S.adminUsers=r.users; S.adminRoles=r.roles; S.adminCaller=r.callerId; S.adminOwnerCount=r.ownerCount; S.adminSchedules=r.schedules||[];
     m.innerHTML=backBar()+renderSettings(r); bindBack(); wireSettings();
-  }).catch(function(e){ var m=document.getElementById('main'); if(m){ m.innerHTML=backBar()+emptyBox(ico('alert','e-ico'),String(e.message||e)); bindBack(); } });
+  }).catch(function(e){ var m=_mainFor_(_v); if(m){ m.innerHTML=backBar()+emptyBox(ico('alert','e-ico'),String(e.message||e)); bindBack(); } });
 }
 function renderSettings(r){
   // หน้าแรกเมนูพนักงาน = แดชบอร์ด + ค้นหา + ตาราง (ปรับตามแบบที่พี่กี้ส่ง 27 ส.ค. 69)
