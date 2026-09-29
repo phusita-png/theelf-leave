@@ -274,6 +274,9 @@ function _apiRaw(action, params) {
       resolve(d); };
     function clean(){ delete window[cb]; if(sc.parentNode) sc.parentNode.removeChild(sc); }
     sc.onerror = function(){ if(done)return; done=true; clearTimeout(t); clean(); reject(new Error('เชื่อมต่อ API ไม่ได้')); };
+    // ⚡ Google ตอบ 404/หน้า error (ไม่ใช่ JSONP) → script โหลดจบแต่ไม่เรียก callback และไม่ยิง onerror
+    //    เดิมหน้าเว็บรอจนครบ 45 วิ (ดูเหมือนค้าง) · ตอนนี้รู้ทันทีแล้วลองใหม่ (เจอจริง 29 ก.ย. 69: 404 หลังรอ ~30 วิ)
+    sc.onload = function(){ setTimeout(function(){ if(done)return; done=true; clearTimeout(t); clean(); reject(new Error('เชื่อมต่อ API ไม่ได้')); }, 50); };
     sc.src = CFG.API_URL + '?' + q.join('&');
     document.body.appendChild(sc);
   });

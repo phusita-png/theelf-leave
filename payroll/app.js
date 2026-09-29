@@ -343,11 +343,13 @@ function _apiSend(action, params) {
     });
 
     var sc = document.createElement('script'), done = false;
-    // สร้างสลิปเว้น 5 วิ/คน → batch 5 คน ≈ 30 วิ · เผื่อไว้ 5 นาที
+    // สร้างสลิปเว้น 5 วิ/คน → batch 5 คน ≈ 30 วิ · เผื่อไว้ 5 นาที (คำขอเขียน)
+    // คำขออ่านรอ 45 วิ แล้วนับเป็นหลุด → api() ลองใหม่ให้เอง (เดิมอ่านก็รอ 5 นาที = จอค้าง)
+    var isWrite = params && params.mode === 'commit';
     var timer = setTimeout(function () {
       if (done) return; done = true; clean();
-      reject(new Error('หมดเวลาเชื่อมต่อ — ลองใหม่อีกครั้ง (ข้อมูลที่ทำไปแล้วไม่หาย)'));
-    }, 300000);
+      reject(new Error(isWrite ? 'หมดเวลาเชื่อมต่อ — ลองใหม่อีกครั้ง (ข้อมูลที่ทำไปแล้วไม่หาย)' : 'เชื่อมต่อ API ไม่ได้ (หมดเวลา)'));
+    }, isWrite ? 300000 : 45000);
 
     window[cb] = function (d) {
       if (done) return; done = true;
@@ -360,6 +362,14 @@ function _apiSend(action, params) {
       if (done) return; done = true;
       clearTimeout(timer); clean();
       reject(new Error('เชื่อมต่อ API ไม่ได้'));
+    };
+    // ⚡ Google ตอบ 404/หน้า error → โหลดจบแต่ไม่เรียก callback และไม่ยิง onerror → เดิมรอ 5 นาที (จอค้าง)
+    sc.onload = function () {
+      setTimeout(function () {
+        if (done) return; done = true;
+        clearTimeout(timer); clean();
+        reject(new Error('เชื่อมต่อ API ไม่ได้'));
+      }, 50);
     };
     sc.src = CFG.PAYROLL_API_URL + '?' + q.join('&');
     document.body.appendChild(sc);
