@@ -20,10 +20,8 @@ window.LEAVE_CONFIG = {
   //    (โค้ดเงินเดือนผูกกับไฟล์ชีตเงินเดือน จึงเป็นคนละ project → คนละ /exec)
   //    วิธีได้มา: เปิด Apps Script ของไฟล์เงินเดือน → Deploy → New deployment
   //              → Web app · Execute as: Me · Who has access: Anyone
-  //    ⚡ 29 ก.ย. 69: ผ่านด่านหน้า Cloudflare (theelf-worker) — จำคำตอบไว้ เปิดดูได้ทันทีไม่ต้องรอ Google
-  //       เขียน (กดยืนยัน) ยังส่งต่อไป /exec เดิมทุกครั้ง · repo C:\Users\User\Documents\theelf-worker
-  //       ปิดกลับ = เปลี่ยนบรรทัดนี้กลับเป็น /exec เดิม (บรรทัดคอมเมนต์ข้างล่าง) แล้ว push
-  // PAYROLL_API_URL: "https://script.google.com/macros/s/AKfycbx29_6MQBu4jc5Yd1YpYCd7DwJ_TIdVwiIdZVwabUY-gDPV_YBn968B8z_A3t3h8EKjsA/exec",
+  //    ⚠️ ห้ามชี้ไป Worker — ลองแล้ว 29 ก.ย. 69 Worker ส่งต่อไป Google ช้ากว่าเบราว์เซอร์ถามตรง ~3 เท่า
+  //       ความเร็วมาจาก CACHE_URL ข้างล่างแทน
   PAYROLL_API_URL: "https://script.google.com/macros/s/AKfycbx29_6MQBu4jc5Yd1YpYCd7DwJ_TIdVwiIdZVwabUY-gDPV_YBn968B8z_A3t3h8EKjsA/exec",
 
   // 6) พรีวิวหน้าเงินเดือนด้วยข้อมูลปลอม (ไม่ต่อ backend) — production = false
