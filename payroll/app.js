@@ -953,7 +953,7 @@ function commitStep(key) {
 function verifyAfterFail(key, label, startedAt, msg) {
   setModal(label, 'กำลังเช็คว่าบันทึกไปแล้วหรือยัง…',
     '<div class="empty">การเชื่อมต่อหลุดระหว่างรอคำตอบ — กำลังเช็คสถานะจากระบบ อย่าเพิ่งกดซ้ำนะคะ</div>', '');
-  api('stepStatus', { month: S.cur.month, yearBE: S.cur.yearBE }).then(function (st) {
+  api('stepStatus', { month: S.cur.month, yearBE: S.cur.yearBE, fresh: '1' }).then(function (st) {   // fresh = ห้ามตอบจากสำเนา
     var s = (st && st.steps || []).filter(function (x) { return x.key === key; })[0];
     var at = s && s.confirmed ? _parseDoneAt_(s.doneAt) : 0;
     if (at && at >= startedAt - 120000) {
