@@ -670,6 +670,8 @@ function renderTypeGrid(){
   if (upLeft > 0 && lt.unpaid) keys = keys.concat(['unpaid']);   // v.77 ดูสิทธิ์ที่ HR อนุมัติไว้ (ไม่มีโควตาแล้ว)
   // โหมดแก้ไข: ถ้าใบเดิมเป็นประเภทอื่น (วันเกิด/คนพิเศษ/ไม่รับค่าจ้าง) ให้โชว์ปุ่มประเภทนั้นด้วย
   if (S.editLeaveId && keys.indexOf(S.leaveForm.type)<0 && lt[S.leaveForm.type]) keys = keys.concat([S.leaveForm.type]);
+  // สิทธิ์หมดระหว่างเปิดฟอร์ม → อย่าค้างประเภทที่ไม่มีปุ่มให้เห็น
+  if (!S.editLeaveId && S.leaveForm.type==='unpaid' && keys.indexOf('unpaid')<0) S.leaveForm.type='vac';
   var html = keys.map(function(k){
     return '<div class="type-opt'+(S.leaveForm.type===k?' sel':'')+'" data-type="'+k+'">'+
       '<div class="t-emo">'+lt[k].emoji+'</div><div class="t-lb">'+lt[k].name+'</div></div>'; }).join('');
@@ -1923,6 +1925,7 @@ function loadHr(){
   // ขอทีเดียวได้ครบ (แดชบอร์ด + คำขอลงทะเบียน + เปลี่ยน LINE + ลาไม่รับค่าจ้าง + เอกสาร)
   // ทุกคำขอมีต้นทุนคงที่ ~4.5 วิ — เดิมยิง 5-6 คำขอ รวมแล้วเกินเวลารอจนขึ้น "หมดเวลาเชื่อมต่อ"
   S.hrHistData=null;   // reset cache — โหลดประวัติสดทุกครั้งเปิดแผง HR
+  S.hrUnpaidHist=null;
   var now=new Date();
   S.docF = S.docF || { mode:'period', year:now.getFullYear()+543, month:now.getMonth()+1, from:'', to:'' };
   var f = S.docF;
@@ -2440,7 +2443,9 @@ function renderHr(r){
     // เหตุผล + สิทธิ์คงเหลือ (ช่วยตัดสินใจในการ์ดเลย ไม่ต้องกดดูประวัติ)
     var info = '';
     if(x.reason) info += '<div class="pend-info">'+ico('message')+' '+esc(x.reason)+'</div>';
-    if(x.kind!=='ot' && x.remaining!=null) info += '<div class="pend-info bal">'+ico('ticket')+' สิทธิ์'+esc(x.type)+'คงเหลือ <b>'+balNum(x.remaining)+'</b> วัน</div>';
+    if(x.kind!=='ot' && x.remaining!=null) info += String(x.type).indexOf('ไม่รับค่าจ้าง')>=0
+      ? '<div class="pend-info bal">'+ico('ticket')+' ปีนี้ลาไม่รับค่าจ้างไปแล้ว <b>'+balNum(Math.abs(x.remaining))+'</b> วัน · ใบนี้หักเงินเดือน</div>'
+      : '<div class="pend-info bal">'+ico('ticket')+' สิทธิ์'+esc(x.type)+'คงเหลือ <b>'+balNum(x.remaining)+'</b> วัน</div>';
     return '<div class="pend">'+
       '<div class="pend-l">'+
         '<div class="pend-kind'+(x.kind==='ot'?' ot':'')+'">'+(x.kind==='ot'?ico('clock')+' คำขอ OT':ico('clipboard')+' คำขอลา')+'</div>'+
@@ -2469,11 +2474,12 @@ function renderHr(r){
 
   // ประวัติทั้งบริษัท — แท็บ ลา/OT/ลงทะเบียน · เรียงวันที่ใหม่→เก่า · lazy load
   var histCard='<div class="card"><div class="card-title"><span class="ic"></span>'+ico('scroll')+' ประวัติทั้งบริษัท</div>'+
-    '<div class="htabs">'+
+    '<div class="htabs htabs-scroll">'+
       '<button class="htab'+(S.hrHist==='all'?' sel':'')+'" data-hh="all">'+ico('folder')+' ทั้งหมด</button>'+
       '<button class="htab'+(S.hrHist==='leave'?' sel':'')+'" data-hh="leave">'+ico('clipboard')+' การลา</button>'+
       '<button class="htab'+(S.hrHist==='ot'?' sel ot':'')+'" data-hh="ot">⏰ OT</button>'+
       '<button class="htab'+(S.hrHist==='reg'?' sel':'')+'" data-hh="reg">'+ico('user-plus')+' ลงทะเบียน</button>'+
+      '<button class="htab'+(S.hrHist==='unpaid'?' sel':'')+'" data-hh="unpaid">'+ico('file')+' ขอสิทธิ์ไม่รับค่าจ้าง</button>'+
     '</div>'+
     '<div id="hrHistBody"><div class="skel" style="height:64px"></div></div></div>';
 
@@ -2546,6 +2552,7 @@ function loadHrHistory(){
   }).catch(function(e){ var b=document.getElementById('hrHistBody'); if(b) b.innerHTML=emptyBox(ico('alert','e-ico'),String(e.message||e)); });
 }
 function paintHrHistory(){
+  if(S.hrHist==='unpaid') return paintHrUnpaidHist_();
   var b=document.getElementById('hrHistBody'); if(!b||!S.hrHistData) return;
   var d=S.hrHistData, t=S.hrHist, list, empty;
   if(t==='leave'){ list=d.leave; empty='ยังไม่มีประวัติการลา'; }
@@ -4682,6 +4689,15 @@ function mockApi(action, params){
         {id:'LV-2',name:'วิชัย ตั้งใจ',dept:'CRM & Telesale',typeName:'ลาพักร้อน',typeKey:'vac',start:ly+'-'+lm+'-09',end:ly+'-'+lm+'-11',days:3,status:'อนุมัติ',pending:false},
         {id:'LV-3',name:'ก้อง พากเพียร',dept:'Content Creator',typeName:'ลากิจ',typeKey:'biz',start:ly+'-'+lm+'-09',end:ly+'-'+lm+'-09',days:1,status:'รอการอนุมัติ',pending:true},
         {id:'LV-4',name:'สุดา รักงาน',dept:'Live Sale',typeName:'ลาวันเกิด',typeKey:'bday',start:ly+'-'+lm+'-04',end:ly+'-'+lm+'-04',days:1,status:'อนุมัติ',pending:false}]}); }
+    else if(action==='unpaidReqList'){
+      var me=(S.profile&&S.profile.empId)||'';
+      var isAll=params.scope==='all';
+      var all=[{reqId:'UP-1',name:'นายตัวอย่าง ทดสอบ',empId:'EMP-002',dept:'ฝ่ายขาย',askDays:2,reason:'กลับต่างจังหวัด',status:'รอการอนุมัติ',grantDays:null,submittedAt:'05/11/2026 09:10:00',hr:'',note:'',left:isAll?0:null},
+        {reqId:'UP-2',name:'คำขอของฉัน',empId:me,dept:'สำนักงานใหญ่',askDays:1,reason:'ธุระส่วนตัว',status:'รอการอนุมัติ',grantDays:null,submittedAt:'05/11/2026 08:30:00',hr:'',note:'',left:isAll?0:null},
+        {reqId:'UP-3',name:'นางสาวปิยะฉัตร ทองแท้',empId:'E3',dept:'CRM',askDays:3,reason:'ไปต่างประเทศ',status:'อนุมัติแล้ว',grantDays:3,submittedAt:'01/11/2026 16:19:00',hr:'HR ทดสอบ · 01/11/2026 16:21',note:'ok',left:isAll?2:null},
+        {reqId:'UP-4',name:'นายอรรถพล ศรีสุวรรณ',empId:'E4',dept:'CRM',askDays:5,reason:'พักผ่อน',status:'ไม่อนุมัติ',grantDays:null,submittedAt:'30/10/2026 10:00:00',hr:'HR ทดสอบ · 30/10/2026 11:00',note:'ใช้พักร้อนก่อน',left:isAll?0:null}];
+      var l=isAll?all:params.scope==='mine'?[all[1]]:all.slice(0,2);
+      resolve({ok:true,list:l,count:l.length}); }
     else if(action==='bell') resolve({ok:true,total:6,unpaidLeft:3,groups:[
       {key:'unpaid',icon:'file',label:'สิทธิ์ลาไม่รับค่าจ้าง',n:1,rows:[{text:'มีสิทธิ์เหลือ 3 วัน · กดเพื่อยื่นใบลา',go:'leave',type:'unpaid'}]},
       {key:'fix',icon:'pencil',label:'HR ส่งกลับให้แก้ไข',n:1,rows:[{text:'ลากิจ LV-20261101090000',edit:'LV-20261101090000'}]},
@@ -4755,14 +4771,16 @@ function paintUnpaidReqs(r){
 function renderUnpaidReqs(list){
   var rows = list.map(function(x){
     var d = 'data-upid="'+esc(x.reqId)+'" data-upname="'+esc(x.name)+'" data-updays="'+esc(String(x.askDays))+'"';
+    var mine = !!x.empId && !!S.profile && String(x.empId)===String(S.profile.empId);   // พิจารณาคำขอตัวเองไม่ได้ อย่าโชว์ปุ่มให้กดแล้วค่อยเด้ง
     return '<div class="pend"><div class="pend-top"><div class="hist-ic">'+ico('file')+'</div><div class="hist-main">'+
       '<div class="hist-type">'+esc(x.name)+' — ขอ '+esc(String(x.askDays))+' วัน</div>'+
       '<div class="hist-meta">'+esc(x.empId||'-')+(x.dept?' · '+esc(x.dept):'')+' · '+esc(x.submittedAt)+'</div>'+
       '<div class="hist-meta" style="margin-top:4px">'+ico('message')+' '+esc(x.reason||'-')+'</div></div></div>'+
+      (mine ? '<div class="hr-note">'+ico('info')+' คำขอของคุณเอง · รอผู้อนุมัติท่านอื่นพิจารณา</div>' :
       '<div class="pend-act"><button class="pend-btn no" data-upno="1" '+d+'>'+ico('x')+' ไม่อนุมัติ</button>'+
-      '<button class="pend-btn ok" data-upok="1" '+d+'>'+ico('check')+' ให้สิทธิ์</button></div></div>'; }).join('');
+      '<button class="pend-btn ok" data-upok="1" '+d+'>'+ico('check')+' ให้สิทธิ์</button></div>')+'</div>'; }).join('');
   return '<div class="card"><div class="card-title"><span class="ic"></span>'+ico('file')+' คำขอลาไม่รับค่าจ้าง ('+list.length+')</div>'+
-    '<div class="hr-note ok2">'+ico('info')+' คุยกับพนักงานให้ชัดก่อนให้สิทธิ์ · ให้กี่วันก็ได้ (ไม่ต้องเท่าที่ขอ) · ระบบเพิ่มโควตาให้อัตโนมัติแล้วแจ้งพนักงานทาง LINE</div>'+rows+'</div>';
+    '<div class="hr-note ok2">'+ico('info')+' คุยกับพนักงานให้ชัดก่อนให้สิทธิ์ · ให้กี่วันก็ได้ (ไม่ต้องเท่าที่ขอ) · ระบบแจ้งพนักงานทาง LINE และเปิดปุ่มลาประเภทนี้ให้</div>'+rows+'</div>';
 }
 function wireUnpaidReqs(){
   document.querySelectorAll('[data-upok]').forEach(function(el){
@@ -4776,7 +4794,7 @@ function openUnpaidGrant(reqId, name, askDays){
          '<input type="number" inputmode="decimal" min="0.5" step="0.5" data-f="days" value="'+esc(askDays)+'"></div>'+
          '<div class="set-row col"><label>หมายเหตุ (ไม่บังคับ — พนักงานเห็นใน LINE)</label>'+
          '<input type="text" data-f="note" placeholder="เช่น ให้ 2 วัน ตามที่คุยกันไว้"></div>'+
-         '<div class="set-hint">ℹ️ ระบบจะบวกโควตา "ลากิจไม่ได้รับค่าจ้าง" ให้ทันที · พนักงานต้องไปยื่นใบลาเลือกวันจริงอีกที แล้ว HR อนุมัติใบลาตามปกติ</div>',
+         '<div class="set-hint">ℹ️ พนักงานยื่นใบลาได้ไม่เกินจำนวนนี้ · ต้องเลือกวันจริงแล้วรอ HR อนุมัติใบลาตามปกติ · เงินเดือนหักตามใบลาที่อนุมัติ</div>',
     onOk:function(c){
       var days=(c.querySelector('[data-f="days"]')||{}).value;
       var note=(c.querySelector('[data-f="note"]')||{}).value||'';
@@ -4800,6 +4818,32 @@ function openUnpaidReject(reqId, name){
  toast('ไม่อนุมัติคำขอของ '+name,'ok'); loadHr();
       }).catch(function(e){ toast(String(e.message||e),'err'); });
     }});
+}
+
+// ── ฝั่ง HR: ประวัติคำขอทุกสถานะ (แท็บในประวัติทั้งบริษัท) — โหลดเมื่อกดแท็บ
+function paintHrUnpaidHist_(){
+  var b=document.getElementById('hrHistBody'); if(!b) return;
+  if(!S.hrUnpaidHist){
+    b.innerHTML='<div class="skel" style="height:64px"></div>';
+    api('unpaidReqList',{scope:'all'}).then(function(r){
+      if(!r.ok){ var e=document.getElementById('hrHistBody'); if(e&&S.hrHist==='unpaid') e.innerHTML=emptyBox(ico('lock','e-ico'),r.error||'โหลดไม่ได้'); return; }
+      S.hrUnpaidHist=r.list||[];
+      if(S.hrHist==='unpaid') paintHrUnpaidHist_();
+    }).catch(function(e){ var x=document.getElementById('hrHistBody'); if(x&&S.hrHist==='unpaid') x.innerHTML=emptyBox(ico('alert','e-ico'),String(e.message||e)); });
+    return;
+  }
+  var rows=S.hrUnpaidHist.map(function(x,i){
+    var st = x.status==='อนุมัติแล้ว' ? '<span class="badge ok">อนุมัติแล้ว</span>'
+           : x.status==='ไม่อนุมัติ' ? '<span class="badge no">ไม่อนุมัติ</span>'
+           : '<span class="badge wait">รอพิจารณา</span>';
+    return '<tr><td class="ce">'+(i+1)+'</td><td class="lft"><b>'+esc(x.name)+'</b><div class="mg-sub2">'+esc(x.dept||'-')+'</div></td>'+
+      '<td class="ce">'+esc(String(x.askDays))+'</td><td class="ce">'+(x.grantDays==null?'-':esc(String(x.grantDays)))+'</td>'+
+      '<td class="ce">'+(x.left==null?'-':esc(String(Math.max(0,x.left))))+'</td>'+
+      '<td class="lft">'+esc(x.reason||'-')+(x.note?'<div class="mg-sub2">HR: '+esc(x.note)+'</div>':'')+'</td>'+
+      '<td class="ce">'+st+'</td><td class="lft">'+esc(x.submittedAt||'-')+'</td><td class="lft">'+esc(x.hr||'-')+'</td></tr>';
+  }).join('');
+  if(!rows) rows='<tr><td class="ce" colspan="9">ยังไม่มีคำขอ</td></tr>';
+  b.innerHTML='<div class="mg-tbwrap"><table class="mg-table"><thead><tr><th>#</th><th>พนักงาน</th><th>ขอ (วัน)</th><th>ให้สิทธิ์ (วัน)</th><th>สิทธิ์เหลือของคนนี้</th><th>เหตุผล</th><th>สถานะ</th><th>ส่งเมื่อ</th><th>ผู้พิจารณา</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
 }
 
 // ── ฝั่งพนักงาน: หน้าขอสิทธิ์ + ประวัติคำขอของตัวเอง
@@ -4837,8 +4881,11 @@ function bellPaint_(){
 // อนุมัติสิทธิ์ตอนน้องเปิดแอปค้าง → ปุ่มประเภทลากับตัวเลขในฟอร์มตามทันโดยไม่ต้องปิดแอป
 function bellSyncUnpaid_(left){
   var u=S.balances&&S.balances.unpaid; if(!u || left==null || u.grantLeft===left) return;
+  var wasPending = !!(S.unpaidReq&&S.unpaidReq.pending) && left>(Number(u.grantLeft)||0);
   u.grantLeft=left;
+  if(wasPending) S.unpaidReq.pending=false;   // สิทธิ์เพิ่ม = HR อนุมัติคำขอที่รออยู่แล้ว
   if(S.view==='leave' && document.getElementById('typeGrid')) renderTypeGrid();
+  else if(wasPending && (S.view==='unpaidreq'||S.view==='home')) goTo(S.view);
 }
 function bellOpen_(btn){
   var pop=document.createElement('div'); pop.className='bell-pop'; pop.setAttribute('role','dialog'); pop.setAttribute('aria-label','การแจ้งเตือน');

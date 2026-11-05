@@ -369,6 +369,8 @@ textarea:focus,input[type=time]:focus{border-color:var(--red)}
   color:var(--muted);cursor:pointer;border:none;background:none;font-family:inherit}
 .htab.sel{background:#fff;color:var(--ink);box-shadow:0 1px 4px rgba(0,0,0,.08)}
 .htab.sel.ot{color:var(--ot)}
+.htabs-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.htabs-scroll .htab{flex:1 0 auto;white-space:nowrap;padding:9px 12px}
 
 /* ── History list ── */
 .hist{display:flex;gap:12px;align-items:flex-start;padding:14px 2px;border-bottom:1px solid var(--line)}
