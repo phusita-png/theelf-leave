@@ -210,7 +210,7 @@ var API_MAX_PARALLEL = 2;       // ยิงพร้อมกันได้ก
 var _apiQueue = [], _apiActive = 0;
 
 // คำขอที่ "เขียนข้อมูล" — ห้ามลองใหม่เอง เดี๋ยวได้ใบซ้ำ/อนุมัติซ้ำ
-var API_WRITE_RE = /^(submit|decide|add|set|update|approve|reject|cancel|edit|save|send|gen|calc|close|lock|unlock|upload|delete|remove|merge|move|unlink|proxy|import|backfill|revoke|register|unpaid(ReqSubmit|ReqDecide|GrantClose)|mg(Cancel|Edit|Proxy|Set|Export|Report(Export|Backfill))|em(Set|Add|Allow(Save|Decide)|Line(Move|Merge|Unlink)|Photo))/i;
+var API_WRITE_RE = /^(submit|decide|add|set|update|approve|reject|cancel|edit|save|send|gen|calc|close|lock|unlock|upload|delete|remove|merge|move|unlink|proxy|import|backfill|revoke|register|unpaid(ReqSubmit|ReqDecide|GrantClose)|ef(Upload|Update|Void)|mg(Cancel|Edit|Proxy|Set|Export|Report(Export|Backfill))|em(Set|Add|Allow(Save|Decide)|Line(Move|Merge|Unlink)|Photo))/i;
 
 // ════════════ สำเนาคำตอบ (theelf-worker) ════════════
 // ทำไม (วัด 29 ก.ย. 69): Apps Script ทำงานจริง 1–4 วิ แต่หน้าเว็บรอ 3–57 วิ เพราะ Google ปลุกสคริปต์/ส่งคำตอบช้าเป็นพัก ๆ
@@ -1290,17 +1290,27 @@ function backBar(){ return '<button class="backbar" data-back="1">‹ กลั�
 function bindBack(){ var b=document.querySelector('[data-back]'); if(b) b.addEventListener('click',function(){ goTo('home'); }); }
 function loadDocuments(){
   var _v = S.view;   // โหลดเสร็จทีหลัง แต่ผู้ใช้กดไปเมนูอื่นแล้ว → ห้ามวาดทับ (_mainFor_)
-  api('documents',{}).then(function(r){
+  Promise.all([ api('documents',{}), api('efMine',{}).catch(function(){ return {ok:false}; }) ]).then(function(rs){
+    var r = rs[0], mine = (rs[1] && rs[1].ok && rs[1].rows) || [];
     var m=_mainFor_(_v); if(!m) return;
     if(!r.ok){ m.innerHTML = backBar()+emptyBox(ico('alert'), r.error||'โหลดไม่ได้'); bindBack(); return; }
-    if(!r.documents.length){ m.innerHTML = backBar()+emptyBox(ico('inbox'),'ยังไม่มีเอกสารสำหรับคุณ'); bindBack(); return; }
+    if(!r.documents.length && !mine.length){ m.innerHTML = backBar()+emptyBox(ico('inbox'),'ยังไม่มีเอกสารสำหรับคุณ'); bindBack(); return; }
+    var fileCard = mine.length ? '<div class="card"><div class="card-title"><span class="ic"></span>แฟ้มของฉัน '+mine.length+' รายการ</div>'+
+      mine.map(function(d){
+        return '<div class="hist"><div class="hist-ic">'+ico('file')+'</div><div class="hist-main">'+
+          '<div class="hist-type">'+esc(d.title)+'</div>'+
+          '<div class="hist-meta">'+esc(d.type)+(d.docNo?' · '+esc(d.docNo):'')+(d.expiry?' · หมดอายุ '+esc(efD(d.expiry)):'')+
+            (d.docStatus==='ถูกแทนที่'?' · ถูกแทนที่แล้ว':'')+'</div></div>'+
+          '<button class="slip-mini" data-efmine="'+esc(d.id)+'">⬇</button></div>'; }).join('')+'</div>' : '';
     var list = r.documents.map(function(d){
       return '<div class="hist"><div class="hist-ic">'+ico('file')+'</div><div class="hist-main">'+
         '<div class="hist-type">'+esc(d.name)+'</div>'+
         '<div class="hist-meta">'+esc(d.category)+' · '+esc(d.scope)+'</div></div>'+
         '<button class="slip-mini" data-doc="'+esc(d.url)+'">⬇</button></div>'; }).join('');
-    m.innerHTML = backBar()+'<div class="card"><div class="card-title"><span class="ic"></span>เอกสาร '+r.documents.length+' รายการ</div>'+list+'</div>';
+    m.innerHTML = backBar()+fileCard+(r.documents.length ? '<div class="card"><div class="card-title"><span class="ic"></span>เอกสาร '+r.documents.length+' รายการ</div>'+list+'</div>' : '');
     bindBack(); wireFiles();
+    m.querySelectorAll('[data-efmine]').forEach(function(el){
+      el.addEventListener('click', function(){ fetchFile('efFile',{id:el.dataset.efmine}); }); });
   }).catch(function(e){ var m=_mainFor_(_v); if(m){ m.innerHTML=backBar()+emptyBox(ico('alert','e-ico'),String(e.message||e)); bindBack(); } });
 }
 
@@ -3806,6 +3816,7 @@ function loadSettings(){
 function renderSettings(r){
   // หน้าแรกเมนูพนักงาน = แดชบอร์ด + ค้นหา + ตาราง (ปรับตามแบบที่พี่กี้ส่ง 27 ส.ค. 69)
   return '<div id="empDash"><div class="card"><div class="skel" style="height:90px"></div></div></div>'+
+    '<div id="efDash"></div>'+
     '<div class="card">'+
       '<div class="card-title"><span class="ic"></span>รายชื่อพนักงาน ('+r.users.length+') · OWNER '+r.ownerCount+' คน</div>'+
       '<div class="mg-tools">'+
@@ -3950,6 +3961,7 @@ function wireSettings(){
   if(pf) pf.addEventListener('change', function(){ S.empPos=pf.value; paintEmpTable(); });
   paintEmpTable();
   loadEmpDash();
+  loadEfDash();
   document.querySelectorAll('[data-ssalary]').forEach(function(el){ el.addEventListener('click',function(){ openSalaryHistory(el.dataset.ssalary, el.dataset.sname); }); });
   document.querySelectorAll('[data-eopen]').forEach(function(el){ el.addEventListener('click',function(){ openEmpPage(el.dataset.eopen); }); });
 }
@@ -4544,6 +4556,19 @@ function mockApi(action, params){
         {lineUserId:'MOCK9',name:'นางสาวเบญจวรรณ อินทร์แก้ว',empId:'1100900900909',dept:'Developers',email:'mock9@theelf.co',role:'EMPLOYEE',startDate:'01/07/2568',branch:'สนญ.',status:'ปกติ',position:'Frontend Dev',ssoFlag:'ใช่',taxFlag:'ใช่',bank:'ไทยพาณิชย์',bankAcc:'7778889990',quota:{sick:30,biz:3,vac:6,bday:1,special:1,unpaid:3}},
         {lineUserId:'MOCK10',name:'นายภูริช ธนกิจไพศาล',empId:'1101001001010',dept:'Live Sale',email:'mock10@theelf.co',role:'EMPLOYEE',startDate:'01/02/2568',branch:'สนญ.',status:'ลาออก (31/07/2569)',position:'Live Host',ssoFlag:'ใช่',taxFlag:'ไม่ใช่',bank:'กรุงไทย',bankAcc:'8889990000',quota:{sick:30,biz:3,vac:6,bday:1,special:1,unpaid:3}}]});
     else if(action==='setRole'||action==='setLeaveQuota'||action==='updateEmployee') resolve({ok:true,changed:1});
+    else if(action==='efMine') resolve({ok:true,rows:[
+      {id:'EF-1',type:'สำเนาบัตรประชาชน',title:'สำเนาบัตรประชาชน',docNo:'',docDate:'2026-01-10',expiry:'2030-01-10',docStatus:'มีผล'}]});
+    else if(action==='efList') resolve({ok:true,today:'2026-11-05',
+      types:['สำเนาบัตรประชาชน','สำเนาทะเบียนบ้าน','สัญญาจ้าง','สัญญาแนบท้าย','ประวัติย่อ','วุฒิการศึกษา','หน้าสมุดบัญชี','ใบรับรองแพทย์','ประกันสังคม','ทดลองงาน','ใบเตือน','ใบอนุญาตทำงาน','อื่น ๆ'],
+      required:['สำเนาบัตรประชาชน','สำเนาทะเบียนบ้าน','สัญญาจ้าง','หน้าสมุดบัญชี'],privateTypes:['ใบเตือน','ใบรับรองแพทย์'],
+      missing:['สำเนาทะเบียนบ้าน','หน้าสมุดบัญชี'],
+      rows:params.empId==='EMPTY'?[]:[
+        {id:'EF-3',type:'ใบอนุญาตทำงาน',title:'ใบอนุญาตทำงาน 2569',docNo:'WP-123',docDate:'2026-01-01',expiry:'2026-11-20',visible:true,note:'ต่อทุกปี',status:'ใช้งาน',docStatus:'มีผล',warnDays:15},
+        {id:'EF-2',type:'สัญญาจ้าง',title:'สัญญาจ้างพนักงานประจำ',docNo:'FM-CE-SM-001',docDate:'2026-02-01',expiry:'',visible:true,note:'',status:'ใช้งาน',docStatus:'มีผล',warnDays:null},
+        {id:'EF-1',type:'สำเนาบัตรประชาชน',title:'สำเนาบัตรประชาชน',docNo:'',docDate:'2026-01-10',expiry:'2026-11-01',visible:true,note:'',status:'ใช้งาน',docStatus:'มีผล',warnDays:-4},
+        {id:'EF-0',type:'ใบเตือน',title:'อัปผิดคน',docNo:'',docDate:'',expiry:'',visible:false,note:'ยกเลิก: อัปผิดคน',status:'ยกเลิก',docStatus:'มีผล',warnDays:null}]});
+    else if(action==='efOverview') resolve({ok:true,required:['สำเนาบัตรประชาชน','สำเนาทะเบียนบ้าน','สัญญาจ้าง','หน้าสมุดบัญชี'],byEmp:{}});
+    else if(action==='efUpload'||action==='efUpdate'||action==='efVoid') resolve({ok:true,summary:'บันทึกแล้ว'});
     else if(action==='documents') resolve({ok:true,documents:[
       {name:'หนังสือรับรองเงินเดือน พ.ค. 69',url:'#',category:'หนังสือรับรอง',scope:'ส่วนตัว'},
       {name:'นโยบายวันลา ปี 2569',url:'#',category:'นโยบาย',scope:'ทั้งบริษัท'},
@@ -5088,6 +5113,7 @@ var EMP_TABS = [
  { key:'info', label:' ข้อมูลหลัก' },
  { key:'job', label:' ประวัติการทำงาน' },
  { key:'salary', label:' เงินเดือน' },
+ { key:'files', label:' แฟ้มเอกสาร' },
  { key:'tax', label:' ลดหย่อนภาษี' },
  { key:'line', label:' LINE' },
 ];
@@ -5218,6 +5244,7 @@ function paintEmpTab(){
   if(tab==='info')   return paintEmpInfo(box, u);
   if(tab==='salary') return paintEmpSalary(box, u);
   if(tab==='job')    return paintEmpJob(box, u);
+  if(tab==='files')  return paintEmpFiles(box, u);
   if(tab==='tax')    return paintEmpTax(box, u);
   if(tab==='line')   return paintEmpLine(box, u);
 }
@@ -5337,6 +5364,227 @@ function submitEmpCount(u, exclude, reason){
     renderEmpPage();
     loadEmpDash();                       // ตัวเลขในภาพรวมต้องขยับตามทันที
   }).catch(function(e){ toast(String(e&&e.message||e),'err'); });
+}
+
+// ════════════ แฟ้มเอกสารพนักงาน (EmployeeFile.gs) ════════════
+function efD(s){ var p=String(s||'').split('-'); return p.length===3 ? p[2]+'/'+p[1]+'/'+((+p[0])+543) : (s||'-'); }
+
+function efExpiryCell(x){
+  if(!x.expiry) return '<span class="mg-sub2">ไม่มี</span>';
+  var d = x.warnDays, tag = '';
+  if(d!=null) tag = d<0 ? ' <span class="pill err">หมดแล้ว</span>' : ' <span class="pill warn">อีก '+d+' วัน</span>';
+  return esc(efD(x.expiry))+tag;
+}
+
+function efStatusPill(x){
+  if(x.status==='ยกเลิก') return '<span class="pill err">ยกเลิก</span>';
+  if(x.docStatus==='ถูกแทนที่') return '<span class="pill">ถูกแทนที่</span>';
+  return '<span class="pill ok">มีผล</span>';
+}
+
+function paintEmpFiles(box, u){
+  if(!u.empId){ box.innerHTML = emptyBox(ico('alert'),'คนนี้ยังไม่มีรหัสพนักงาน จึงยังเปิดแฟ้มไม่ได้'); return; }
+  box.innerHTML = '<div class="card"><div class="skel" style="height:120px"></div></div>';
+  api('efList',{empId:u.empId}).then(function(r){
+    if(!box.isConnected || !S.empPage || S.empPage.user!==u || S.empPage.tab!=='files') return;
+    if(!r.ok){ box.innerHTML = emptyBox(ico('alert'), r.error||'โหลดไม่สำเร็จ'); return; }
+    S.empFile = r;
+    var warn = r.rows.filter(function(x){ return x.warnDays!=null; }).length;
+    var body = r.rows.length ? r.rows.map(function(x,i){
+      var off = x.status==='ยกเลิก';
+      return '<tr class="mg-tr'+(off?' ef-off':'')+'">'+
+        '<td class="ce mg-sub2">'+(i+1)+'</td>'+
+        '<td class="lft">'+esc(x.type)+'</td>'+
+        '<td class="lft"><a class="emp-link" data-efopen="'+esc(x.id)+'">'+esc(x.title)+'</a>'+
+          (x.note?'<div class="mg-sub2">'+esc(x.note)+'</div>':'')+'</td>'+
+        '<td class="ce">'+esc(x.docNo||'-')+'</td>'+
+        '<td class="ce">'+esc(x.docDate?efD(x.docDate):'-')+'</td>'+
+        '<td class="ce">'+efExpiryCell(x)+'</td>'+
+        '<td class="ce">'+(x.visible?'เห็น':'<span class="mg-sub2">ไม่เห็น</span>')+'</td>'+
+        '<td class="ce">'+efStatusPill(x)+'</td>'+
+        '<td class="ce ef-acts"><button class="mg-ib doc" data-efopen="'+esc(x.id)+'" title="เปิด">'+ico('file')+'</button>'+
+          (off?'':'<button class="mg-ib edit" data-efedit="'+esc(x.id)+'" title="แก้ไข">'+ico('pencil')+'</button>'+
+                  '<button class="mg-ib cx" data-efvoid="'+esc(x.id)+'" title="ยกเลิก">✕</button>')+'</td></tr>';
+    }).join('') : '<tr><td colspan="9" class="ce mg-sub2" style="padding:20px">ยังไม่มีเอกสารในแฟ้ม</td></tr>';
+
+    box.innerHTML =
+      '<div class="card">'+
+        '<div class="emp-thead"><div class="card-title" style="margin:0"><span class="ic"></span>แฟ้มเอกสาร</div>'+
+          '<button class="btn btn-primary btn-sm" data-efadd>'+ico('plus')+' อัปโหลดเอกสาร</button></div>'+
+        (r.missing.length ? '<div class="hr-note ef-note">'+ico('alert')+' ยังขาด: <b>'+r.missing.map(esc).join(' · ')+'</b></div>' : '')+
+        (warn ? '<div class="hr-note ef-note">'+ico('alert')+' มีเอกสารหมดอายุหรือใกล้หมด '+warn+' รายการ อัปฉบับใหม่แล้วฉบับเดิมจะถูกแทนที่ให้</div>' : '')+
+        '<div class="mg-tbwrap"><table class="mg-table mg-rpt ef-table"><thead><tr>'+
+          '<th class="ce">#</th><th class="lft">ประเภท</th><th class="lft">ชื่อเอกสาร</th><th class="ce">เลขที่</th>'+
+          '<th class="ce">วันที่เอกสาร</th><th class="ce">หมดอายุ</th><th class="ce">พนักงาน</th><th class="ce">สถานะ</th><th class="ce">จัดการ</th>'+
+        '</tr></thead><tbody>'+body+'</tbody></table></div>'+
+      '</div>';
+
+    var find = function(id){ return r.rows.filter(function(x){ return x.id===id; })[0]; };
+    box.querySelector('[data-efadd]').addEventListener('click', function(){ openEfForm(u, null); });
+    box.querySelectorAll('[data-efopen]').forEach(function(el){
+      el.addEventListener('click', function(){ fetchFile('efFile',{id:el.dataset.efopen}); }); });
+    box.querySelectorAll('[data-efedit]').forEach(function(el){
+      el.addEventListener('click', function(){ openEfForm(u, find(el.dataset.efedit)); }); });
+    box.querySelectorAll('[data-efvoid]').forEach(function(el){
+      el.addEventListener('click', function(){ openEfVoid(u, find(el.dataset.efvoid)); }); });
+  }).catch(function(e){ if(box.isConnected) box.innerHTML = emptyBox(ico('alert'), String(e&&e.message||e)); });
+}
+
+/** ฟอร์มเดียวใช้ทั้งอัปโหลด (x=null) และแก้ไข · แก้ไขเปลี่ยนไฟล์ไม่ได้ ถ้าไฟล์ผิดให้ยกเลิกแล้วอัปใหม่ */
+function openEfForm(u, x){
+  var r = S.empFile || {}, types = r.types || [], isNew = !x;
+  var cur = x ? x.type : (r.missing && r.missing[0]) || types[0] || '';
+  var isPriv = function(t){ return (r.privateTypes||[]).indexOf(t)>=0; };
+  var opts = types.map(function(t){
+    return '<option value="'+esc(t)+'"'+(t===cur?' selected':'')+'>'+esc(t)+
+      ((r.missing||[]).indexOf(t)>=0?' (ยังขาด)':'')+'</option>'; }).join('')+
+    '<option value="__new__">+ เพิ่มประเภทใหม่</option>';
+  var val = function(k){ return x && x[k] ? esc(x[k]) : ''; };
+
+  modalForm({ emoji:ico('folder'), title:(isNew?'อัปโหลดเอกสาร · ':'แก้ไขเอกสาร · ')+u.name,
+    okLabel: isNew ? ico('check')+' อัปโหลด' : ico('check')+' บันทึก',
+    body:
+      (isNew ? '<label class="field-lb">ไฟล์ (PDF, JPG, PNG, DOCX ไม่เกิน 8 MB)</label>'+
+        '<input type="file" id="efFile" class="hr-fdate mg-full" accept=".pdf,.jpg,.jpeg,.png,.docx,image/*,application/pdf">' : '')+
+      '<label class="field-lb">ประเภท</label><select id="efType" class="hr-fsel mg-full">'+opts+'</select>'+
+      '<input id="efTypeNew" class="hr-fdate mg-full" placeholder="ชื่อประเภทใหม่" maxlength="60" style="display:none;margin-top:8px">'+
+      '<label class="field-lb">ชื่อเอกสาร (เว้นว่าง = ใช้ชื่อประเภท)</label>'+
+      '<input id="efTitle" class="hr-fdate mg-full" maxlength="200" value="'+val('title')+'">'+
+      '<label class="field-lb">เลขที่เอกสาร</label><input id="efNo" class="hr-fdate mg-full" maxlength="60" value="'+val('docNo')+'">'+
+      '<label class="field-lb">วันที่เอกสาร</label><input type="date" id="efDate" class="hr-fdate mg-full" value="'+val('docDate')+'">'+
+      '<label class="field-lb">วันหมดอายุ (ไม่มีเว้นว่าง · เตือนก่อน 30 วัน)</label>'+
+      '<input type="date" id="efExp" class="hr-fdate mg-full" value="'+val('expiry')+'">'+
+      (isNew ? '' : '<label class="field-lb">สถานะเอกสาร</label><select id="efDs" class="hr-fsel mg-full">'+
+        ['มีผล','ถูกแทนที่'].map(function(s){ return '<option'+(x.docStatus===s?' selected':'')+'>'+s+'</option>'; }).join('')+'</select>')+
+      '<label class="field-lb">หมายเหตุ (พนักงานไม่เห็น)</label><input id="efNote" class="hr-fdate mg-full" maxlength="500" value="'+val('note')+'">'+
+      '<label class="ef-check"><input type="checkbox" id="efVis"> ให้พนักงานเห็นเอกสารนี้</label>'+
+      '<div class="mg-sub2" id="efVisHint"></div>',
+    onMount:function(c){
+      var sel=c.querySelector('#efType'), nw=c.querySelector('#efTypeNew'), vis=c.querySelector('#efVis'), hint=c.querySelector('#efVisHint');
+      var touched = !!x;
+      var sync = function(){
+        var t = sel.value;
+        nw.style.display = t==='__new__' ? 'block' : 'none';
+        if(!touched) vis.checked = !isPriv(t);
+        hint.textContent = isPriv(t) ? 'เอกสารประเภทนี้ปิดไว้เป็นค่าเริ่มต้น เพราะเป็นข้อมูลอ่อนไหว' : '';
+      };
+      vis.checked = x ? !!x.visible : !isPriv(cur);
+      vis.addEventListener('change', function(){ touched = true; });
+      sel.addEventListener('change', sync);
+      sync();
+    },
+    onOk:function(c){
+      var q=function(id){ return c.querySelector(id); };
+      var type = q('#efType').value==='__new__' ? String(q('#efTypeNew').value||'').trim() : q('#efType').value;
+      if(!type){ toast('ระบุประเภทเอกสารด้วยค่ะ','err'); return; }
+      var data = { empId:u.empId, type:type, title:q('#efTitle').value, docNo:q('#efNo').value,
+        docDate:q('#efDate').value, expiry:q('#efExp').value, note:q('#efNote').value, visible:q('#efVis').checked?'1':'0' };
+      var ok = c.querySelector('[data-cfm-ok]');
+      var busy = function(on,label){ ok.disabled=on; if(label) ok.innerHTML=label; };
+      var done = function(res){
+        if(!res.ok){ busy(false, isNew?ico('check')+' อัปโหลด':ico('check')+' บันทึก'); toast(res.error||'บันทึกไม่สำเร็จ','err'); return; }
+        closeConfirm(); toast(res.summary||'บันทึกแล้ว'); paintEmpTab();
+      };
+      var fail = function(e){ done({ ok:false, error:String(e&&e.message||e) }); };
+
+      if(!isNew){
+        data.id = x.id; data.docStatus = q('#efDs').value;
+        busy(true,'กำลังบันทึก…');
+        api('efUpdate',data).then(done).catch(fail);
+        return;
+      }
+      var f = q('#efFile').files[0];
+      if(!f){ toast('เลือกไฟล์ด้วยค่ะ','err'); return; }
+      busy(true,'กำลังอัปโหลด…');
+      efReadFile(f, function(err, dataUrl){
+        if(err){ fail(new Error(err)); return; }
+        data.dataUrl = dataUrl; data.fileName = f.name;
+        postApi('efUpload',data).then(done).catch(fail);
+      });
+    } });
+}
+
+function openEfVoid(u, x){
+  modalForm({ emoji:ico('alert'), title:'ยกเลิกเอกสาร', okLabel:ico('check')+' ยกเลิกเอกสาร',
+    body:'<div class="cfm-note"><b>'+esc(x.title)+'</b> ของ '+esc(u.name)+' จะเลิกแสดงให้พนักงานเห็น แต่ไฟล์และประวัติยังเก็บไว้</div>'+
+      '<label class="field-lb">เหตุผล</label><input id="efWhy" class="hr-fdate mg-full" maxlength="300">',
+    onOk:function(c){
+      var why = String(c.querySelector('#efWhy').value||'').trim();
+      if(!why){ toast('ระบุเหตุผลด้วยค่ะ','err'); return; }
+      api('efVoid',{id:x.id, reason:why}).then(function(res){
+        if(!res.ok){ toast(res.error||'ยกเลิกไม่สำเร็จ','err'); return; }
+        closeConfirm(); toast(res.summary||'ยกเลิกแล้ว'); paintEmpTab();
+      }).catch(function(e){ toast(String(e&&e.message||e),'err'); });
+    } });
+}
+
+/** รูปจากกล้องย่อด้านยาวเหลือ 2200px พออ่านเลขบัตรได้ · ไฟล์อื่นส่งตามเดิมและต้องไม่เกิน 8 MB */
+function efReadFile(file, cb){
+  var MAX = 8*1024*1024;
+  var plain = function(){
+    if(file.size > MAX){ cb('ไฟล์ใหญ่เกิน 8 MB'); return; }
+    var fr = new FileReader();
+    fr.onload = function(){ cb(null, fr.result); };
+    fr.onerror = function(){ cb('อ่านไฟล์ไม่ได้'); };
+    fr.readAsDataURL(file);
+  };
+  var isImg = /^image\//i.test(file.type||'');
+  if(!isImg || (/^image\/(jpeg|png)$/i.test(file.type) && file.size <= 1500000)) return plain();
+
+  var url = URL.createObjectURL(file), img = new Image();
+  img.onload = function(){
+    URL.revokeObjectURL(url);
+    var k = Math.min(1, 2200/Math.max(img.width,img.height));
+    var cv = document.createElement('canvas');
+    cv.width = Math.round(img.width*k); cv.height = Math.round(img.height*k);
+    cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);
+    try { cb(null, cv.toDataURL('image/jpeg',0.85)); } catch(e){ cb('แปลงรูปไม่สำเร็จ'); }
+  };
+  img.onerror = function(){ URL.revokeObjectURL(url); cb('เปิดรูปนี้ไม่ได้ ลองแปลงเป็น JPG ก่อนค่ะ'); };
+  img.src = url;
+}
+
+/** การ์ดหน้าพนักงาน: ใครยังขาดเอกสาร/ใกล้หมดอายุ · นับเฉพาะคนที่ทำงานอยู่และนับเป็นพนักงาน */
+function loadEfDash(){
+  var box = document.getElementById('efDash'); if(!box) return;
+  api('efOverview',{}).then(function(r){
+    if(!r.ok || !box.isConnected){ box.innerHTML=''; return; }
+    var people = (S.adminUsers||[]).filter(function(u){
+      return u.empId && !u.notCounted && String(u.status||'').indexOf('ลาออก')<0; });
+    var list = [], expired = 0, soon = 0, complete = 0;
+    people.forEach(function(u){
+      var e = r.byEmp[u.empId] || { have:{}, warn:[] };
+      var miss = r.required.filter(function(t){ return !e.have[t]; });
+      var exp = e.warn.filter(function(w){ return w.days<0; }).length;
+      expired += exp; soon += e.warn.length-exp;
+      if(!miss.length) complete++;
+      if(miss.length || e.warn.length) list.push({ u:u, miss:miss, warn:e.warn, exp:exp });
+    });
+    list.sort(function(a,b){ return (b.exp-a.exp) || (b.warn.length-a.warn.length) || (b.miss.length-a.miss.length); });
+
+    var rows = list.length ? list.map(function(x,i){
+      return '<tr class="mg-tr"><td class="ce mg-sub2">'+(i+1)+'</td>'+
+        '<td class="lft"><a class="emp-link" data-efemp="'+esc(empKeyOf(x.u))+'"><b>'+esc(x.u.name)+'</b></a></td>'+
+        '<td class="lft">'+(x.miss.length?x.miss.map(esc).join(' · '):'<span class="mg-sub2">ครบ</span>')+'</td>'+
+        '<td class="lft">'+(x.warn.length?x.warn.map(function(w){
+          return esc(w.type)+' <span class="pill '+(w.days<0?'err':'warn')+'">'+(w.days<0?'หมดแล้ว':'อีก '+w.days+' วัน')+'</span>'; }).join('<br>'):'<span class="mg-sub2">-</span>')+'</td></tr>';
+    }).join('') : '<tr><td colspan="4" class="ce mg-sub2" style="padding:20px">เอกสารครบทุกคน</td></tr>';
+
+    box.innerHTML = '<div class="card">'+
+      '<div class="card-title"><span class="ic"></span>แฟ้มเอกสารพนักงาน</div>'+
+      '<div class="chips">'+
+        '<div class="chip"><div class="chip-v">'+complete+'/'+people.length+'</div><div class="chip-l">เอกสารหลักครบ</div></div>'+
+        '<div class="chip"><div class="chip-v">'+expired+'</div><div class="chip-l">หมดอายุแล้ว</div></div>'+
+        '<div class="chip"><div class="chip-v">'+soon+'</div><div class="chip-l">ใกล้หมดใน 30 วัน</div></div>'+
+      '</div>'+
+      '<details class="ef-more"><summary>ดูรายชื่อที่ต้องจัดการ ('+list.length+' คน)</summary>'+
+        '<div class="mg-sub2" style="margin:6px 0">เอกสารหลัก: '+r.required.map(esc).join(' · ')+'</div>'+
+        '<div class="mg-tbwrap"><table class="mg-table mg-rpt"><thead><tr><th class="ce">#</th><th class="lft">พนักงาน</th>'+
+        '<th class="lft">ยังขาด</th><th class="lft">หมดอายุ/ใกล้หมด</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
+      '</details></div>';
+    box.querySelectorAll('[data-efemp]').forEach(function(el){
+      el.addEventListener('click', function(){ S.empPage = { tab:'files' }; openEmpPage(el.dataset.efemp); }); });
+  }).catch(function(){ box.innerHTML=''; });
 }
 
 function paintEmpSalary(box, u){
