@@ -278,7 +278,7 @@ function _cachePost(path, body){
     body: JSON.stringify(Object.assign({ idToken: (S.auth || {}).idToken }, body)) }).catch(function(){});
 }
 function _cacheStore(action, params, gen, d){ _cachePost('/store', { action: action, params: _cacheParams(params), gen: gen, body: d }); }
-function _cacheBump(action){ _cacheOffUntil = Date.now() + 60000; _cacheMem = {}; _cachePost('/bump', { action: action }); }
+function _cacheBump(action){ _cacheOffUntil = Date.now() + 60000; _cacheMem = {}; _cachePost('/bump', { action: action }); _bellAt = 0; bellLoad_(true); }   // เพิ่งบันทึก → เลขกระดิ่งเปลี่ยนได้
 
 /** โชว์สำเนาไปแล้ว → ถาม Google ตรง · ต่าง = วาดจอใหม่ (เฉพาะหน้าที่ไม่มีฟอร์ม/หน้าต่างค้าง) */
 var _REVAL_VIEWS = { home: 1, history: 1, payslip: 1, documents: 1, hr: 1, dashboard: 1, leavecal: 1, profile: 1 };
@@ -463,9 +463,11 @@ function goTo(view){
   S.view = view;
   document.querySelectorAll('.nav-btn').forEach(function(b){ b.classList.toggle('active', b.dataset.view===view); });
   render(); window.scrollTo(0,0);
+  bellClose_(); bellLoad_();
 }
 // เปิดเมนู admin ใน sidebar (desktop) ตามสิทธิ์ — มือถือ CSS ซ่อนเสมอ (ใช้ hub link เดิม)
 function setupNavRoles(){
+  bellInit_();
   var p = S.profile || {}, ap = !!p.canApprove, ad = !!p.canAdmin;
   var roles = {dashboard:ap, leavecal:ap, hr:ap, mgleave:ad, mgot:ad, mgpay:ad, emps:ad, config:ad};
   Object.keys(roles).forEach(function(v){
@@ -643,7 +645,7 @@ function viewLeave(){
     : '';
   return banner+'<div class="card">'+
     '<div class="card-title"><span class="ic"></span>ประเภทการลา</div>'+
-    '<div id="typeGrid"></div>'+
+    '<div id="typeGrid"></div><div id="lvTypeNote"></div>'+
     '<label class="field-lb">'+ico('calendar')+' เลือกวันที่ลา</label><div id="calLeave"></div>'+
     '<div id="seg" class="seg"></div>'+
     '<div id="lvTime"></div>'+
@@ -672,6 +674,7 @@ function renderTypeGrid(){
     return '<div class="type-opt'+(S.leaveForm.type===k?' sel':'')+'" data-type="'+k+'">'+
       '<div class="t-emo">'+lt[k].emoji+'</div><div class="t-lb">'+lt[k].name+'</div></div>'; }).join('');
   var g = document.getElementById('typeGrid'); g.className='type-grid'; g.innerHTML=html;
+  renderUnpaidNote_();
   g.querySelectorAll('.type-opt').forEach(function(el){
     el.addEventListener('click', function(){ S.leaveForm.type=el.dataset.type; renderTypeGrid(); renderLvSummary(); }); });
 }
@@ -696,6 +699,7 @@ function renderLvTime(){
   e.addEventListener('input',function(ev){ S.leaveForm.etime=ev.target.value; renderLvSummary(); });
 }
 function renderLvSummary(){
+  renderUnpaidNote_();   // จำนวนวันเปลี่ยนตามวันที่เลือก
   var el = document.getElementById('lvSummary'); if(!el) return;
   var f = S.leaveForm; if(!f.start){ el.innerHTML=''; return; }
   var lt = S.leaveTypes[f.type], days = countLeaveDays(f);
@@ -1065,13 +1069,14 @@ function pfUsedRows(){
   var num=function(v){ return v==null?'—':(Number.isInteger(v)?v:Number(v).toFixed(2).replace(/0+$/,'').replace(/\.$/,'')); };
   var rows=order.filter(function(k){
     var x=b[k]; if(!x) return false;
-    return (Number(x.used)>0) || (Number(x.quota)>0);
+    return (Number(x.used)>0) || (Number(x.quota)>0) || (k==='unpaid' && Number(x.grantLeft)>0);
   }).map(function(k){
     var x=b[k], q=Number(x.quota)||0, u=Number(x.used)||0;
     var over=(k!=='unpaid') && (x.remaining!=null && Number(x.remaining)<0);   // unpaid ติดลบเป็นปกติ ไม่ใช่ "เกินสิทธิ์"
     return '<div class="pf-row"><span class="k">'+(x.emoji||'')+' '+esc(x.name)+'</span>'+
       '<span class="v"'+(over?' style="color:var(--red-deep);font-weight:700"':'')+'>ใช้ '+num(u)+
-      (q>0?' / '+num(q):'')+' วัน'+(over?' '+ico('alert')+' เกินสิทธิ์':'')+'</span></div>';
+      (q>0?' / '+num(q):'')+' วัน'+(over?' '+ico('alert')+' เกินสิทธิ์':'')+
+      ((k==='unpaid' && Number(x.grantLeft)>0)?' · สิทธิ์เหลือ '+num(Number(x.grantLeft))+' วัน':'')+'</span></div>';
   }).join('');
   return rows ? '<div class="pf-used"><div class="pf-used-t">ใช้ไปแล้วปีนี้</div>'+rows+'</div>' : '';
 }
@@ -4677,6 +4682,10 @@ function mockApi(action, params){
         {id:'LV-2',name:'วิชัย ตั้งใจ',dept:'CRM & Telesale',typeName:'ลาพักร้อน',typeKey:'vac',start:ly+'-'+lm+'-09',end:ly+'-'+lm+'-11',days:3,status:'อนุมัติ',pending:false},
         {id:'LV-3',name:'ก้อง พากเพียร',dept:'Content Creator',typeName:'ลากิจ',typeKey:'biz',start:ly+'-'+lm+'-09',end:ly+'-'+lm+'-09',days:1,status:'รอการอนุมัติ',pending:true},
         {id:'LV-4',name:'สุดา รักงาน',dept:'Live Sale',typeName:'ลาวันเกิด',typeKey:'bday',start:ly+'-'+lm+'-04',end:ly+'-'+lm+'-04',days:1,status:'อนุมัติ',pending:false}]}); }
+    else if(action==='bell') resolve({ok:true,total:6,unpaidLeft:3,groups:[
+      {key:'unpaid',icon:'file',label:'สิทธิ์ลาไม่รับค่าจ้าง',n:1,rows:[{text:'มีสิทธิ์เหลือ 3 วัน · กดเพื่อยื่นใบลา',go:'leave',type:'unpaid'}]},
+      {key:'fix',icon:'pencil',label:'HR ส่งกลับให้แก้ไข',n:1,rows:[{text:'ลากิจ LV-20261101090000',edit:'LV-20261101090000'}]},
+      {key:'approve',icon:'clipboard',label:'รออนุมัติ',n:4,rows:[{text:'ใบลา 3 รายการ',n:3,go:'hr'},{text:'คำขอสิทธิ์ลาไม่รับค่าจ้าง 1 รายการ',n:1,go:'hr'}]}]});
     else if(action==='emNameList') resolve({ok:true,count:3,people:[
       {name:'นรินทร์ทิพย์ ลือชา',empId:'1349901087436',dept:'CRM & Telesale',hasLine:true,userId:'Uold000'},
       {name:'ทัดพร วณิชย์ชาญพงศ์',empId:'1349900703532',dept:'CRM & Telesale',hasLine:true,userId:'Uoth000'},
@@ -4794,6 +4803,91 @@ function openUnpaidReject(reqId, name){
 }
 
 // ── ฝั่งพนักงาน: หน้าขอสิทธิ์ + ประวัติคำขอของตัวเอง
+// ════════════ 🔔 กระดิ่งแจ้งเตือน ════════════
+// นับสดจาก action=bell · โหลดแยกจากหน้าแรก ไม่ทำให้หน้าเปิดช้าลง · เปลี่ยนหน้าแล้วโหลดใหม่ได้ทุก 60 วิ
+var BELL={total:0,groups:[]}, _bellAt=0, _bellBusy=false, _bellReady=false, _bellPop=null;
+function bellInit_(){
+  if(_bellReady) return; _bellReady=true;
+  document.querySelectorAll('[data-bell]').forEach(function(b){
+    b.addEventListener('click', function(ev){ ev.stopPropagation(); if(_bellPop) bellClose_(); else bellOpen_(b); }); });
+  document.addEventListener('click', function(ev){ if(_bellPop && !_bellPop.contains(ev.target)) bellClose_(); });
+  document.addEventListener('keydown', function(ev){ if(ev.key==='Escape') bellClose_(); });
+  window.addEventListener('resize', bellClose_);
+  setTimeout(function(){ bellLoad_(true); }, 1200);
+}
+function bellLoad_(force){
+  if(!_bellReady || _bellBusy) return;
+  if(!force && Date.now()-_bellAt<60000) return;
+  _bellBusy=true;
+  api('bell',{}).then(function(r){
+    _bellBusy=false;
+    if(!r || !r.ok || !r.groups) return;
+    BELL=r; _bellAt=Date.now(); bellPaint_(); bellSyncUnpaid_(r.unpaidLeft);
+  }).catch(function(){ _bellBusy=false; });
+}
+function bellPaint_(){
+  var t=Number(BELL.total)||0;
+  document.querySelectorAll('[data-bell]').forEach(function(b){
+    var n=b.querySelector('.bell-n');
+    n.hidden=!t; n.textContent=t>99?'99+':String(t);
+    b.setAttribute('aria-label', t?'การแจ้งเตือน '+t+' เรื่อง':'การแจ้งเตือน');
+  });
+  if(_bellPop) bellPaintPop_();
+}
+// อนุมัติสิทธิ์ตอนน้องเปิดแอปค้าง → ปุ่มประเภทลากับตัวเลขในฟอร์มตามทันโดยไม่ต้องปิดแอป
+function bellSyncUnpaid_(left){
+  var u=S.balances&&S.balances.unpaid; if(!u || left==null || u.grantLeft===left) return;
+  u.grantLeft=left;
+  if(S.view==='leave' && document.getElementById('typeGrid')) renderTypeGrid();
+}
+function bellOpen_(btn){
+  var pop=document.createElement('div'); pop.className='bell-pop'; pop.setAttribute('role','dialog'); pop.setAttribute('aria-label','การแจ้งเตือน');
+  var box=btn.getBoundingClientRect();
+  pop.style.top=(box.bottom+8)+'px';
+  document.body.appendChild(pop);
+  _bellPop=pop;
+  bellPaintPop_();
+  // ชิดขวาตามปุ่ม แต่ห้ามล้นจอ — กระดิ่งไม่ได้อยู่ขวาสุดของแถบ
+  var vw=document.documentElement.clientWidth, w=pop.offsetWidth;
+  pop.style.left=Math.max(12, Math.min(box.right-w, vw-w-12))+'px';
+  bellLoad_(true);
+}
+function bellClose_(){ if(_bellPop){ _bellPop.remove(); _bellPop=null; } }
+function bellPaintPop_(){
+  var html='<div class="bell-t">การแจ้งเตือน</div>';
+  if(!BELL.groups.length) html+='<div class="bell-empty">'+ico('check')+' ไม่มีเรื่องที่ต้องทำ</div>';
+  BELL.groups.forEach(function(g, gi){
+    html+='<div class="bell-g">'+ico(g.icon)+' '+esc(g.label)+'</div>';
+    g.rows.forEach(function(r, ri){
+      html+='<button type="button" class="bell-r" data-g="'+gi+'" data-r="'+ri+'"><span>'+esc(r.text)+'</span><span class="chev">›</span></button>';
+    });
+  });
+  _bellPop.innerHTML=html;
+  _bellPop.querySelectorAll('.bell-r').forEach(function(el){
+    el.addEventListener('click', function(){ bellGo_(BELL.groups[+el.dataset.g].rows[+el.dataset.r]); }); });
+}
+function bellGo_(r){
+  bellClose_();
+  if(r.edit) return enterEditById(r.edit);
+  if(r.type==='unpaid') return goLeaveUnpaid_();
+  goTo(r.go||'home');
+}
+function goLeaveUnpaid_(){
+  S.editLeaveId=null; S.leaveForm.type='unpaid';
+  goTo('leave');
+}
+// บอกจำนวนวันที่เหลือตั้งแต่ก่อนกดส่ง และเตือนเมื่อเลือกเกินสิทธิ์
+function renderUnpaidNote_(){
+  var el=document.getElementById('lvTypeNote'); if(!el) return;
+  var f=S.leaveForm;
+  if(f.type!=='unpaid' || S.editLeaveId){ el.innerHTML=''; return; }
+  var left=Number(S.balances&&S.balances.unpaid&&S.balances.unpaid.grantLeft)||0;
+  var days=f.start?countLeaveDays(f):0;
+  el.innerHTML = days>left
+    ? '<div class="hr-note bell-note over">'+ico('alert')+' เลือก '+esc(String(days))+' วัน แต่มีสิทธิ์เหลือ '+esc(String(left))+' วัน · ส่งคำขอสิทธิ์เพิ่มก่อนยื่นใบลาค่ะ</div>'
+    : '<div class="hr-note ok2 bell-note">'+ico('check')+' มีสิทธิ์ลาไม่รับค่าจ้างเหลือ <b>'+esc(String(left))+' วัน</b></div>';
+}
+
 function viewUnpaidReq(){
   var st = S.profile && S.unpaidReq ? S.unpaidReq : (S.unpaidReq||{});
   var rem = (S.balances && S.balances.unpaid && S.balances.unpaid.grantLeft!=null) ? S.balances.unpaid.grantLeft : 0;
@@ -4801,7 +4895,8 @@ function viewUnpaidReq(){
     ? '<div class="hr-note">⏳ คำขอของคุณ ('+esc(String(st.askDays||''))+' วัน) กำลังรอ HR พิจารณา — ขอใหม่ได้เมื่อคำขอนี้ถูกดำเนินการแล้วค่ะ</div>'
     : '';
   var quotaLine = rem>0
-    ? '<div class="hr-note ok2">'+ico('check')+' ตอนนี้คุณมีสิทธิ์ลาไม่รับค่าจ้างคงเหลือ <b>'+esc(String(rem))+' วัน</b> — ไปที่ "ยื่นใบลา" แล้วเลือก '+ico('file')+' ลาไม่รับค่าจ้าง ได้เลย</div>'
+    ? '<div class="hr-note ok2">'+ico('check')+' ตอนนี้คุณมีสิทธิ์ลาไม่รับค่าจ้างคงเหลือ <b>'+esc(String(rem))+' วัน</b></div>'+
+      '<button type="button" id="btnUpGoLeave" class="btn btn-primary" style="margin:10px 0">ยื่นใบลาไม่รับค่าจ้าง</button>'
     : '';
   return '<div class="card">'+
     '<div class="card-title"><span class="ic"></span>'+ico('file')+' ขอสิทธิ์ลาไม่รับค่าจ้าง</div>'+
@@ -4818,6 +4913,8 @@ function viewUnpaidReq(){
 function wireUnpaidReq(){
   var b=document.getElementById('btnUpReq');
   if(b) b.addEventListener('click', submitUnpaidReq);
+  var gl=document.getElementById('btnUpGoLeave');
+  if(gl) gl.addEventListener('click', goLeaveUnpaid_);
   loadMyUnpaidReqs();
 }
 function submitUnpaidReq(){

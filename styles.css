@@ -1014,3 +1014,25 @@ textarea:focus,input[type=time]:focus{border-color:var(--red)}
 .doc-p-n{font-size:24px;font-weight:800;color:var(--muted);line-height:1.1}
 .doc-p.on .doc-p-n{color:var(--red)}
 .doc-p-u{font-size:11px;color:var(--muted)}
+
+/* 🔔 กระดิ่งแจ้งเตือน — ปุ่มอยู่บนแถบแดงทั้งมือถือและจอใหญ่ */
+.bell-btn{position:relative;flex:0 0 auto;width:40px;height:40px;padding:0;border:0;border-radius:50%;
+  background:rgba(255,255,255,.18);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.bell-btn:hover{background:rgba(255,255,255,.28)}
+.bell-btn:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.bell-btn svg{width:20px;height:20px}
+.bell-n{position:absolute;top:-3px;right:-3px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;
+  background:#fff;color:var(--red);font-size:11px;font-weight:700;line-height:18px;text-align:center;
+  box-shadow:0 1px 3px rgba(0,0,0,.28)}
+.bell-pop{position:fixed;z-index:60;width:min(340px,calc(100vw - 24px));max-height:70vh;overflow-y:auto;
+  background:#fff;color:#2a2021;border-radius:12px;box-shadow:0 10px 32px rgba(0,0,0,.24);padding:6px 0 8px}
+.bell-t{padding:10px 16px 6px;font-size:15px;font-weight:700}
+.bell-g{padding:10px 16px 4px;font-size:12px;font-weight:600;color:var(--muted);display:flex;align-items:center;gap:6px}
+.bell-g .ico{width:14px;height:14px}
+.bell-r{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;padding:9px 16px;border:0;
+  background:none;color:inherit;font:inherit;font-size:14px;line-height:1.45;text-align:left;cursor:pointer}
+.bell-r:hover,.bell-r:focus-visible{background:var(--red-tint);outline:none}
+.bell-r .chev{color:var(--muted);flex:0 0 auto}
+.bell-empty{padding:20px 16px 24px;text-align:center;color:var(--muted);font-size:14px}
+.bell-note{margin-top:10px}
+.bell-note.over{background:var(--red-tint);color:var(--red-deep)}
