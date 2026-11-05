@@ -210,7 +210,7 @@ var API_MAX_PARALLEL = 2;       // ยิงพร้อมกันได้ก
 var _apiQueue = [], _apiActive = 0;
 
 // คำขอที่ "เขียนข้อมูล" — ห้ามลองใหม่เอง เดี๋ยวได้ใบซ้ำ/อนุมัติซ้ำ
-var API_WRITE_RE = /^(submit|decide|add|set|update|approve|reject|cancel|edit|save|send|gen|calc|close|lock|unlock|upload|delete|remove|merge|move|unlink|proxy|import|backfill|revoke|register|mg(Cancel|Edit|Proxy|Set|Export|Report(Export|Backfill))|em(Set|Add|Allow(Save|Decide)|Line(Move|Merge|Unlink)|Photo))/i;
+var API_WRITE_RE = /^(submit|decide|add|set|update|approve|reject|cancel|edit|save|send|gen|calc|close|lock|unlock|upload|delete|remove|merge|move|unlink|proxy|import|backfill|revoke|register|unpaid(ReqSubmit|ReqDecide|GrantClose)|mg(Cancel|Edit|Proxy|Set|Export|Report(Export|Backfill))|em(Set|Add|Allow(Save|Decide)|Line(Move|Merge|Unlink)|Photo))/i;
 
 // ════════════ สำเนาคำตอบ (theelf-worker) ════════════
 // ทำไม (วัด 29 ก.ย. 69): Apps Script ทำงานจริง 1–4 วิ แต่หน้าเว็บรอ 3–57 วิ เพราะ Google ปลุกสคริปต์/ส่งคำตอบช้าเป็นพัก ๆ
@@ -4689,13 +4689,16 @@ function mockApi(action, params){
         {id:'LV-2',name:'วิชัย ตั้งใจ',dept:'CRM & Telesale',typeName:'ลาพักร้อน',typeKey:'vac',start:ly+'-'+lm+'-09',end:ly+'-'+lm+'-11',days:3,status:'อนุมัติ',pending:false},
         {id:'LV-3',name:'ก้อง พากเพียร',dept:'Content Creator',typeName:'ลากิจ',typeKey:'biz',start:ly+'-'+lm+'-09',end:ly+'-'+lm+'-09',days:1,status:'รอการอนุมัติ',pending:true},
         {id:'LV-4',name:'สุดา รักงาน',dept:'Live Sale',typeName:'ลาวันเกิด',typeKey:'bday',start:ly+'-'+lm+'-04',end:ly+'-'+lm+'-04',days:1,status:'อนุมัติ',pending:false}]}); }
+    else if(action==='unpaidGrantClose') resolve({ok:true,closed:2});
     else if(action==='unpaidReqList'){
       var me=(S.profile&&S.profile.empId)||'';
       var isAll=params.scope==='all';
       var all=[{reqId:'UP-1',name:'นายตัวอย่าง ทดสอบ',empId:'EMP-002',dept:'ฝ่ายขาย',askDays:2,reason:'กลับต่างจังหวัด',status:'รอการอนุมัติ',grantDays:null,submittedAt:'05/11/2026 09:10:00',hr:'',note:'',left:isAll?0:null},
         {reqId:'UP-2',name:'คำขอของฉัน',empId:me,dept:'สำนักงานใหญ่',askDays:1,reason:'ธุระส่วนตัว',status:'รอการอนุมัติ',grantDays:null,submittedAt:'05/11/2026 08:30:00',hr:'',note:'',left:isAll?0:null},
         {reqId:'UP-3',name:'นางสาวปิยะฉัตร ทองแท้',empId:'E3',dept:'CRM',askDays:3,reason:'ไปต่างประเทศ',status:'อนุมัติแล้ว',grantDays:3,submittedAt:'01/11/2026 16:19:00',hr:'HR ทดสอบ · 01/11/2026 16:21',note:'ok',left:isAll?2:null},
-        {reqId:'UP-4',name:'นายอรรถพล ศรีสุวรรณ',empId:'E4',dept:'CRM',askDays:5,reason:'พักผ่อน',status:'ไม่อนุมัติ',grantDays:null,submittedAt:'30/10/2026 10:00:00',hr:'HR ทดสอบ · 30/10/2026 11:00',note:'ใช้พักร้อนก่อน',left:isAll?0:null}];
+        {reqId:'UP-4',name:'นายอรรถพล ศรีสุวรรณ',empId:'E4',dept:'CRM',askDays:5,reason:'พักผ่อน',status:'ไม่อนุมัติ',grantDays:null,submittedAt:'30/10/2026 10:00:00',hr:'HR ทดสอบ · 30/10/2026 11:00',note:'ใช้พักร้อนก่อน',left:isAll?0:null},
+        {reqId:'UP-5',name:'นายกิตติภพ เรืองฤทธิ์',empId:'E5',dept:'Graphic',askDays:2,reason:'ธุระครอบครัว',status:'อนุมัติแล้ว',grantDays:2,submittedAt:'10/10/2026 10:00:00',hr:'HR ทดสอบ · 10/10/2026 11:00',note:'',closedAt:'HR ทดสอบ · 20/10/2026 09:00 · เหลือ 1 วัน',left:isAll?0:null},
+        {reqId:'UP-6',name:'นางสาวธัญชนก พูนทรัพย์',empId:'E6',dept:'Content',askDays:1,reason:'ธุระ',status:'อนุมัติแล้ว',grantDays:1,submittedAt:'10/12/2025 10:00:00',hr:'HR ทดสอบ · 10/12/2025 11:00',note:'',expired:true,left:isAll?0:null}];
       var l=isAll?all:params.scope==='mine'?[all[1]]:all.slice(0,2);
       resolve({ok:true,list:l,count:l.length}); }
     else if(action==='bell') resolve({ok:true,total:6,unpaidLeft:3,groups:[
@@ -4794,7 +4797,7 @@ function openUnpaidGrant(reqId, name, askDays){
          '<input type="number" inputmode="decimal" min="0.5" step="0.5" data-f="days" value="'+esc(askDays)+'"></div>'+
          '<div class="set-row col"><label>หมายเหตุ (ไม่บังคับ — พนักงานเห็นใน LINE)</label>'+
          '<input type="text" data-f="note" placeholder="เช่น ให้ 2 วัน ตามที่คุยกันไว้"></div>'+
-         '<div class="set-hint">ℹ️ พนักงานยื่นใบลาได้ไม่เกินจำนวนนี้ · ต้องเลือกวันจริงแล้วรอ HR อนุมัติใบลาตามปกติ · เงินเดือนหักตามใบลาที่อนุมัติ</div>',
+         '<div class="set-hint">ℹ️ พนักงานยื่นใบลาได้ไม่เกินจำนวนนี้ ภายใน 31 ธ.ค. ปีนี้ · ต้องเลือกวันจริงแล้วรอ HR อนุมัติใบลาตามปกติ · เงินเดือนหักตามใบลาที่อนุมัติ</div>',
     onOk:function(c){
       var days=(c.querySelector('[data-f="days"]')||{}).value;
       var note=(c.querySelector('[data-f="note"]')||{}).value||'';
@@ -4832,18 +4835,45 @@ function paintHrUnpaidHist_(){
     }).catch(function(e){ var x=document.getElementById('hrHistBody'); if(x&&S.hrHist==='unpaid') x.innerHTML=emptyBox(ico('alert','e-ico'),String(e.message||e)); });
     return;
   }
+  var closeShown={};
   var rows=S.hrUnpaidHist.map(function(x,i){
-    var st = x.status==='อนุมัติแล้ว' ? '<span class="badge ok">อนุมัติแล้ว</span>'
+    var open = x.status==='อนุมัติแล้ว' && !x.closedAt && !x.expired;
+    var st = x.closedAt ? '<span class="badge no">ปิดสิทธิ์แล้ว</span>'
+           : x.expired ? '<span class="badge no">หมดอายุ</span>'
+           : x.status==='อนุมัติแล้ว' ? '<span class="badge ok">อนุมัติแล้ว</span>'
            : x.status==='ไม่อนุมัติ' ? '<span class="badge no">ไม่อนุมัติ</span>'
            : '<span class="badge wait">รอพิจารณา</span>';
+    // สิทธิ์นับต่อคน → ปุ่มขึ้นแถวเดียวต่อคน · ปิดของตัวเองไม่ได้
+    var mine = !!S.profile && String(x.empId)===String(S.profile.empId);
+    var canClose = open && Number(x.left)>0 && !mine && !closeShown[x.empId];
+    if(canClose) closeShown[x.empId]=1;
+    var act = canClose ? '<button type="button" class="btn btn-sm" data-upclose="'+esc(x.empId)+'" data-upname="'+esc(x.name)+'" data-upleft="'+esc(String(x.left))+'">'+ico('lock')+' ปิดสิทธิ์ที่เหลือ</button>' : '-';
     return '<tr><td class="ce">'+(i+1)+'</td><td class="lft"><b>'+esc(x.name)+'</b><div class="mg-sub2">'+esc(x.dept||'-')+'</div></td>'+
       '<td class="ce">'+esc(String(x.askDays))+'</td><td class="ce">'+(x.grantDays==null?'-':esc(String(x.grantDays)))+'</td>'+
-      '<td class="ce">'+(x.left==null?'-':esc(String(Math.max(0,x.left))))+'</td>'+
+      '<td class="ce">'+(!open||x.left==null?'-':esc(String(Math.max(0,x.left))))+'</td>'+
       '<td class="lft">'+esc(x.reason||'-')+(x.note?'<div class="mg-sub2">HR: '+esc(x.note)+'</div>':'')+'</td>'+
-      '<td class="ce">'+st+'</td><td class="lft">'+esc(x.submittedAt||'-')+'</td><td class="lft">'+esc(x.hr||'-')+'</td></tr>';
+      '<td class="ce">'+st+'</td><td class="lft">'+esc(x.submittedAt||'-')+'</td><td class="lft">'+esc(x.hr||'-')+
+      (x.closedAt?'<div class="mg-sub2">ปิดสิทธิ์: '+esc(x.closedAt)+'</div>':'')+'</td><td class="ce">'+act+'</td></tr>';
   }).join('');
-  if(!rows) rows='<tr><td class="ce" colspan="9">ยังไม่มีคำขอ</td></tr>';
-  b.innerHTML='<div class="mg-tbwrap"><table class="mg-table"><thead><tr><th>#</th><th>พนักงาน</th><th>ขอ (วัน)</th><th>ให้สิทธิ์ (วัน)</th><th>สิทธิ์เหลือของคนนี้</th><th>เหตุผล</th><th>สถานะ</th><th>ส่งเมื่อ</th><th>ผู้พิจารณา</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+  if(!rows) rows='<tr><td class="ce" colspan="10">ยังไม่มีคำขอ</td></tr>';
+  b.innerHTML='<div class="mg-tbwrap"><table class="mg-table"><thead><tr><th>#</th><th>พนักงาน</th><th>ขอ (วัน)</th><th>ให้สิทธิ์ (วัน)</th><th>สิทธิ์เหลือของคนนี้</th><th>เหตุผล</th><th>สถานะ</th><th>ส่งเมื่อ</th><th>ผู้พิจารณา</th><th>จัดการ</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+  b.querySelectorAll('[data-upclose]').forEach(function(el){
+    el.addEventListener('click', function(){ openUnpaidClose_(el.dataset.upclose, el.dataset.upname, el.dataset.upleft); }); });
+}
+function openUnpaidClose_(empId, name, left){
+  modalForm({ title:'ปิดสิทธิ์ที่เหลือ · '+name, emoji:ico('lock'), okLabel:ico('lock')+' ปิดสิทธิ์',
+    body:'<div class="set-row col"><label>เหตุผล (ไม่บังคับ — พนักงานเห็นใน LINE)</label>'+
+         '<input type="text" data-f="note" placeholder="เช่น กลับมาทำงานแล้ว ไม่ต้องลาเพิ่ม"></div>'+
+         '<div class="set-hint">ℹ️ ปิดสิทธิ์ที่เหลือ '+esc(left)+' วัน · ใบลาที่ยื่นไปแล้วไม่ถูกยกเลิก · พนักงานขอสิทธิ์ใหม่ได้</div>',
+    onOk:function(c){
+      var note=(c.querySelector('[data-f="note"]')||{}).value||'';
+      closeConfirm(); toast('กำลังปิดสิทธิ์…');
+      api('unpaidGrantClose',{empId:empId, note:note}).then(function(r){
+        if(!r.ok) return toast(r.error||'ทำรายการไม่สำเร็จ','err');
+        toast('ปิดสิทธิ์ที่เหลือของ '+name+' '+r.closed+' วันแล้ว','ok');
+        S.hrUnpaidHist=null; if(S.hrHist==='unpaid') paintHrUnpaidHist_();
+      }).catch(function(e){ toast(String(e.message||e),'err'); });
+    }});
 }
 
 // ── ฝั่งพนักงาน: หน้าขอสิทธิ์ + ประวัติคำขอของตัวเอง
@@ -4932,7 +4962,7 @@ function renderUnpaidNote_(){
   var days=f.start?countLeaveDays(f):0;
   el.innerHTML = days>left
     ? '<div class="hr-note bell-note over">'+ico('alert')+' เลือก '+esc(String(days))+' วัน แต่มีสิทธิ์เหลือ '+esc(String(left))+' วัน · ส่งคำขอสิทธิ์เพิ่มก่อนยื่นใบลาค่ะ</div>'
-    : '<div class="hr-note ok2 bell-note">'+ico('check')+' มีสิทธิ์ลาไม่รับค่าจ้างเหลือ <b>'+esc(String(left))+' วัน</b></div>';
+    : '<div class="hr-note ok2 bell-note">'+ico('check')+' มีสิทธิ์ลาไม่รับค่าจ้างเหลือ <b>'+esc(String(left))+' วัน</b> · ใช้ยื่นใบลาได้ถึง 31 ธ.ค.</div>';
 }
 
 function viewUnpaidReq(){
@@ -4942,7 +4972,7 @@ function viewUnpaidReq(){
     ? '<div class="hr-note">⏳ คำขอของคุณ ('+esc(String(st.askDays||''))+' วัน) กำลังรอ HR พิจารณา — ขอใหม่ได้เมื่อคำขอนี้ถูกดำเนินการแล้วค่ะ</div>'
     : '';
   var quotaLine = rem>0
-    ? '<div class="hr-note ok2">'+ico('check')+' ตอนนี้คุณมีสิทธิ์ลาไม่รับค่าจ้างคงเหลือ <b>'+esc(String(rem))+' วัน</b></div>'+
+    ? '<div class="hr-note ok2">'+ico('check')+' ตอนนี้คุณมีสิทธิ์ลาไม่รับค่าจ้างคงเหลือ <b>'+esc(String(rem))+' วัน</b> · ใช้ยื่นใบลาได้ถึง 31 ธ.ค. '+(new Date().getFullYear()+543)+'</div>'+
       '<button type="button" id="btnUpGoLeave" class="btn btn-primary" style="margin:10px 0">ยื่นใบลาไม่รับค่าจ้าง</button>'
     : '';
   return '<div class="card">'+
@@ -4986,7 +5016,9 @@ function loadMyUnpaidReqs(){
     var el=document.getElementById('upHist'); if(!el) return;
     if(!r.ok || !r.count){ el.innerHTML=''; return; }
     var rows=r.list.map(function(x){
-      var badge = x.status==='อนุมัติแล้ว' ? '<span class="badge ok">'+ico('check')+' ให้สิทธิ์ '+esc(String(x.grantDays))+' วัน</span>'
+      var badge = x.closedAt ? '<span class="badge no">ให้สิทธิ์ '+esc(String(x.grantDays))+' วัน · HR ปิดแล้ว</span>'
+                : x.expired ? '<span class="badge no">ให้สิทธิ์ '+esc(String(x.grantDays))+' วัน · หมดอายุ</span>'
+                : x.status==='อนุมัติแล้ว' ? '<span class="badge ok">'+ico('check')+' ให้สิทธิ์ '+esc(String(x.grantDays))+' วัน</span>'
                 : x.status==='ไม่อนุมัติ' ? '<span class="badge no">❌ ไม่อนุมัติ</span>'
                 : '<span class="badge wait">⏳ รอ HR</span>';
       return '<div class="hist"><div class="hist-ic">'+ico('file')+'</div><div class="hist-main">'+
