@@ -519,6 +519,21 @@ textarea:focus,input[type=time]:focus{border-color:var(--red)}
 .vw-btn.open{background:var(--red);color:#fff}
 .vw-btn.dl{background:var(--bg);color:var(--red)}
 .vw-btn:active{transform:scale(.97)}
+/* มือถือ: เต็มจอ · ปุ่มไม่ชนขอบล่างเครื่อง */
+@media (max-width:767px){
+  .viewer{padding:0}
+  .vw-box{max-width:none;height:100vh;height:100dvh;border-radius:0}
+  .vw-bar{padding-top:calc(13px + env(safe-area-inset-top))}
+  .vw-actions{padding-bottom:calc(10px + env(safe-area-inset-bottom))}
+}
+/* คอม/แท็บเล็ต: กว้างอ่านสัญญาสบาย · เบราว์เซอร์ซูม/บันทึกเองได้ จึงไม่ต้องมีคำแนะนำ และให้ปุ่มกินที่น้อยลง */
+@media (min-width:768px){
+  .viewer{padding:16px}
+  .vw-box{max-width:1280px;height:100%}
+  .vw-hint{display:none}
+  .vw-actions.one{grid-template-columns:auto;justify-content:end;padding:8px 12px}
+  .vw-actions.one .vw-btn{padding:9px 20px}
+}
 
 /* ── Confirm modal (ยืนยันก่อนส่ง) ── */
 .cfm{position:fixed;inset:0;background:rgba(20,26,40,.55);z-index:60;display:none;
