@@ -1065,3 +1065,12 @@ textarea:focus,input[type=time]:focus{border-color:var(--red)}
 .ef-check input{width:18px;height:18px;accent-color:#cc1019}
 .ef-more{margin-top:12px}
 .ef-more summary{cursor:pointer;font-size:14px;font-weight:600;color:#cc1019;padding:4px 0}
+/* เมนูแฟ้มเอกสาร */
+.ef-chips{flex-wrap:wrap}
+.ef-row{cursor:pointer}
+.ef-list td{vertical-align:top}
+.ef-list td:nth-child(2){min-width:170px}
+.ef-list td:nth-child(4){min-width:220px}
+.ef-type{display:inline-block;margin:0 4px 4px 0;padding:2px 8px;border-radius:999px;background:#f6f1f1;font-size:12px;white-space:nowrap}
+.ef-type b{color:#cc1019}
+.ef-miss{display:inline-block;margin:0 4px 4px 0;white-space:nowrap}

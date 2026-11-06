@@ -115,6 +115,7 @@ var VIEW_HEAD = {
   mgot:    ['จัดการ OT','ดู · แก้ · คำนวณ · ส่งสรุป'],
   mgpay:   ['จัดการ Payroll','ปิดเดือน 10 ขั้น · รายงานย้อนหลัง'],
   emps:    ['พนักงาน','เพิ่ม · บทบาท · โควต้า · ข้อมูล'],
+  empfiles:['แฟ้มเอกสาร','แต่ละคนมีเอกสารอะไร กี่ฉบับ ยังขาดอะไร'],
   unpaidreq:['ขอสิทธิ์ลาไม่รับค่าจ้าง','ส่งคำขอ → HR ให้สิทธิ์ → ยื่นใบลา'],
   config:  ['ตั้งค่าระบบ','วันหยุด · บริษัท · ค่าคำนวณ · แบบฟอร์ม']
 };
@@ -122,7 +123,7 @@ var VIEW_HEAD = {
 var VIEW_ICON = {
   home:'home', leave:'calendar', ot:'clock', payslip:'wallet', history:'clipboard', profile:'user',
   documents:'paperclip', hr:'check', leavecal:'calendar', dashboard:'chart',
-  mgleave:'clipboard', mgot:'clock', mgpay:'wallet', emps:'users', unpaidreq:'file', config:'settings'
+  mgleave:'clipboard', mgot:'clock', mgpay:'wallet', emps:'users', empfiles:'folder', unpaidreq:'file', config:'settings'
 };
 
 var S = {
@@ -459,6 +460,7 @@ function bindNav(){
 }
 function goTo(view){
   if (S.view==='mgpay' && view!=='mgpay' && window.PAY) PAY.unmount();
+  S.efPerson = null;   // กดเมนูแล้วกลับรายชื่อเสมอ
   if (view === 'settings') view = 'emps';   // เมนู "ตั้งค่าระบบ" เดิม = หน้าพนักงาน → alias ไว้ให้ลิงก์เก่า/deep-link ยังใช้ได้
   S.view = view;
   document.querySelectorAll('.nav-btn').forEach(function(b){ b.classList.toggle('active', b.dataset.view===view); });
@@ -469,7 +471,7 @@ function goTo(view){
 function setupNavRoles(){
   bellInit_();
   var p = S.profile || {}, ap = !!p.canApprove, ad = !!p.canAdmin;
-  var roles = {dashboard:ap, leavecal:ap, hr:ap, mgleave:ad, mgot:ad, mgpay:ad, emps:ad, config:ad};
+  var roles = {dashboard:ap, leavecal:ap, hr:ap, mgleave:ad, mgot:ad, mgpay:ad, emps:ad, empfiles:ad, config:ad};
   Object.keys(roles).forEach(function(v){
     var el=document.querySelector('.nav-btn[data-view="'+v+'"]'); if(el) el.classList.toggle('allow', roles[v]); });
   // section label โชว์เฉพาะกลุ่มที่มีปุ่ม visible (desktop)
@@ -551,6 +553,7 @@ function render(){
   else if (S.view==='mgot'){ m.innerHTML = viewMgot(); wireMgot(); }
   else if (S.view==='mgpay'){ mountPayroll(m); }
   else if (S.view==='emps'){ m.innerHTML = '<div class="card"><div class="skel" style="height:120px"></div></div>'; loadSettings(); }
+  else if (S.view==='empfiles'){ loadEmpFiles(); }
   else if (S.view==='unpaidreq'){ m.innerHTML = viewUnpaidReq(); wireUnpaidReq(); }
   else if (S.view==='history'){ m.innerHTML = viewHistory(); wireHistory(); }
   else if (S.view==='profile'){ m.innerHTML = viewProfile(); wireMyPhotoBtn(); }
@@ -627,6 +630,7 @@ function viewHome(){
     ((S.unpaidReq&&S.unpaidReq.pending)?' · รอ HR':'')+'</span><span class="chev">›</span></button>'+
   (p.canApprove ? '<button class="hub-link hr" data-go="hr"><span>'+ico('chart')+' แผง HR · ภาพรวม + รออนุมัติ</span><span class="chev">›</span></button>' : '')+
   (p.canAdmin ? '<button class="hub-link admin" data-go="emps"><span>'+ico('users')+' พนักงาน · เพิ่ม + บทบาท + โควต้า</span><span class="chev">›</span></button>' : '')+
+  (p.canAdmin ? '<button class="hub-link admin" data-go="empfiles"><span>'+ico('folder')+' แฟ้มเอกสารพนักงาน</span><span class="chev">›</span></button>' : '')+
 
   '<div class="card"><div class="card-title"><span class="ic"></span>กิจกรรมล่าสุด</div>'+feed+'</div>';
 }
@@ -3816,7 +3820,6 @@ function loadSettings(){
 function renderSettings(r){
   // หน้าแรกเมนูพนักงาน = แดชบอร์ด + ค้นหา + ตาราง (ปรับตามแบบที่พี่กี้ส่ง 27 ส.ค. 69)
   return '<div id="empDash"><div class="card"><div class="skel" style="height:90px"></div></div></div>'+
-    '<div id="efDash"></div>'+
     '<div class="card">'+
       '<div class="card-title"><span class="ic"></span>รายชื่อพนักงาน ('+r.users.length+') · OWNER '+r.ownerCount+' คน</div>'+
       '<div class="mg-tools">'+
@@ -3961,7 +3964,6 @@ function wireSettings(){
   if(pf) pf.addEventListener('change', function(){ S.empPos=pf.value; paintEmpTable(); });
   paintEmpTable();
   loadEmpDash();
-  loadEfDash();
   document.querySelectorAll('[data-ssalary]').forEach(function(el){ el.addEventListener('click',function(){ openSalaryHistory(el.dataset.ssalary, el.dataset.sname); }); });
   document.querySelectorAll('[data-eopen]').forEach(function(el){ el.addEventListener('click',function(){ openEmpPage(el.dataset.eopen); }); });
 }
@@ -4567,7 +4569,11 @@ function mockApi(action, params){
         {id:'EF-2',type:'สัญญาจ้าง',title:'สัญญาจ้างพนักงานประจำ',docNo:'FM-CE-SM-001',docDate:'2026-02-01',expiry:'',visible:true,note:'',status:'ใช้งาน',docStatus:'มีผล',warnDays:null},
         {id:'EF-1',type:'สำเนาบัตรประชาชน',title:'สำเนาบัตรประชาชน',docNo:'',docDate:'2026-01-10',expiry:'2026-11-01',visible:true,note:'',status:'ใช้งาน',docStatus:'มีผล',warnDays:-4},
         {id:'EF-0',type:'ใบเตือน',title:'อัปผิดคน',docNo:'',docDate:'',expiry:'',visible:false,note:'ยกเลิก: อัปผิดคน',status:'ยกเลิก',docStatus:'มีผล',warnDays:null}]});
-    else if(action==='efOverview') resolve({ok:true,required:['สำเนาบัตรประชาชน','สำเนาทะเบียนบ้าน','สัญญาจ้าง','หน้าสมุดบัญชี'],byEmp:{}});
+    else if(action==='efOverview') resolve({ok:true,required:['สำเนาบัตรประชาชน','สำเนาทะเบียนบ้าน','สัญญาจ้าง','หน้าสมุดบัญชี'],byEmp:{
+      '3330900441374':{have:{'สัญญาจ้าง':1,'สัญญาแนบท้าย':1},types:{'สัญญาจ้าง':1,'สัญญาแนบท้าย':2},n:3,old:1,warn:[]},
+      '1100300300303':{have:{'สำเนาบัตรประชาชน':1,'สำเนาทะเบียนบ้าน':1,'สัญญาจ้าง':1,'หน้าสมุดบัญชี':1},types:{'สำเนาบัตรประชาชน':1,'สำเนาทะเบียนบ้าน':1,'สัญญาจ้าง':1,'หน้าสมุดบัญชี':1},n:4,old:0,warn:[]},
+      '1100800800808':{have:{'สัญญาจ้าง':1,'ใบอนุญาตทำงาน':1},types:{'สัญญาจ้าง':1,'ใบอนุญาตทำงาน':1},n:2,old:0,warn:[{type:'ใบอนุญาตทำงาน',title:'ใบอนุญาตทำงาน 2569',expiry:'2026-11-20',days:14}]},
+      '1101001001010':{have:{'สัญญาจ้าง':1},types:{'สัญญาจ้าง':1},n:1,old:0,warn:[]}}});
     else if(action==='efUpload'||action==='efUpdate'||action==='efVoid') resolve({ok:true,summary:'บันทึกแล้ว'});
     else if(action==='documents') resolve({ok:true,documents:[
       {name:'หนังสือรับรองเงินเดือน พ.ค. 69',url:'#',category:'หนังสือรับรอง',scope:'ส่วนตัว'},
@@ -5113,7 +5119,6 @@ var EMP_TABS = [
  { key:'info', label:' ข้อมูลหลัก' },
  { key:'job', label:' ประวัติการทำงาน' },
  { key:'salary', label:' เงินเดือน' },
- { key:'files', label:' แฟ้มเอกสาร' },
  { key:'tax', label:' ลดหย่อนภาษี' },
  { key:'line', label:' LINE' },
 ];
@@ -5244,7 +5249,6 @@ function paintEmpTab(){
   if(tab==='info')   return paintEmpInfo(box, u);
   if(tab==='salary') return paintEmpSalary(box, u);
   if(tab==='job')    return paintEmpJob(box, u);
-  if(tab==='files')  return paintEmpFiles(box, u);
   if(tab==='tax')    return paintEmpTax(box, u);
   if(tab==='line')   return paintEmpLine(box, u);
 }
@@ -5382,11 +5386,11 @@ function efStatusPill(x){
   return '<span class="pill ok">มีผล</span>';
 }
 
-function paintEmpFiles(box, u){
+function paintEfDocs(box, u){
   if(!u.empId){ box.innerHTML = emptyBox(ico('alert'),'คนนี้ยังไม่มีรหัสพนักงาน จึงยังเปิดแฟ้มไม่ได้'); return; }
   box.innerHTML = '<div class="card"><div class="skel" style="height:120px"></div></div>';
   api('efList',{empId:u.empId}).then(function(r){
-    if(!box.isConnected || !S.empPage || S.empPage.user!==u || S.empPage.tab!=='files') return;
+    if(!box.isConnected) return;
     if(!r.ok){ box.innerHTML = emptyBox(ico('alert'), r.error||'โหลดไม่สำเร็จ'); return; }
     S.empFile = r;
     var warn = r.rows.filter(function(x){ return x.warnDays!=null; }).length;
@@ -5483,7 +5487,7 @@ function openEfForm(u, x){
       var busy = function(on,label){ ok.disabled=on; if(label) ok.innerHTML=label; };
       var done = function(res){
         if(!res.ok){ busy(false, isNew?ico('check')+' อัปโหลด':ico('check')+' บันทึก'); toast(res.error||'บันทึกไม่สำเร็จ','err'); return; }
-        closeConfirm(); toast(res.summary||'บันทึกแล้ว'); paintEmpTab();
+        closeConfirm(); toast(res.summary||'บันทึกแล้ว'); paintEfPerson();
       };
       var fail = function(e){ done({ ok:false, error:String(e&&e.message||e) }); };
 
@@ -5513,7 +5517,7 @@ function openEfVoid(u, x){
       if(!why){ toast('ระบุเหตุผลด้วยค่ะ','err'); return; }
       api('efVoid',{id:x.id, reason:why}).then(function(res){
         if(!res.ok){ toast(res.error||'ยกเลิกไม่สำเร็จ','err'); return; }
-        closeConfirm(); toast(res.summary||'ยกเลิกแล้ว'); paintEmpTab();
+        closeConfirm(); toast(res.summary||'ยกเลิกแล้ว'); paintEfPerson();
       }).catch(function(e){ toast(String(e&&e.message||e),'err'); });
     } });
 }
@@ -5544,47 +5548,112 @@ function efReadFile(file, cb){
   img.src = url;
 }
 
-/** การ์ดหน้าพนักงาน: ใครยังขาดเอกสาร/ใกล้หมดอายุ · นับเฉพาะคนที่ทำงานอยู่และนับเป็นพนักงาน */
-function loadEfDash(){
-  var box = document.getElementById('efDash'); if(!box) return;
-  api('efOverview',{}).then(function(r){
-    if(!r.ok || !box.isConnected){ box.innerHTML=''; return; }
-    var people = (S.adminUsers||[]).filter(function(u){
-      return u.empId && !u.notCounted && String(u.status||'').indexOf('ลาออก')<0; });
-    var list = [], expired = 0, soon = 0, complete = 0;
-    people.forEach(function(u){
-      var e = r.byEmp[u.empId] || { have:{}, warn:[] };
-      var miss = r.required.filter(function(t){ return !e.have[t]; });
-      var exp = e.warn.filter(function(w){ return w.days<0; }).length;
-      expired += exp; soon += e.warn.length-exp;
-      if(!miss.length) complete++;
-      if(miss.length || e.warn.length) list.push({ u:u, miss:miss, warn:e.warn, exp:exp });
-    });
-    list.sort(function(a,b){ return (b.exp-a.exp) || (b.warn.length-a.warn.length) || (b.miss.length-a.miss.length); });
+/** เมนูแฟ้มเอกสาร: รายชื่อทุกคน → กดชื่อเพื่อดู/เปิด/อัปเอกสารของคนนั้น */
+function loadEmpFiles(){
+  var v = 'empfiles', m = _mainFor_(v); if(!m) return;
+  m.innerHTML = '<div class="card"><div class="skel" style="height:120px"></div></div>';
+  Promise.all([ api('adminBootstrap',{}), api('efOverview',{}) ]).then(function(rs){
+    var m2 = _mainFor_(v); if(!m2) return;
+    var bad = !rs[0].ok ? rs[0] : (!rs[1].ok ? rs[1] : null);
+    if(bad){ m2.innerHTML = backBar()+emptyBox(ico('alert','e-ico'), bad.error||'โหลดไม่สำเร็จ'); bindBack(); return; }
+    S.adminUsers = rs[0].users; S.efData = rs[1];
+    if(S.efPerson) return renderEfPerson();
+    m2.innerHTML = backBar()+'<div id="efChips"></div>'+
+      '<div class="card"><div class="mg-tools">'+
+        '<input type="text" id="efSearch" class="mg-srch" placeholder="ค้นชื่อ / รหัส / แผนก…" value="'+esc(S.efQ||'')+'">'+
+        '<select id="efStatusF" class="hr-fsel">'+[['active','ทำงานอยู่'],['left','ลาออกแล้ว'],['all','ทุกสถานะ']].map(function(o){
+          return '<option value="'+o[0]+'"'+((S.efStatus||'active')===o[0]?' selected':'')+'>'+o[1]+'</option>'; }).join('')+'</select>'+
+        '<select id="efShowF" class="hr-fsel">'+[['all','ทุกคน'],['missing','ยังขาดเอกสารหลัก'],['warn','หมดอายุ/ใกล้หมด']].map(function(o){
+          return '<option value="'+o[0]+'"'+((S.efShow||'all')===o[0]?' selected':'')+'>'+o[1]+'</option>'; }).join('')+'</select>'+
+      '</div><div id="efTable"></div></div>';
+    bindBack();
+    document.getElementById('efSearch').addEventListener('input', function(){ S.efQ = this.value; paintEfList(); });
+    document.getElementById('efStatusF').addEventListener('change', function(){ S.efStatus = this.value; paintEfList(); });
+    document.getElementById('efShowF').addEventListener('change', function(){ S.efShow = this.value; paintEfList(); });
+    paintEfList();
+  }).catch(function(e){ var m3 = _mainFor_(v); if(m3){ m3.innerHTML = backBar()+emptyBox(ico('alert','e-ico'), String(e&&e.message||e)); bindBack(); } });
+}
 
-    var rows = list.length ? list.map(function(x,i){
-      return '<tr class="mg-tr"><td class="ce mg-sub2">'+(i+1)+'</td>'+
-        '<td class="lft"><a class="emp-link" data-efemp="'+esc(empKeyOf(x.u))+'"><b>'+esc(x.u.name)+'</b></a></td>'+
-        '<td class="lft">'+(x.miss.length?x.miss.map(esc).join(' · '):'<span class="mg-sub2">ครบ</span>')+'</td>'+
-        '<td class="lft">'+(x.warn.length?x.warn.map(function(w){
-          return esc(w.type)+' <span class="pill '+(w.days<0?'err':'warn')+'">'+(w.days<0?'หมดแล้ว':'อีก '+w.days+' วัน')+'</span>'; }).join('<br>'):'<span class="mg-sub2">-</span>')+'</td></tr>';
-    }).join('') : '<tr><td colspan="4" class="ce mg-sub2" style="padding:20px">เอกสารครบทุกคน</td></tr>';
+/** ข้อมูลแฟ้มของ 1 คน · คนที่ลาออกหรือไม่นับเป็นพนักงาน ไม่ต้องตามเอกสารที่ขาด */
+function efPersonInfo(u){
+  var d = S.efData, e = d.byEmp[u.empId] || {};
+  var left = String(u.status||'').indexOf('ลาออก') >= 0, tracked = !left && !u.notCounted;
+  var have = e.have || {}, warn = e.warn || [];
+  return { u:u, left:left, tracked:tracked, n:e.n||0, old:e.old||0, types:e.types||{}, warn:warn,
+    exp:warn.filter(function(w){ return w.days<0; }).length,
+    miss: tracked ? d.required.filter(function(t){ return !have[t]; }) : [] };
+}
 
-    box.innerHTML = '<div class="card">'+
-      '<div class="card-title"><span class="ic"></span>แฟ้มเอกสารพนักงาน</div>'+
-      '<div class="chips">'+
-        '<div class="chip"><div class="chip-v">'+complete+'/'+people.length+'</div><div class="chip-l">เอกสารหลักครบ</div></div>'+
-        '<div class="chip"><div class="chip-v">'+expired+'</div><div class="chip-l">หมดอายุแล้ว</div></div>'+
-        '<div class="chip"><div class="chip-v">'+soon+'</div><div class="chip-l">ใกล้หมดใน 30 วัน</div></div>'+
-      '</div>'+
-      '<details class="ef-more"><summary>ดูรายชื่อที่ต้องจัดการ ('+list.length+' คน)</summary>'+
-        '<div class="mg-sub2" style="margin:6px 0">เอกสารหลัก: '+r.required.map(esc).join(' · ')+'</div>'+
-        '<div class="mg-tbwrap"><table class="mg-table mg-rpt"><thead><tr><th class="ce">#</th><th class="lft">พนักงาน</th>'+
-        '<th class="lft">ยังขาด</th><th class="lft">หมดอายุ/ใกล้หมด</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
-      '</details></div>';
-    box.querySelectorAll('[data-efemp]').forEach(function(el){
-      el.addEventListener('click', function(){ S.empPage = { tab:'files' }; openEmpPage(el.dataset.efemp); }); });
-  }).catch(function(){ box.innerHTML=''; });
+function paintEfList(){
+  var box = document.getElementById('efTable'), chips = document.getElementById('efChips');
+  if(!box || !chips) return;
+  var users = S.adminUsers||[], d = S.efData;
+  var withId = users.filter(function(u){ return u.empId; });
+  var all = withId.map(efPersonInfo);
+  var tracked = all.filter(function(x){ return x.tracked; });
+  var sum = function(list, f){ return list.reduce(function(a,x){ return a+f(x); }, 0); };
+  var exp = sum(tracked, function(x){ return x.exp; }), soon = sum(tracked, function(x){ return x.warn.length-x.exp; });
+  var known = {}, orphan = 0;
+  withId.forEach(function(u){ known[u.empId] = 1; });
+  Object.keys(d.byEmp).forEach(function(k){ if(!known[k]) orphan += d.byEmp[k].n||0; });
+  var noId = users.length - withId.length;
+
+  chips.innerHTML = '<div class="card"><div class="chips ef-chips">'+
+    '<div class="chip"><div class="chip-v">'+sum(tracked, function(x){ return x.n; })+'</div><div class="chip-l">เอกสารที่มีผล (พนักงานปัจจุบัน)</div></div>'+
+    '<div class="chip"><div class="chip-v">'+tracked.filter(function(x){ return !x.miss.length; }).length+'/'+tracked.length+'</div><div class="chip-l">เอกสารหลักครบ</div></div>'+
+    '<div class="chip"><div class="chip-v">'+exp+'</div><div class="chip-l">หมดอายุแล้ว</div></div>'+
+    '<div class="chip"><div class="chip-v">'+soon+'</div><div class="chip-l">ใกล้หมดใน 30 วัน</div></div>'+
+    '</div><div class="mg-sub2" style="margin-top:8px">เอกสารหลัก: '+d.required.map(esc).join(' · ')+'</div></div>';
+
+  var q = String(S.efQ||'').trim().toLowerCase(), st = S.efStatus||'active', show = S.efShow||'all';
+  var list = all.filter(function(x){
+    if(st==='active' && x.left) return false;
+    if(st==='left' && !x.left) return false;
+    if(show==='missing' && !x.miss.length) return false;
+    if(show==='warn' && !x.warn.length) return false;
+    return !q || [x.u.name,x.u.empId,x.u.dept,x.u.position].join(' ').toLowerCase().indexOf(q) >= 0;
+  });
+
+  var rows = list.length ? list.map(function(x,i){
+    var types = Object.keys(x.types).sort(function(a,b){ return a.localeCompare(b,'th'); }).map(function(t){
+      return '<span class="ef-type">'+esc(t)+(x.types[t]>1?' <b>×'+x.types[t]+'</b>':'')+'</span>'; }).join('');
+    return '<tr class="mg-tr ef-row" data-efemp="'+esc(x.u.empId)+'"><td class="ce mg-sub2">'+(i+1)+'</td>'+
+      '<td class="lft"><a class="emp-link"><b>'+esc(x.u.name)+'</b></a><div class="mg-sub2">'+esc([x.u.dept,x.u.position].filter(Boolean).join(' · ')||'-')+'</div></td>'+
+      '<td class="ce"><b>'+x.n+'</b>'+(x.old?'<div class="mg-sub2">ฉบับเก่า '+x.old+'</div>':'')+'</td>'+
+      '<td class="lft">'+(types||'<span class="mg-sub2">ยังไม่มีเอกสาร</span>')+'</td>'+
+      '<td class="lft">'+(x.miss.length?x.miss.map(function(t){ return '<span class="pill warn ef-miss">'+esc(t)+'</span>'; }).join(''):'<span class="mg-sub2">'+(x.tracked?'ครบ':'-')+'</span>')+'</td>'+
+      '<td class="lft">'+(x.warn.length?x.warn.map(function(w){
+        return esc(w.title||w.type)+' <span class="pill '+(w.days<0?'err':'warn')+'">'+(w.days<0?'หมดแล้ว':'อีก '+w.days+' วัน')+'</span>'; }).join('<br>'):'<span class="mg-sub2">-</span>')+'</td></tr>';
+  }).join('') : '<tr><td colspan="6" class="ce mg-sub2" style="padding:20px">ไม่พบรายชื่อตามตัวกรองนี้</td></tr>';
+
+  box.innerHTML =
+    (orphan ? '<div class="hr-note ef-note">'+ico('alert')+' มีเอกสาร '+orphan+' ฉบับของรหัสที่ไม่อยู่ในรายชื่อพนักงาน</div>' : '')+
+    (noId ? '<div class="mg-sub2" style="margin:6px 0">ไม่แสดง '+noId+' คนที่ยังไม่มีรหัสพนักงาน</div>' : '')+
+    '<div class="mg-tbwrap"><table class="mg-table mg-rpt ef-list"><thead><tr><th class="ce">#</th><th class="lft">พนักงาน</th><th class="ce">จำนวนฉบับ</th>'+
+    '<th class="lft">เอกสารที่มี</th><th class="lft">ยังขาด</th><th class="lft">หมดอายุ/ใกล้หมด</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+  box.querySelectorAll('[data-efemp]').forEach(function(el){
+    el.addEventListener('click', function(){ S.efPerson = el.dataset.efemp; renderEfPerson(); window.scrollTo(0,0); }); });
+}
+
+function efPersonUser(){
+  return (S.adminUsers||[]).filter(function(x){ return String(x.empId)===String(S.efPerson); })[0];
+}
+
+function renderEfPerson(){
+  var m = _mainFor_('empfiles'), u = efPersonUser(); if(!m) return;
+  if(!u){ S.efPerson = null; toast('ไม่พบพนักงานคนนี้','err'); loadEmpFiles(); return; }
+  m.innerHTML = '<button class="backbar" data-efback="1">‹ กลับรายชื่อแฟ้มเอกสาร</button>'+
+    '<div class="card emp-hd"><div class="emp-hd-top"><span class="ava-wrap">'+empAvatar(u, 46)+'</span><div class="hist-main">'+
+      '<div class="hist-type">'+esc(u.name)+'</div>'+
+      '<div class="hist-meta">'+esc(u.empId||'-')+' · '+esc(u.dept||'-')+' · '+esc(u.position||'-')+'</div>'+
+    '</div></div></div><div id="efPersonBox"></div>';
+  m.querySelector('[data-efback]').addEventListener('click', function(){ S.efPerson = null; loadEmpFiles(); });
+  paintEfPerson();
+}
+
+function paintEfPerson(){
+  var box = document.getElementById('efPersonBox'), u = efPersonUser();
+  if(box && u) paintEfDocs(box, u);
 }
 
 function paintEmpSalary(box, u){
