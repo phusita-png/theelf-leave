@@ -377,6 +377,7 @@ function _apiRaw(action, params) {
 
 // ════════════ BOOTSTRAP ════════════
 function bootstrap() {
+  var _updView = '';
   api('bootstrap', {}).then(function(r){
     if (!r.ok) {
       if (r.needRegister) return showRegister();
@@ -389,6 +390,7 @@ function bootstrap() {
     if (S.pendingEdit) enterEditById(S.pendingEdit);   // deep-link → เปิดหน้าแก้เลย (ลา/OT)
     else if (S.pendingView === 'hr' && S.profile && S.profile.canApprove) goTo('hr');   // deep-link → เด้งแผง HR เลย
     else if ((S.pendingView === 'emps' || S.pendingView === 'settings') && S.profile && S.profile.canAdmin) goTo('emps');
+    else if (window.UPDATE_CHECK && (_updView = UPDATE_CHECK.takeReturnView())) goTo(_updView);   // เพิ่งกดอัปเดต → กลับเมนูเดิม
     else if (window.innerWidth >= 1024) goTo(S.profile && S.profile.canApprove ? 'hr' : 'leavecal');
   }).catch(function(e){ fail(String(e.message || e)); });
 }
