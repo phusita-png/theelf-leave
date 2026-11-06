@@ -4585,9 +4585,11 @@ function mockApi(action, params){
       types:['สำเนาบัตรประชาชน','สำเนาทะเบียนบ้าน','สัญญาจ้าง','สัญญาแนบท้าย','ประวัติย่อ','วุฒิการศึกษา','หน้าสมุดบัญชี','ใบรับรองแพทย์','ประกันสังคม','ทดลองงาน','ใบเตือน','ใบอนุญาตทำงาน','อื่น ๆ'],
       required:['สำเนาบัตรประชาชน','สำเนาทะเบียนบ้าน','สัญญาจ้าง','หน้าสมุดบัญชี'],privateTypes:['ใบเตือน','ใบรับรองแพทย์'],
       missing:['สำเนาทะเบียนบ้าน','หน้าสมุดบัญชี'],
+      tplTypes:['สัญญาจ้าง','ทดลองงาน','สัญญาแนบท้าย'],
+      templates:[{code:'FM-CE-001',name:'สัญญาจ้างทดลองงาน',efType:'ทดลองงาน'},{code:'FM-CE-002',name:'สัญญาจ้างพนักงาน แบบไม่มีกำหนดเวลา',efType:'สัญญาจ้าง'},{code:'FM-HR-009',name:'สัญญาแนบท้าย ค่าคอมมิชชั่น',efType:'สัญญาแนบท้าย'}],
       rows:params.empId==='EMPTY'?[]:[
         {id:'EF-3',type:'ใบอนุญาตทำงาน',title:'ใบอนุญาตทำงาน 2569',docNo:'WP-123',docDate:'2026-01-01',expiry:'2026-11-20',visible:true,note:'ต่อทุกปี',status:'ใช้งาน',docStatus:'มีผล',warnDays:15},
-        {id:'EF-2',type:'สัญญาจ้าง',title:'สัญญาจ้างพนักงานประจำ',docNo:'FM-CE-SM-001',docDate:'2026-02-01',expiry:'',visible:true,note:'',status:'ใช้งาน',docStatus:'มีผล',warnDays:null},
+        {id:'EF-2',type:'สัญญาจ้าง',tplCode:'FM-CE-002',title:'สัญญาจ้างพนักงานประจำ',docNo:'FM-CE-SM-001',docDate:'2026-02-01',expiry:'',visible:true,note:'',status:'ใช้งาน',docStatus:'มีผล',warnDays:null},
         {id:'EF-1',type:'สำเนาบัตรประชาชน',title:'สำเนาบัตรประชาชน',docNo:'',docDate:'2026-01-10',expiry:'2026-11-01',visible:true,note:'',status:'ใช้งาน',docStatus:'มีผล',warnDays:-4},
         {id:'EF-0',type:'ใบเตือน',title:'อัปผิดคน',docNo:'',docDate:'',expiry:'',visible:false,note:'ยกเลิก: อัปผิดคน',status:'ยกเลิก',docStatus:'มีผล',warnDays:null}]});
     else if(action==='efOverview') resolve({ok:true,required:['สำเนาบัตรประชาชน','สำเนาทะเบียนบ้าน','สัญญาจ้าง','หน้าสมุดบัญชี'],byEmp:{
@@ -4595,6 +4597,15 @@ function mockApi(action, params){
       '1100300300303':{have:{'สำเนาบัตรประชาชน':1,'สำเนาทะเบียนบ้าน':1,'สัญญาจ้าง':1,'หน้าสมุดบัญชี':1},types:{'สำเนาบัตรประชาชน':1,'สำเนาทะเบียนบ้าน':1,'สัญญาจ้าง':1,'หน้าสมุดบัญชี':1},n:4,old:0,warn:[]},
       '1100800800808':{have:{'สัญญาจ้าง':1,'ใบอนุญาตทำงาน':1},types:{'สัญญาจ้าง':1,'ใบอนุญาตทำงาน':1},n:2,old:0,warn:[{type:'ใบอนุญาตทำงาน',title:'ใบอนุญาตทำงาน 2569',expiry:'2026-11-20',days:14}]},
       '1101001001010':{have:{'สัญญาจ้าง':1},types:{'สัญญาจ้าง':1},n:1,old:0,warn:[]}}});
+    else if(action==='efTemplates') resolve({ok:true,templates:[
+      {code:'FM-CE-001',name:'สัญญาจ้างทดลองงาน',category:'สัญญาจ้าง',efType:'ทดลองงาน',fileId:'x1',note:'',n:2,people:2,effective:1,replaced:1,imported:2,created:0,lastDate:'2026-08-27',docs:[
+        {id:'EF-11',empId:'1100300300303',name:'พนักงาน ตัวอย่างหนึ่ง',title:'สัญญาจ้างทดลองงาน',docNo:'FM-CE-010',docDate:'2026-08-27',docStatus:'มีผล'},
+        {id:'EF-12',empId:'9999',name:'พนักงาน ตัวอย่างสอง',title:'สัญญาจ้างทดลองงาน',docNo:'FM-CE-009',docDate:'2026-07-30',docStatus:'ถูกแทนที่'}]},
+      {code:'FM-CE-002',name:'สัญญาจ้างพนักงาน แบบไม่มีกำหนดเวลา',category:'สัญญาจ้าง',efType:'สัญญาจ้าง',fileId:'x2',note:'',n:3,people:2,effective:2,replaced:1,imported:2,created:1,lastDate:'2026-07-31',docs:[]},
+      {code:'FM-CE-003',name:'สัญญาจ้างพนักงาน แบบมีกำหนดเวลาแน่นอน',category:'สัญญาจ้าง',efType:'สัญญาจ้าง',fileId:'x3',note:'',n:0,people:0,effective:0,replaced:0,imported:0,created:0,lastDate:'',docs:[]},
+      {code:'FM-HR-013',name:'สัญญารักษาความลับ',category:'สัญญาแนบท้าย',efType:'สัญญาแนบท้าย',fileId:'',note:'',n:1,people:1,effective:1,replaced:0,imported:1,created:0,lastDate:'2026-06-15',docs:[]}],
+      none:{code:'',name:'ไม่ระบุแม่แบบ',n:1,people:1,effective:1,replaced:0,imported:1,created:0,lastDate:'',docs:[
+        {id:'EF-13',empId:'1100300300303',name:'พนักงาน ตัวอย่างหนึ่ง',title:'สัญญาจ้างพนักงาน',docNo:'',docDate:'',docStatus:'มีผล'}]}});
     else if(action==='efUpload'||action==='efUpdate'||action==='efVoid') resolve({ok:true,summary:'บันทึกแล้ว'});
     else if(action==='documents') resolve({ok:true,documents:[
       {name:'หนังสือรับรองเงินเดือน พ.ค. 69',url:'#',category:'หนังสือรับรอง',scope:'ส่วนตัว'},
@@ -5004,6 +5015,7 @@ function bellGo_(r){
   bellClose_();
   if(r.edit) return enterEditById(r.edit);
   if(r.type==='unpaid') return goLeaveUnpaid_();
+  if(r.go==='empfiles') S.efTab = 'docs';
   goTo(r.go||'home');
 }
 function goLeaveUnpaid_(){
@@ -5481,6 +5493,7 @@ function openEfForm(u, x){
         '<input type="file" id="efFile" class="hr-fdate mg-full" accept=".pdf,.jpg,.jpeg,.png,.docx,image/*,application/pdf">' : '')+
       '<label class="field-lb">ประเภท</label><select id="efType" class="hr-fsel mg-full">'+opts+'</select>'+
       '<input id="efTypeNew" class="hr-fdate mg-full" placeholder="ชื่อประเภทใหม่" maxlength="60" style="display:none;margin-top:8px">'+
+      '<div id="efTplWrap"><label class="field-lb">สร้างจากแม่แบบ</label><select id="efTpl" class="hr-fsel mg-full"></select></div>'+
       '<label class="field-lb">ชื่อเอกสาร (เว้นว่าง = ใช้ชื่อประเภท)</label>'+
       '<input id="efTitle" class="hr-fdate mg-full" maxlength="200" value="'+val('title')+'">'+
       '<label class="field-lb">เลขที่เอกสาร</label><input id="efNo" class="hr-fdate mg-full" maxlength="60" value="'+val('docNo')+'">'+
@@ -5494,10 +5507,17 @@ function openEfForm(u, x){
       '<div class="mg-sub2" id="efVisHint"></div>',
     onMount:function(c){
       var sel=c.querySelector('#efType'), nw=c.querySelector('#efTypeNew'), vis=c.querySelector('#efVis'), hint=c.querySelector('#efVisHint');
-      var touched = !!x;
+      var touched = !!x, tplWrap=c.querySelector('#efTplWrap'), tplSel=c.querySelector('#efTpl'), tplCur = x ? (x.tplCode||'') : '';
+      tplSel.addEventListener('change', function(){ tplCur = tplSel.value; });
       var sync = function(){
         var t = sel.value;
         nw.style.display = t==='__new__' ? 'block' : 'none';
+        var tpls = (r.templates||[]).filter(function(p){ return p.efType===t; });
+        var useTpl = (r.tplTypes||[]).indexOf(t)>=0;
+        tplWrap.style.display = useTpl ? 'block' : 'none';
+        tplSel.innerHTML = '<option value="">ไม่ระบุแม่แบบ</option>'+tpls.map(function(p){
+          return '<option value="'+esc(p.code)+'">'+esc(p.code+' '+p.name)+'</option>'; }).join('');
+        tplSel.value = useTpl && tpls.some(function(p){ return p.code===tplCur; }) ? tplCur : '';
         if(!touched) vis.checked = !isPriv(t);
         hint.textContent = isPriv(t) ? 'เอกสารประเภทนี้ปิดไว้เป็นค่าเริ่มต้น เพราะเป็นข้อมูลอ่อนไหว' : '';
       };
@@ -5511,7 +5531,8 @@ function openEfForm(u, x){
       var type = q('#efType').value==='__new__' ? String(q('#efTypeNew').value||'').trim() : q('#efType').value;
       if(!type){ toast('ระบุประเภทเอกสารด้วยค่ะ','err'); return; }
       var data = { empId:u.empId, type:type, title:q('#efTitle').value, docNo:q('#efNo').value,
-        docDate:q('#efDate').value, expiry:q('#efExp').value, note:q('#efNote').value, visible:q('#efVis').checked?'1':'0' };
+        docDate:q('#efDate').value, expiry:q('#efExp').value, note:q('#efNote').value, visible:q('#efVis').checked?'1':'0',
+        tplCode:q('#efTpl').value };
       var ok = c.querySelector('[data-cfm-ok]');
       var busy = function(on,label){ ok.disabled=on; if(label) ok.innerHTML=label; };
       var done = function(res){
@@ -5587,7 +5608,23 @@ function loadEmpFiles(){
     if(bad){ m2.innerHTML = backBar()+emptyBox(ico('alert','e-ico'), bad.error||'โหลดไม่สำเร็จ'); bindBack(); return; }
     S.adminUsers = rs[0].users; S.efData = rs[1];
     if(S.efPerson) return renderEfPerson();
-    m2.innerHTML = backBar()+'<div id="efChips"></div>'+
+    m2.innerHTML = backBar()+'<div class="mg-tabs">'+[['docs','เอกสารพนักงาน'],['tpl','แม่แบบเอกสาร']].map(function(t){
+        return '<button class="mg-tab'+((S.efTab||'docs')===t[0]?' on':'')+'" data-eftab="'+t[0]+'">'+t[1]+'</button>'; }).join('')+'</div><div id="efTabBody"></div>';
+    bindBack();
+    m2.querySelectorAll('[data-eftab]').forEach(function(el){
+      el.addEventListener('click', function(){
+        S.efTab = el.dataset.eftab;
+        m2.querySelectorAll('[data-eftab]').forEach(function(b){ b.classList.toggle('on', b===el); });
+        paintEfTab();
+      }); });
+    paintEfTab();
+  }).catch(function(e){ var m3 = _mainFor_(v); if(m3){ m3.innerHTML = backBar()+emptyBox(ico('alert','e-ico'), String(e&&e.message||e)); bindBack(); } });
+}
+
+function paintEfTab(){
+  var b = document.getElementById('efTabBody'); if(!b) return;
+  if(S.efTab==='tpl'){ paintEfTemplates(b); return; }
+  b.innerHTML = '<div id="efChips"></div>'+
       '<div class="card"><div class="mg-tools">'+
         '<input type="text" id="efSearch" class="mg-srch" placeholder="ค้นชื่อ / รหัส / แผนก…" value="'+esc(S.efQ||'')+'">'+
         '<select id="efStatusF" class="hr-fsel">'+[['all','ทุกสถานะ'],['active','ทำงานอยู่'],['left','ลาออกแล้ว']].map(function(o){
@@ -5595,12 +5632,75 @@ function loadEmpFiles(){
         '<select id="efShowF" class="hr-fsel">'+[['all','ทุกคน'],['missing','ยังขาดเอกสารหลัก'],['warn','หมดอายุ/ใกล้หมด']].map(function(o){
           return '<option value="'+o[0]+'"'+((S.efShow||'all')===o[0]?' selected':'')+'>'+o[1]+'</option>'; }).join('')+'</select>'+
       '</div><div id="efTable"></div></div>';
-    bindBack();
-    document.getElementById('efSearch').addEventListener('input', function(){ S.efQ = this.value; paintEfList(); });
-    document.getElementById('efStatusF').addEventListener('change', function(){ S.efStatus = this.value; paintEfList(); });
-    document.getElementById('efShowF').addEventListener('change', function(){ S.efShow = this.value; paintEfList(); });
-    paintEfList();
-  }).catch(function(e){ var m3 = _mainFor_(v); if(m3){ m3.innerHTML = backBar()+emptyBox(ico('alert','e-ico'), String(e&&e.message||e)); bindBack(); } });
+  document.getElementById('efSearch').addEventListener('input', function(){ S.efQ = this.value; paintEfList(); });
+  document.getElementById('efStatusF').addEventListener('change', function(){ S.efStatus = this.value; paintEfList(); });
+  document.getElementById('efShowF').addEventListener('change', function(){ S.efShow = this.value; paintEfList(); });
+  paintEfList();
+}
+
+/** แท็บแม่แบบเอกสาร: ต่อแม่แบบสร้างแล้วกี่ฉบับ กี่คน กดแถวดูรายชื่อ */
+function paintEfTemplates(box){
+  box.innerHTML = '<div class="card"><div class="skel" style="height:160px"></div></div>';
+  api('efTemplates',{}).then(function(r){
+    if(!box.isConnected || S.efTab!=='tpl') return;
+    if(!r.ok){ box.innerHTML = emptyBox(ico('alert'), r.error||'โหลดไม่สำเร็จ'); return; }
+    S.efTpl = r;
+    var list = r.templates||[], none = r.none||{n:0};
+    var total = list.reduce(function(a,t){ return a+t.n; }, 0)+none.n;
+    box.innerHTML = '<div class="card"><div class="chips ef-chips">'+
+        '<div class="chip"><div class="chip-v">'+list.length+'</div><div class="chip-l">แม่แบบทั้งหมด</div></div>'+
+        '<div class="chip"><div class="chip-v">'+list.filter(function(t){ return t.n>0; }).length+'</div><div class="chip-l">มีเอกสารแล้ว</div></div>'+
+        '<div class="chip"><div class="chip-v">'+total+'</div><div class="chip-l">สัญญาในแฟ้ม (ฉบับ)</div></div>'+
+        '<div class="chip"><div class="chip-v">'+none.n+'</div><div class="chip-l">ยังไม่ระบุแม่แบบ</div></div>'+
+      '</div><div class="mg-sub2" style="margin-top:8px">ฉบับ = ไม่นับที่ยกเลิก · พนักงาน = นับคนไม่ซ้ำ · กดแถวเพื่อดูว่าใครมีบ้าง</div></div>'+
+      '<div class="card"><div id="efTplTable"></div></div>';
+    paintEfTplTable();
+  }).catch(function(e){ if(box.isConnected) box.innerHTML = emptyBox(ico('alert'), String(e&&e.message||e)); });
+}
+
+function paintEfTplTable(){
+  var box = document.getElementById('efTplTable'), r = S.efTpl; if(!box || !r) return;
+  var isLeft = function(empId){
+    var u = (S.adminUsers||[]).filter(function(x){ return String(x.empId)===String(empId); })[0];
+    return u && String(u.status||'').indexOf('ลาออก')>=0;
+  };
+  var sub = function(t){
+    var rows = t.docs.map(function(d,i){
+      return '<tr class="mg-tr'+(isLeft(d.empId)?' ef-left':'')+'"><td class="ce mg-sub2">'+(i+1)+'</td>'+
+        '<td class="lft"><a class="emp-link" data-eftplemp="'+esc(d.empId)+'">'+esc(d.name||d.empId)+'</a>'+(isLeft(d.empId)?' <span class="ef-left-tag">ลาออก</span>':'')+'</td>'+
+        '<td class="lft"><a class="emp-link" data-eftplopen="'+esc(d.id)+'">'+esc(d.title)+'</a></td>'+
+        '<td class="ce">'+esc(d.docNo||'-')+'</td><td class="ce">'+esc(d.docDate?efD(d.docDate):'-')+'</td>'+
+        '<td class="ce">'+(d.docStatus==='ถูกแทนที่'?'<span class="pill">ถูกแทนที่</span>':'<span class="pill ok">มีผล</span>')+'</td></tr>';
+    }).join('');
+    return '<tr class="ef-tpl-sub"><td colspan="7"><div class="mg-tbwrap"><table class="mg-table mg-rpt"><thead><tr><th class="ce">#</th><th class="lft">พนักงาน</th><th class="lft">ชื่อเอกสาร</th><th class="ce">เลขที่</th><th class="ce">วันที่เอกสาร</th><th class="ce">สถานะ</th></tr></thead><tbody>'+rows+'</tbody></table></div></td></tr>';
+  };
+  var line = function(t, i, key){
+    var open = S.efTplOpen===key && t.n>0;
+    var file = key==='__none' ? '<span class="mg-sub2">-</span>'
+      : t.fileId ? '<a class="emp-link" target="_blank" rel="noopener" href="https://drive.google.com/open?id='+encodeURIComponent(t.fileId)+'">เปิดแม่แบบ</a>'
+      : '<span class="pill warn">ยังไม่มีไฟล์เปล่า</span>';
+    return '<tr class="mg-tr'+(t.n>0?' ef-row':'')+'" data-eftplkey="'+esc(key)+'"><td class="ce mg-sub2">'+i+'</td>'+
+      '<td class="lft">'+(t.n>0?'<span class="ef-tpl-arrow">'+(open?'▾':'▸')+'</span> ':'')+'<b>'+esc(t.name)+'</b><div class="mg-sub2">'+esc([t.code,t.efType].filter(Boolean).join(' · ')||'เอกสารสัญญาที่ยังไม่ได้ผูกแม่แบบ')+'</div></td>'+
+      '<td class="ce"><b>'+t.n+'</b>'+(t.imported?'<div class="mg-sub2">นำเข้า '+t.imported+(t.created?' · อัปใหม่ '+t.created:'')+'</div>':(t.created?'<div class="mg-sub2">อัปใหม่ '+t.created+'</div>':''))+'</td>'+
+      '<td class="ce"><b>'+t.people+'</b></td>'+
+      '<td class="ce">'+t.effective+(t.replaced?'<div class="mg-sub2">ถูกแทนที่ '+t.replaced+'</div>':'')+'</td>'+
+      '<td class="ce">'+esc(t.lastDate?efD(t.lastDate):'-')+'</td><td class="ce">'+file+'</td></tr>'+(open?sub(t):'');
+  };
+  var body = (r.templates||[]).map(function(t,i){ return line(t,i+1,t.code); }).join('');
+  if(r.none && r.none.n) body += line(r.none,(r.templates||[]).length+1,'__none');
+  if(!body) body = '<tr><td colspan="7" class="ce mg-sub2" style="padding:20px">ยังไม่มีแม่แบบในทะเบียน</td></tr>';
+  box.innerHTML = '<div class="mg-tbwrap"><table class="mg-table mg-rpt ef-tpl-table"><thead><tr><th class="ce">#</th><th class="lft">แม่แบบ</th><th class="ce">สร้างแล้ว (ฉบับ)</th><th class="ce">พนักงาน (คน)</th><th class="ce">มีผล</th><th class="ce">วันที่เอกสารล่าสุด</th><th class="ce">ไฟล์แม่แบบ</th></tr></thead><tbody>'+body+'</tbody></table></div>';
+  box.querySelectorAll('[data-eftplkey]').forEach(function(el){
+    el.addEventListener('click', function(ev){
+      if(ev.target.closest('a')) return;
+      var k = el.dataset.eftplkey;
+      S.efTplOpen = S.efTplOpen===k ? null : k;
+      paintEfTplTable();
+    }); });
+  box.querySelectorAll('[data-eftplemp]').forEach(function(el){
+    el.addEventListener('click', function(){ S.efPerson = el.dataset.eftplemp; renderEfPerson(); window.scrollTo(0,0); }); });
+  box.querySelectorAll('[data-eftplopen]').forEach(function(el){
+    el.addEventListener('click', function(){ fetchFile('efFile',{id:el.dataset.eftplopen}); }); });
 }
 
 /** ข้อมูลแฟ้มของ 1 คน · คนที่ลาออกหรือไม่นับเป็นพนักงาน ไม่ต้องตามเอกสารที่ขาด */
