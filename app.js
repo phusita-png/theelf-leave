@@ -1075,14 +1075,20 @@ function pfUsedRows(){
   var num=function(v){ return v==null?'—':(Number.isInteger(v)?v:Number(v).toFixed(2).replace(/0+$/,'').replace(/\.$/,'')); };
   var rows=order.filter(function(k){
     var x=b[k]; if(!x) return false;
-    return (Number(x.used)>0) || (Number(x.quota)>0) || (k==='unpaid' && Number(x.grantLeft)>0);
+    return (Number(x.used)>0) || (Number(x.quota)>0) || (k==='unpaid' && Number(x.grantTotal)>0);
   }).map(function(k){
     var x=b[k], q=Number(x.quota)||0, u=Number(x.used)||0;
+    // มีสิทธิ์เปิดอยู่: ยอดรวมทั้งปีปนยอดเก่า บวกกับสิทธิ์แล้วไม่เท่าที่ได้ จึงแยกบรรทัด
+    if(k==='unpaid' && Number(x.grantTotal)>0){
+      return '<div class="pf-row"><span class="k">'+(x.emoji||'')+' '+esc(x.name)+'</span>'+
+        '<span class="v">สิทธิ์รอบนี้ '+num(Number(x.grantTotal))+' วัน · ใช้ '+num(Number(x.grantTotal)-(Number(x.grantLeft)||0))+' · เหลือ '+num(Math.max(0,Number(x.grantLeft)||0))+'</span></div>'+
+        (Number(x.preGrant)>0?'<div class="pf-row"><span class="k">หักเงินก่อนได้สิทธิ์</span><span class="v">'+num(Number(x.preGrant))+' วัน</span></div>':'');
+    }
     var over=(k!=='unpaid') && (x.remaining!=null && Number(x.remaining)<0);   // unpaid ติดลบเป็นปกติ ไม่ใช่ "เกินสิทธิ์"
     return '<div class="pf-row"><span class="k">'+(x.emoji||'')+' '+esc(x.name)+'</span>'+
       '<span class="v"'+(over?' style="color:var(--red-deep);font-weight:700"':'')+'>ใช้ '+num(u)+
       (q>0?' / '+num(q):'')+' วัน'+(over?' '+ico('alert')+' เกินสิทธิ์':'')+
-      ((k==='unpaid' && Number(x.grantLeft)>0)?' · สิทธิ์เหลือ '+num(Number(x.grantLeft))+' วัน':'')+'</span></div>';
+      '</span></div>';
   }).join('');
   return rows ? '<div class="pf-used"><div class="pf-used-t">ใช้ไปแล้วปีนี้</div>'+rows+'</div>' : '';
 }
@@ -2457,7 +2463,9 @@ function renderHr(r){
     // เหตุผล + สิทธิ์คงเหลือ (ช่วยตัดสินใจในการ์ดเลย ไม่ต้องกดดูประวัติ)
     var info = '';
     if(x.reason) info += '<div class="pend-info">'+ico('message')+' '+esc(x.reason)+'</div>';
-    if(x.kind!=='ot' && x.remaining!=null) info += String(x.type).indexOf('ไม่รับค่าจ้าง')>=0
+    if(x.kind!=='ot' && x.grant && Number(x.grant.total)>0)
+      info += '<div class="pend-info bal">'+ico('ticket')+' ใบนี้ใช้สิทธิ์ <b>'+balNum(x.days)+'</b> วัน · เหลือ <b>'+balNum(Math.max(0,Number(x.grant.left)||0))+'</b> วัน · หักเงินเดือน</div>';
+    else if(x.kind!=='ot' && x.remaining!=null) info += String(x.type).indexOf('ไม่รับค่าจ้าง')>=0
       ? '<div class="pend-info bal">'+ico('ticket')+' ปีนี้ลาไม่รับค่าจ้างไปแล้ว <b>'+balNum(Math.abs(x.remaining))+'</b> วัน · ใบนี้หักเงินเดือน</div>'
       : '<div class="pend-info bal">'+ico('ticket')+' สิทธิ์'+esc(x.type)+'คงเหลือ <b>'+balNum(x.remaining)+'</b> วัน</div>';
     return '<div class="pend">'+
@@ -2727,7 +2735,7 @@ function thaiToIso(s){ var p=String(s||'').split('/'); if(p.length<3) return '';
 
 function viewMgleave(){
   if(!(S.profile&&S.profile.canAdmin)) return backBar()+emptyBox(ico('lock'),'เฉพาะผู้ดูแลระบบ (ADMIN/OWNER)');
- var tabs=[['report',' สรุปการลา'],['list',' รายการใบลา'],['files',' ไฟล์รายงาน'],['tools',' ตั้งค่า']];
+ var tabs=[['report',' สรุปการลา'],['list',' รายการใบลา'],['unpaid',' ขอสิทธิ์ไม่รับค่าจ้าง'],['files',' ไฟล์รายงาน'],['tools',' ตั้งค่า']];
   return backBar()+
     '<div class="mg-tabs">'+tabs.map(function(t){return '<button class="mg-tab'+(S.mgTab===t[0]?' on':'')+'" data-mgtab="'+t[0]+'">'+t[1]+'</button>';}).join('')+'</div>'+
     '<div id="mgTab"></div>';
@@ -2914,6 +2922,10 @@ function switchMgTab(tab){
   document.querySelectorAll('[data-mgtab]').forEach(function(el){ el.classList.toggle('on', el.dataset.mgtab===tab); });
   var box=document.getElementById('mgTab'); if(!box) return;
   if(tab==='list'){ box.innerHTML=mgListTabHtml(); wireMgListTab(); loadMgleave(); }
+  else if(tab==='unpaid'){
+    box.innerHTML='<div class="card"><div class="hr-note ok2">'+ico('info')+' คำขอไม่ใช่ใบลา จึงไม่อยู่ในรายการใบลา · ให้สิทธิ์หรือไม่อนุมัติที่หน้าอนุมัติทั้งหมด · วันลาจริงดูที่รายการใบลา</div><div id="mgUnpaidBody"></div></div>';
+    S.hrUnpaidHist=null; paintUnpaidTable_('mgUnpaidBody');
+  }
   else if(tab==='files'){ box.innerHTML=rptFilesTabHtml('leave'); loadRptMonths('leave'); }
   else if(tab==='tools'){ box.innerHTML=mgToolsTabHtml(); wireMgToolsTab(); ensureMgUsers(); }
   else { box.innerHTML=mgReportTabHtml(); wireMgReportTab(); loadMgReport(); }
@@ -4426,7 +4438,7 @@ function mockBootstrap(){
   S.auth={userId:'MOCK'};
   S.profile={name:'นางสาวชนัญชิดา โชคธนอนันต์',empId:'EMP-001',dept:'สำนักงานใหญ่',role:'OWNER',canApprove:true,canAdmin:true};
   S.balances={vac:{name:'พักร้อน',emoji:ico('sun'),remaining:16},biz:{name:'ลากิจ',emoji:ico('home'),remaining:10},sick:{name:'ลาป่วย',emoji:ico('thermometer'),remaining:29},
-    unpaid:{name:'ไม่รับค่าจ้าง',emoji:ico('file'),remaining:7},bday:{name:'วันเกิด',emoji:ico('cake'),remaining:1},special:{name:'คนพิเศษ',emoji:ico('heart'),remaining:1}};
+    unpaid:{name:'ไม่รับค่าจ้าง',emoji:ico('file'),remaining:-1.5,used:1.5,grantLeft:2,grantTotal:3,preGrant:0.5},bday:{name:'วันเกิด',emoji:ico('cake'),remaining:1},special:{name:'คนพิเศษ',emoji:ico('heart'),remaining:1}};
   S.holidays=[{date:'03/06/2569',name:'วันเฉลิมฯ พระราชินี'},{date:'29/07/2569',name:'วันอาสาฬหบูชา'}];
   S.schedule={code:'S01',label:'จันทร์-ศุกร์',workDays:[1,2,3,4,5],off:[0,6],offLabel:'เสาร์-อาทิตย์',start:'9:30',end:'18:30'};
   S.leaveTypes=MOCK_LT; S.otTypes=MOCK_OTT; S.otThisMonth={hours:6.5,count:2,period:'26/5 – 25/6/2569'};
@@ -4712,7 +4724,7 @@ function mockApi(action, params){
       leave:{total:8,approved:5,pending:2,rejected:1},ot:{hours:24.5,count:6,approved:4,pending:1,rejected:1},
       employees:[{name:'นางสาวชนัญชิดา โชคธนอนันต์',dept:'สำนักงานใหญ่',vac:16,biz:10,sick:29,used:5,status:'ปกติ'},
         {name:'นายตัวอย่าง ทดสอบ',dept:'ฝ่ายขาย',vac:6,biz:0,sick:28,used:12,status:'⚠️ เกินสิทธิ์'}],
-      pending:[{kind:'leave',id:'LV-003',name:'นางสาวชนัญชิดา โชคธนอนันต์',type:'ลากิจ',date:'02/06/2569',endDate:'03/06/2569',days:2,reason:'ไปทำธุระที่ต่างจังหวัด',remaining:8,userId:'MOCK',empId:'EMP-001'},
+      pending:[{kind:'leave',id:'LV-009',name:'นางสาวปิยะฉัตร ทองแท้',type:'ลากิจไม่รับค่าจ้าง',date:'10/11/2569',endDate:'10/11/2569',days:1,reason:'ไปต่างประเทศ',remaining:-1.5,grant:{total:3,left:2},userId:'MOCK3',empId:'E3'},{kind:'leave',id:'LV-003',name:'นางสาวชนัญชิดา โชคธนอนันต์',type:'ลากิจ',date:'02/06/2569',endDate:'03/06/2569',days:2,reason:'ไปทำธุระที่ต่างจังหวัด',remaining:8,userId:'MOCK',empId:'EMP-001'},
         {kind:'ot',id:'OT-002',name:'นายตัวอย่าง ทดสอบ',type:'ลูกค้าร้องขอ',date:'28/05/2569',startTime:'18:00',endTime:'21:00',hours:3,reason:'ลูกค้าขอแก้งานด่วน',userId:'MOCK2',empId:'EMP-002'}]});
     else if(action==='hrLeaveCalendar'){ var ly=params.year,lm=('0'+params.month).slice(-2);
       resolve({ok:true,year:ly,month:params.month,depts:['Live Sale','CRM & Telesale','Content Creator'],items:[
@@ -4732,8 +4744,8 @@ function mockApi(action, params){
         {reqId:'UP-6',name:'นางสาวธัญชนก พูนทรัพย์',empId:'E6',dept:'Content',askDays:1,reason:'ธุระ',status:'อนุมัติแล้ว',grantDays:1,submittedAt:'10/12/2025 10:00:00',hr:'HR ทดสอบ · 10/12/2025 11:00',note:'',expired:true,left:isAll?0:null}];
       var l=isAll?all:params.scope==='mine'?[all[1]]:all.slice(0,2);
       resolve({ok:true,list:l,count:l.length}); }
-    else if(action==='bell') resolve({ok:true,total:6,unpaidLeft:3,groups:[
-      {key:'unpaid',icon:'file',label:'สิทธิ์ลาไม่รับค่าจ้าง',n:1,rows:[{text:'มีสิทธิ์เหลือ 3 วัน · กดเพื่อยื่นใบลา',go:'leave',type:'unpaid'}]},
+    else if(action==='bell') resolve({ok:true,total:6,unpaidLeft:2,groups:[
+      {key:'unpaid',icon:'file',label:'สิทธิ์ลาไม่รับค่าจ้าง',n:1,rows:[{text:'มีสิทธิ์เหลือ 2 วัน · กดเพื่อยื่นใบลา',go:'leave',type:'unpaid'}]},
       {key:'fix',icon:'pencil',label:'HR ส่งกลับให้แก้ไข',n:1,rows:[{text:'ลากิจ LV-20261101090000',edit:'LV-20261101090000'}]},
       {key:'approve',icon:'clipboard',label:'รออนุมัติ',n:4,rows:[{text:'ใบลา 3 รายการ',n:3,go:'hr'},{text:'คำขอสิทธิ์ลาไม่รับค่าจ้าง 1 รายการ',n:1,go:'hr'}]}]});
     else if(action==='emNameList') resolve({ok:true,count:3,people:[
@@ -4855,15 +4867,17 @@ function openUnpaidReject(reqId, name){
 }
 
 // ── ฝั่ง HR: ประวัติคำขอทุกสถานะ (แท็บในประวัติทั้งบริษัท) — โหลดเมื่อกดแท็บ
-function paintHrUnpaidHist_(){
-  var b=document.getElementById('hrHistBody'); if(!b) return;
+function paintHrUnpaidHist_(){ paintUnpaidTable_('hrHistBody'); }
+function _unpaidTableOn_(id){ return id==='mgUnpaidBody' ? S.mgTab==='unpaid' : S.hrHist==='unpaid'; }
+function paintUnpaidTable_(id){
+  var b=document.getElementById(id); if(!b) return;
   if(!S.hrUnpaidHist){
     b.innerHTML='<div class="skel" style="height:64px"></div>';
     api('unpaidReqList',{scope:'all'}).then(function(r){
-      if(!r.ok){ var e=document.getElementById('hrHistBody'); if(e&&S.hrHist==='unpaid') e.innerHTML=emptyBox(ico('lock','e-ico'),r.error||'โหลดไม่ได้'); return; }
+      if(!r.ok){ var e=document.getElementById(id); if(e&&_unpaidTableOn_(id)) e.innerHTML=emptyBox(ico('lock','e-ico'),r.error||'โหลดไม่ได้'); return; }
       S.hrUnpaidHist=r.list||[];
-      if(S.hrHist==='unpaid') paintHrUnpaidHist_();
-    }).catch(function(e){ var x=document.getElementById('hrHistBody'); if(x&&S.hrHist==='unpaid') x.innerHTML=emptyBox(ico('alert','e-ico'),String(e.message||e)); });
+      if(_unpaidTableOn_(id)) paintUnpaidTable_(id);
+    }).catch(function(e){ var x=document.getElementById(id); if(x&&_unpaidTableOn_(id)) x.innerHTML=emptyBox(ico('alert','e-ico'),String(e.message||e)); });
     return;
   }
   var closeShown={};
@@ -4902,7 +4916,9 @@ function openUnpaidClose_(empId, name, left){
       api('unpaidGrantClose',{empId:empId, note:note}).then(function(r){
         if(!r.ok) return toast(r.error||'ทำรายการไม่สำเร็จ','err');
         toast('ปิดสิทธิ์ที่เหลือของ '+name+' '+r.closed+' วันแล้ว','ok');
-        S.hrUnpaidHist=null; if(S.hrHist==='unpaid') paintHrUnpaidHist_();
+        S.hrUnpaidHist=null;
+        if(document.getElementById('mgUnpaidBody')) paintUnpaidTable_('mgUnpaidBody');
+        else if(S.hrHist==='unpaid') paintHrUnpaidHist_();
       }).catch(function(e){ toast(String(e.message||e),'err'); });
     }});
 }
