@@ -4600,14 +4600,15 @@ function mockApi(action, params){
       '1100800800808':{have:{'สัญญาจ้าง':1,'ใบอนุญาตทำงาน':1},types:{'สัญญาจ้าง':1,'ใบอนุญาตทำงาน':1},n:2,old:0,warn:[{type:'ใบอนุญาตทำงาน',title:'ใบอนุญาตทำงาน 2569',expiry:'2026-11-20',days:14}]},
       '1101001001010':{have:{'สัญญาจ้าง':1},types:{'สัญญาจ้าง':1},n:1,old:0,warn:[]}}});
     else if(action==='efTemplates') resolve({ok:true,templates:[
-      {code:'FM-CE-001',name:'สัญญาจ้างทดลองงาน',category:'สัญญาจ้าง',efType:'ทดลองงาน',fileId:'x1',note:'',n:2,people:2,effective:1,replaced:1,imported:2,created:0,lastDate:'2026-08-27',docs:[
+      {code:'FM-CE-001',name:'สัญญาจ้างทดลองงาน',category:'สัญญาจ้าง',efType:'ทดลองงาน',hasFile:true,note:'',n:2,people:2,effective:1,replaced:1,imported:2,created:0,lastDate:'2026-08-27',docs:[
         {id:'EF-11',empId:'1100300300303',name:'พนักงาน ตัวอย่างหนึ่ง',title:'สัญญาจ้างทดลองงาน',docNo:'FM-CE-010',docDate:'2026-08-27',docStatus:'มีผล'},
         {id:'EF-12',empId:'9999',name:'พนักงาน ตัวอย่างสอง',title:'สัญญาจ้างทดลองงาน',docNo:'FM-CE-009',docDate:'2026-07-30',docStatus:'ถูกแทนที่'}]},
-      {code:'FM-CE-002',name:'สัญญาจ้างพนักงาน แบบไม่มีกำหนดเวลา',category:'สัญญาจ้าง',efType:'สัญญาจ้าง',fileId:'x2',note:'',n:3,people:2,effective:2,replaced:1,imported:2,created:1,lastDate:'2026-07-31',docs:[]},
-      {code:'FM-CE-003',name:'สัญญาจ้างพนักงาน แบบมีกำหนดเวลาแน่นอน',category:'สัญญาจ้าง',efType:'สัญญาจ้าง',fileId:'x3',note:'',n:0,people:0,effective:0,replaced:0,imported:0,created:0,lastDate:'',docs:[]},
-      {code:'FM-HR-013',name:'สัญญารักษาความลับ',category:'สัญญาแนบท้าย',efType:'สัญญาแนบท้าย',fileId:'',note:'',n:1,people:1,effective:1,replaced:0,imported:1,created:0,lastDate:'2026-06-15',docs:[]}],
+      {code:'FM-CE-002',name:'สัญญาจ้างพนักงาน แบบไม่มีกำหนดเวลา',category:'สัญญาจ้าง',efType:'สัญญาจ้าง',hasFile:true,note:'',n:3,people:2,effective:2,replaced:1,imported:2,created:1,lastDate:'2026-07-31',docs:[]},
+      {code:'FM-CE-003',name:'สัญญาจ้างพนักงาน แบบมีกำหนดเวลาแน่นอน',category:'สัญญาจ้าง',efType:'สัญญาจ้าง',hasFile:true,note:'',n:0,people:0,effective:0,replaced:0,imported:0,created:0,lastDate:'',docs:[]},
+      {code:'FM-HR-013',name:'สัญญารักษาความลับ',category:'สัญญาแนบท้าย',efType:'สัญญาแนบท้าย',hasFile:false,note:'',n:1,people:1,effective:1,replaced:0,imported:1,created:0,lastDate:'2026-06-15',docs:[]}],
       none:{code:'',name:'ไม่ระบุแม่แบบ',n:1,people:1,effective:1,replaced:0,imported:1,created:0,lastDate:'',docs:[
         {id:'EF-13',empId:'1100300300303',name:'พนักงาน ตัวอย่างหนึ่ง',title:'สัญญาจ้างพนักงาน',docNo:'',docDate:'',docStatus:'มีผล'}]}});
+    else if(action==='efTplLink') resolve({ok:true,url:'about:blank'});
     else if(action==='efUpload'||action==='efUpdate'||action==='efVoid') resolve({ok:true,summary:'บันทึกแล้ว'});
     else if(action==='documents') resolve({ok:true,documents:[
       {name:'หนังสือรับรองเงินเดือน พ.ค. 69',url:'#',category:'หนังสือรับรอง',scope:'ส่วนตัว'},
@@ -5679,7 +5680,7 @@ function paintEfTplTable(){
   var line = function(t, i, key){
     var open = S.efTplOpen===key && t.n>0;
     var file = key==='__none' ? '<span class="mg-sub2">-</span>'
-      : t.fileId ? '<a class="emp-link" target="_blank" rel="noopener" href="https://drive.google.com/open?id='+encodeURIComponent(t.fileId)+'">เปิดแม่แบบ</a>'
+      : t.hasFile ? '<a class="emp-link" data-eftplfile="'+esc(t.code)+'">เปิดแม่แบบ</a>'
       : '<span class="pill warn">ยังไม่มีไฟล์เปล่า</span>';
     return '<tr class="mg-tr'+(t.n>0?' ef-row':'')+'" data-eftplkey="'+esc(key)+'"><td class="ce mg-sub2">'+i+'</td>'+
       '<td class="lft">'+(t.n>0?'<span class="ef-tpl-arrow">'+(open?'▾':'▸')+'</span> ':'')+'<b>'+esc(t.name)+'</b><div class="mg-sub2">'+esc([t.code,t.efType].filter(Boolean).join(' · ')||'เอกสารสัญญาที่ยังไม่ได้ผูกแม่แบบ')+'</div></td>'+
@@ -5703,6 +5704,16 @@ function paintEfTplTable(){
     el.addEventListener('click', function(){ S.efPerson = el.dataset.eftplemp; renderEfPerson(); window.scrollTo(0,0); }); });
   box.querySelectorAll('[data-eftplopen]').forEach(function(el){
     el.addEventListener('click', function(){ fetchFile('efFile',{id:el.dataset.eftplopen}); }); });
+  box.querySelectorAll('[data-eftplfile]').forEach(function(el){
+    el.addEventListener('click', function(){
+      // เปิดแท็บเปล่าทันทีตอนกด ถ้ารอผลก่อนเบราว์เซอร์จะกันป๊อปอัป
+      var w = null; try { w = window.open('about:blank','_blank'); } catch(e){}
+      toast('กำลังตรวจไฟล์แม่แบบ...');
+      api('efTplLink',{code:el.dataset.eftplfile}).then(function(res){
+        if(!res.ok){ if(w) w.close(); toast(res.error||'เปิดแม่แบบไม่สำเร็จ','err'); return; }
+        if(w){ w.opener = null; w.location.href = res.url; } else openFileExternal(res.url);
+      }).catch(function(e){ if(w) w.close(); toast(String(e&&e.message||e),'err'); });
+    }); });
 }
 
 /** ข้อมูลแฟ้มของ 1 คน · คนที่ลาออกหรือไม่นับเป็นพนักงาน ไม่ต้องตามเอกสารที่ขาด */
