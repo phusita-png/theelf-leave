@@ -1824,7 +1824,7 @@ function openModal(title, sub, body, foot) {
   //   (เคสจริง 14 ก.ย. 69: โมดัลปิดรอบ/คิดภาษี ขึ้น <svg class="ico" …> ให้ HR อ่าน)
   //   → ปล่อยเฉพาะ <svg class="ico"> ผ่าน ส่วนข้อความอื่น escape ตามเดิม (กฎเดียวกับ escIco ฝั่งคอนโซล)
   $('mTitle').innerHTML   = _escIco(title);
-  $('mSub').textContent   = sub || '';
+  $('mSub').innerHTML     = _escIco(sub);   // บรรทัดรองก็มีไอคอน เช่น ico('check')+' เสร็จแล้ว'
   $('mBody').innerHTML    = body || '';
   $('mFoot').innerHTML    = foot || '';
   $('mask').classList.remove('hidden');

@@ -1247,7 +1247,7 @@ function confirmModal(opts){
   var rows = opts.rows.map(function(r){
     return '<div class="cfm-row"><span class="cfm-k">'+escIco(r.k)+'</span><span class="cfm-v">'+escIco(r.v)+'</span></div>'; }).join('');
   c.innerHTML='<div class="cfm-box">'+
-    '<div class="cfm-head '+ac+'">'+opts.emoji+' '+esc(opts.title)+'</div>'+
+    '<div class="cfm-head '+ac+'">'+opts.emoji+' '+escIco(opts.title)+'</div>'+
     '<div class="cfm-body">'+rows+'<div class="cfm-note">ตรวจสอบให้ถูกต้องก่อนส่งนะคะ</div></div>'+
     '<div class="cfm-act">'+
       '<button class="cfm-btn ghost" data-cfm-cancel>✕ แก้ไข</button>'+
@@ -1260,7 +1260,7 @@ function confirmModal(opts){
 // กล่องแจ้งให้ "รับทราบ" — ใช้กับเรื่องที่ต้องลงมือทำต่อ (toast หายใน 3 วิ อ่านไม่ทัน/พลาดได้)
 function noticeBox(title, msg, emoji){
   modalForm({ title: title, emoji: emoji || ico('alert'),
-    body: '<div class="hr-note" style="font-size:13.5px;line-height:1.65">' + esc(msg) + '</div>',
+    body: '<div class="hr-note" style="font-size:13.5px;line-height:1.65">' + escIco(msg) + '</div>',
     okLabel: 'รับทราบ', onOk: function(){ closeConfirm(); } });
 }
 function closeConfirm(){ var c=document.getElementById('confirm'); if(c) c.classList.remove('show'); }
@@ -1271,7 +1271,7 @@ function modalForm(opts){
   if(!c){ c=document.createElement('div'); c.id='confirm'; c.className='cfm'; document.body.appendChild(c); }
   var ac = opts.accent==='ot' ? 'ot' : '';
   c.innerHTML='<div class="cfm-box">'+
-    '<div class="cfm-head '+ac+'">'+(opts.emoji||'')+' '+esc(opts.title)+'</div>'+
+    '<div class="cfm-head '+ac+'">'+(opts.emoji||'')+' '+escIco(opts.title)+'</div>'+
     '<div class="cfm-body cfm-scroll">'+opts.body+'</div>'+
     '<div class="cfm-act">'+
       '<button class="cfm-btn ghost" data-cfm-cancel>✕ ยกเลิก</button>'+
