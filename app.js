@@ -2580,13 +2580,14 @@ function paintHrHistory(){
   if(t==='leave'){ list=d.leave; empty='ยังไม่มีประวัติการลา'; }
   else if(t==='ot'){ list=d.ot; empty='ยังไม่มีประวัติ OT'; }
   else if(t==='reg'){ list=d.reg; empty='ยังไม่มีประวัติลงทะเบียน'; }
-  else { list=d.leave.concat(d.ot).concat(d.reg).sort(function(a,b){ return (b.ts||0)-(a.ts||0); }); empty='ยังไม่มีประวัติ'; }
+  else { list=d.leave.concat(d.ot).concat(d.reg).concat(d.unpaid||[]).sort(function(a,b){ return (b.ts||0)-(a.ts||0); }); empty='ยังไม่มีประวัติ'; }
   var showKind = (S.hrHist==='all');
   b.innerHTML = !list.length ? emptyBox(ico('leaf','e-ico'),empty) :
     '<div class="hr-hist">'+list.map(function(h){ return histRow(h, showKind); }).join('')+'</div>';
 }
-// ป้ายประเภท (โชว์ในแท็บ "ทั้งหมด" เพื่อแยก ลา/OT/ลงทะเบียน)
+// ป้ายประเภท (โชว์ในแท็บ "ทั้งหมด" เพื่อแยก ลา/OT/ลงทะเบียน/ขอสิทธิ์)
 function kindChip(kind){
+  if(kind==='unpaid') return '<span class="hist-kind k-leave">ขอสิทธิ์ไม่รับค่าจ้าง</span>';
   if(kind==='ot') return '<span class="hist-kind k-ot">OT</span>';
   if(kind==='reg') return '<span class="hist-kind k-reg">ลงทะเบียน</span>';
   return '<span class="hist-kind k-leave">การลา</span>';
@@ -2608,6 +2609,14 @@ function histRow(h, showKind){
       '<div class="hist-meta"><span>'+esc(h.otType||'OT')+'</span><span>·</span><span>'+ico('calendar')+' '+esc(h.otDate)+'</span><span>·</span>'+
       '<span>'+ico('clock')+' '+esc(h.startTime)+'–'+esc(h.endTime)+'</span><span>·</span><span>'+h.hours+' ชม.</span></div>'+apprLine(h)+'</div>'+
       statusBadge(h.status)+'</div>';
+  }
+  if(h.kind==='unpaid'){
+    var upMeta='<span>ขอ '+esc(String(h.askDays))+' วัน</span>'+(h.grantDays!=null?'<span>·</span><span>ให้ '+esc(String(h.grantDays))+' วัน</span>':'')+
+      '<span>·</span><span>'+ico('calendar')+' '+esc(h.submittedAt||'-')+'</span>'+(h.reason?'<span>·</span><span>'+ico('message')+' '+esc(h.reason)+'</span>':'');
+    var upBadge=h.closed?'<span class="badge no">ปิดสิทธิ์แล้ว</span>':h.expired?'<span class="badge no">หมดอายุ</span>':statusBadge(h.status);
+    return '<div class="hist"><div class="hist-ic">'+ico('file')+'</div>'+
+      '<div class="hist-main"><div class="hist-type">'+chip+esc(h.name)+'</div>'+
+      '<div class="hist-meta">'+upMeta+'</div>'+apprLine(h)+'</div>'+upBadge+'</div>';
   }
   if(h.kind==='reg'){
     var meta='<span>'+(h.empId?esc(h.empId):'ยังไม่มีในระบบ')+(h.dept?' · '+esc(h.dept):'')+'</span><span>·</span><span>'+ico('calendar')+' '+esc(h.submittedAt)+'</span>';
@@ -4552,7 +4561,7 @@ function mockApi(action, params){
             {key:'sick',name:'ลาป่วย',emoji:ico('thermometer'),quota:30,used:1,remain:29},
             {key:'bday',name:'ลาวันเกิด',emoji:ico('cake'),quota:1,used:0,remain:1},
             {key:'special',name:'ลาวันเกิดคนพิเศษ',emoji:ico('heart'),quota:1,used:0,remain:1},
-            {key:'unpaid',name:'ลากิจไม่รับค่าจ้าง',emoji:ico('file'),quota:3,used:4,remain:-1}]});
+            {key:'unpaid',name:'ลากิจไม่รับค่าจ้าง',emoji:ico('file'),quota:3,used:0,remain:3,preGrant:0.5,noGrant:false}]});
     else if(action==='adminBootstrap') resolve({ok:true,callerId:'MOCK',ownerCount:1,
       schedules:[{code:'S01',desc:'จ-ศ 09:00-18:00'},{code:'S02',desc:'จ-ส 08:00-17:00'},{code:'RM01',desc:'Remote'}],
       roles:['EMPLOYEE','REVIEWER','APPROVER','ADMIN','OWNER'],leaveTypes:MOCK_LT,
@@ -4786,7 +4795,8 @@ function mockApi(action, params){
         return {kind:'ot',name:'นายตัวอย่าง ทดสอบ',otType:o.otType,otDate:o.otDate,startTime:o.startTime,endTime:o.endTime,hours:o.hours,status:o.status,by:done?'พี่กี้ HR':'',decidedAt:done?'04/06/2569 09:15:00':'',decideReason:'',ts:250-i*10}; }),
       reg:[{kind:'reg',name:'นภา สดใส',empId:'EMP-010',dept:'ฝ่ายขาย',status:'approved',submittedAt:'09/06/2569 08:10',decidedAt:'09/06/2569 09:00',by:'HR แอดมิน',reason:'',ts:280},
         {kind:'reg',name:'ก้อง พากเพียร',empId:'',dept:'',status:'rejected',submittedAt:'09/06/2569 08:25',decidedAt:'09/06/2569 09:05',by:'HR แอดมิน',reason:'ชื่อไม่ตรงระบบ',ts:190},
-        {kind:'reg',name:'มานี รักดี',empId:'EMP-011',dept:'Live Sale',status:'pending',submittedAt:'10/06/2569 10:00',decidedAt:'',by:'',reason:'',ts:200}]});
+        {kind:'reg',name:'มานี รักดี',empId:'EMP-011',dept:'Live Sale',status:'pending',submittedAt:'10/06/2569 10:00',decidedAt:'',by:'',reason:'',ts:200}],
+      unpaid:[{kind:'unpaid',id:'UP-3',name:'จิรภัทร แสงศรี',dept:'ฝ่ายบุคคล',askDays:3,grantDays:3,status:'อนุมัติแล้ว',reason:'ไปต่างประเทศ',submittedAt:'05/11/2569 16:19',by:'จิรภัทร แสงศรี',decidedAt:'05/11/2569 16:21',decideReason:'ok',closed:false,expired:false,ts:310}]});
     else if(action==='hrEmpHistory'){
       if(params&&params.kind==='ot') resolve({ok:true,kind:'ot',name:'นายตัวอย่าง ทดสอบ',history:MOCK_OT_HIST,count:MOCK_OT_HIST.length});
       else resolve({ok:true,kind:'leave',name:'นางสาวชนัญชิดา โชคธนอนันต์',history:MOCK_LV_HIST,count:MOCK_LV_HIST.length,
@@ -5319,17 +5329,20 @@ function loadEmpLeave(u){
         var neg = x.remain < 0;
         return '<tr class="mg-tr">'+
           '<td class="ce mg-sub2">'+(i+1)+'</td>'+
-          '<td class="lft">'+x.emoji+' '+esc(x.name)+'</td>'+
-          '<td class="ce">'+x.quota+' วัน</td>'+
+          '<td class="lft">'+x.emoji+' '+esc(x.name)+
+            (x.preGrant>0?'<div class="mg-sub2">หักเงินก่อนได้สิทธิ์ '+x.preGrant+' วัน</div>':'')+
+            (x.noGrant?'<div class="mg-sub2">หักเงินเดือนตามวันที่ลา</div>':'')+'</td>'+
+          '<td class="ce">'+(x.noGrant?'<span class="mg-sub2">ไม่มีสิทธิ์ที่เปิดอยู่</span>':x.quota+' วัน')+'</td>'+
           '<td class="ce">'+x.used+' วัน</td>'+
-          '<td class="ce'+(neg?' neg':'')+'"><b>'+x.remain+' วัน</b>'+
+          '<td class="ce'+(neg?' neg':'')+'">'+(x.remain==null?'<span class="mg-sub2">–</span>':'<b>'+x.remain+' วัน</b>')+
             (neg?' <span class="pill err">เกินสิทธิ์</span>':'')+'</td></tr>'; }).join('');
       box.innerHTML = head +
         '<div class="mg-tbwrap"><table class="mg-table mg-rpt"><thead><tr>'+
           '<th class="ce">ลำดับ</th><th class="lft">ประเภทการลา</th><th class="ce">สิทธิ์ประจำปี</th>'+
           '<th class="ce">ใช้ไป</th><th class="ce">คงเหลือ</th>'+
         '</tr></thead><tbody>'+rows+'</tbody></table></div>'+
-        '<div class="mg-sub2" style="margin-top:8px">"ใช้ไป" นับจากใบลาที่อนุมัติจริงในปีนี้ · ติดลบ = ใช้เกินสิทธิ์</div>';
+        '<div class="mg-sub2" style="margin-top:8px">"ใช้ไป" นับจากใบลาที่อนุมัติจริงในปีนี้ · ติดลบ = ใช้เกินสิทธิ์</div>'+
+        (r.rows.some(function(x){return x.key==='unpaid';})?'<div class="mg-sub2" style="margin-top:4px">ลากิจไม่รับค่าจ้าง: สิทธิ์มาจากคำขอที่อนุมัติ ใช้ได้ถึง 31 ธ.ค. · ใช้ไปรวมใบที่รออนุมัติ · ทุกวันที่ลาหักเงินเดือน</div>':'');
     }
     var qb = document.querySelector('[data-equota]');
     if(qb) qb.addEventListener('click', function(){ openQuotaModal(u.empId); });
