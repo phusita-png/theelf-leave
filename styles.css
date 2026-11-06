@@ -1083,3 +1083,20 @@ textarea:focus,input[type=time]:focus{border-color:var(--red)}
 .ef-tpl-arrow{color:#cc1019;font-size:12px}
 .ef-tpl-table>thead>tr>th:nth-child(2),.ef-tpl-table>tbody>tr>td:nth-child(2):not([colspan]){min-width:230px}
 .ef-tpl-table>thead>tr>th{white-space:nowrap}
+
+/* ออกสัญญา */
+.ct-acts{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+.ct-acts .btn{white-space:nowrap}
+.ct-tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+.ct-tools .hr-fsel{flex:1 1 180px;min-width:0}
+.ct-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:0 14px}
+.ct-hint{font-size:12px;color:var(--muted);margin-top:4px}
+.ct-hint.diff{color:#cc1019;font-weight:600}
+.ct-warn{background:var(--ot-tint);color:var(--ot);border-radius:10px;padding:8px 12px;font-size:13px;margin-bottom:8px}
+.ct-row-k{font-size:12px;color:var(--muted)}
+.ct-row-v{font-size:13.5px;margin-bottom:8px;white-space:pre-wrap;word-break:break-word}
+.ct-comm input{width:100%;box-sizing:border-box}
+.ct-foot{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-top:14px}
+textarea.hr-fdate{min-height:68px;resize:vertical;line-height:1.5}
+.ct-foot .btn{width:auto;flex:none}
+.ct-acts{justify-content:flex-start}

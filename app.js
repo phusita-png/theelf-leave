@@ -4608,6 +4608,18 @@ function mockApi(action, params){
       {code:'FM-HR-013',name:'สัญญารักษาความลับ',category:'สัญญาแนบท้าย',efType:'สัญญาแนบท้าย',hasFile:false,note:'',n:1,people:1,effective:1,replaced:0,imported:1,created:0,lastDate:'2026-06-15',docs:[]}],
       none:{code:'',name:'ไม่ระบุแม่แบบ',n:1,people:1,effective:1,replaced:0,imported:1,created:0,lastDate:'',docs:[
         {id:'EF-13',empId:'1100300300303',name:'พนักงาน ตัวอย่างหนึ่ง',title:'สัญญาจ้างพนักงาน',docNo:'',docDate:'',docStatus:'มีผล'}]}});
+    else if(action==='ctList') resolve({ok:true,templates:[{code:'FM-CE-001',name:'สัญญาจ้างทดลองงาน'},{code:'FM-CE-002',name:'สัญญาจ้างพนักงาน แบบไม่มีกำหนดเวลา'},{code:'FM-CM-001',name:'ข้อตกลงค่าคอมมิชชั่น'}],rows:[
+      {id:'CT-1',empId:'1100300300303',name:'พนักงาน ตัวอย่างหนึ่ง',tpl:'FM-CE-001',tplName:'สัญญาจ้างทดลองงาน',docNo:'FM-CE-011',status:'รอตรวจ',by:'HR ตัวอย่าง',at:'2026-11-06 10:00',reviewBy:'',reviewAt:'',reason:'',efId:'',mine:false},
+      {id:'CT-2',empId:'9999',name:'พนักงาน ตัวอย่างสอง',tpl:'FM-CE-002',tplName:'สัญญาจ้างพนักงาน แบบไม่มีกำหนดเวลา',docNo:'FM-CE-MK-008',status:'รอเซ็น',by:'HR ตัวอย่าง',at:'2026-11-05 15:00',reviewBy:'ผู้ตรวจ ตัวอย่าง',reviewAt:'2026-11-05 16:00',reason:'',efId:'',mine:true},
+      {id:'CT-3',empId:'9999',name:'พนักงาน ตัวอย่างสอง',tpl:'FM-CM-001',tplName:'ข้อตกลงค่าคอมมิชชั่น',docNo:'FM-CM-001-001',status:'ส่งกลับแก้',by:'HR ตัวอย่าง',at:'2026-11-05 11:00',reviewBy:'ผู้ตรวจ ตัวอย่าง',reviewAt:'2026-11-05 12:00',reason:'อัตราค่าคอมไม่ตรงกับที่ตกลง',efId:'',mine:true}]});
+    else if(action==='ctTplCheck') resolve({ok:true,code:params.code,name:'แม่แบบตัวอย่าง',rev:'2026-11-06 09:00',url:'about:blank',hasDuty:true,hasComm:false,fields:['วันที่ทำสัญญา','ชื่อ-นามสกุล (รวมคำนำหน้า)'],custom:[]});
+    else if(action==='ctPrefill'||action==='ctGet'){ var ctF=[{key:'วันที่ทำสัญญา',label:'วันที่ทำสัญญา',type:'date'},{key:'ชื่อ-นามสกุล',label:'ชื่อ-นามสกุล (รวมคำนำหน้า)',type:'text'},{key:'เลขบัตรประชาชน',label:'เลขบัตรประชาชน / เลขพาสปอร์ต',type:'idcard'},{key:'ที่อยู่ตามบัตร',label:'ที่อยู่ตามบัตร',type:'long'},{key:'ตำแหน่งงาน',label:'ตำแหน่งงาน',type:'text'},{key:'ค่าจ้าง',label:'ค่าจ้าง (บาทต่อเดือน)',type:'money'},{key:'ค่าจ้างหลังผ่านทดลองงาน',label:'ค่าจ้างหลังผ่านทดลองงาน (ไม่มีเว้นว่าง)',type:'money',optional:true},{key:'เวลาทำงาน',label:'เวลาทำงาน',type:'long'},{key:'วันเริ่มทดลองงาน',label:'วันเริ่มทดลองงาน',type:'date'},{key:'วันสิ้นสุดทดลองงาน',label:'วันสิ้นสุดทดลองงาน',type:'date'}];
+      var ctS=[{position:'พนักงานออกแบบกราฟิก',reportTo:'ผู้บริหาร (CEO)',duties:['ออกแบบสื่อโฆษณา','ดูแลอัตลักษณ์แบรนด์']},{position:'พนักงานฝ่ายบุคคล',reportTo:'ผู้บริหาร (CEO)',duties:['ดูแลเอกสารพนักงาน']}];
+      var ctV={'วันที่ทำสัญญา':'2026-11-06','ชื่อ-นามสกุล':'นางสาว ตัวอย่าง ทดสอบ','เลขบัตรประชาชน':'9999999999994','ตำแหน่งงาน':'พนักงานออกแบบกราฟิก','ค่าจ้าง':25000,'วันเริ่มทดลองงาน':'2026-11-09'};
+      resolve(action==='ctPrefill'?{ok:true,empId:params.empId,name:'พนักงาน ตัวอย่างหนึ่ง',code:params.code,tplName:'สัญญาจ้างทดลองงาน',rev:'2026-11-06 09:00',form:ctF,hasDuty:true,hasComm:false,values:ctV,base:{'ตำแหน่งงาน':'พนักงานออกแบบกราฟิก','ค่าจ้าง':25000},dutySets:ctS,dutySet:'พนักงานออกแบบกราฟิก',docNo:'FM-CE-011'}
+        :{ok:true,id:params.id,empId:'1100300300303',name:'พนักงาน ตัวอย่างหนึ่ง',tpl:'FM-CE-001',tplName:'สัญญาจ้างทดลองงาน',docNo:'FM-CE-011',status:'รอตรวจ',mine:false,form:ctF,hasDuty:true,hasComm:false,dutySets:ctS,fields:Object.assign({},ctV,{'เวลาทำงาน':'กะเช้า 09:00-18:00',duties:['ออกแบบสื่อโฆษณา']}),diff:[{key:'ค่าจ้าง',label:'ค่าจ้าง (บาทต่อเดือน)',from:'24000',to:'25000'}],warnings:['ทดลองงาน 120 วัน นับรวมวันแรกและวันสุดท้าย ตรวจวันสิ้นสุดอีกครั้ง'],tplChanged:true,hist:[],rev:'2026-11-06 09:00'}); }
+    else if(action==='ctSave') resolve({ok:true,id:'CT-9',docNo:params.docNo,warnings:[],diff:[],summary:'ออกร่างแล้ว เปิด PDF ตรวจก่อนส่งตรวจ'});
+    else if(action==='ctSubmit'||action==='ctReview'||action==='ctVoid'||action==='ctSigned') resolve({ok:true,summary:'บันทึกแล้ว'});
     else if(action==='efTplLink') resolve({ok:true,url:'about:blank'});
     else if(action==='efUpload'||action==='efUpdate'||action==='efVoid') resolve({ok:true,summary:'บันทึกแล้ว'});
     else if(action==='documents') resolve({ok:true,documents:[
@@ -5018,7 +5030,7 @@ function bellGo_(r){
   bellClose_();
   if(r.edit) return enterEditById(r.edit);
   if(r.type==='unpaid') return goLeaveUnpaid_();
-  if(r.go==='empfiles') S.efTab = 'docs';
+  if(r.go==='empfiles') S.efTab = r.tab || 'docs';
   goTo(r.go||'home');
 }
 function goLeaveUnpaid_(){
@@ -5611,7 +5623,7 @@ function loadEmpFiles(){
     if(bad){ m2.innerHTML = backBar()+emptyBox(ico('alert','e-ico'), bad.error||'โหลดไม่สำเร็จ'); bindBack(); return; }
     S.adminUsers = rs[0].users; S.efData = rs[1];
     if(S.efPerson) return renderEfPerson();
-    m2.innerHTML = backBar()+'<div class="mg-tabs">'+[['docs','เอกสารพนักงาน'],['tpl','แม่แบบเอกสาร']].map(function(t){
+    m2.innerHTML = backBar()+'<div class="mg-tabs">'+[['docs','เอกสารพนักงาน'],['tpl','แม่แบบเอกสาร'],['contract','ออกสัญญา']].map(function(t){
         return '<button class="mg-tab'+((S.efTab||'docs')===t[0]?' on':'')+'" data-eftab="'+t[0]+'">'+t[1]+'</button>'; }).join('')+'</div><div id="efTabBody"></div>';
     bindBack();
     m2.querySelectorAll('[data-eftab]').forEach(function(el){
@@ -5627,6 +5639,7 @@ function loadEmpFiles(){
 function paintEfTab(){
   var b = document.getElementById('efTabBody'); if(!b) return;
   if(S.efTab==='tpl'){ paintEfTemplates(b); return; }
+  if(S.efTab==='contract'){ paintCtList(b); return; }
   b.innerHTML = '<div id="efChips"></div>'+
       '<div class="card"><div class="mg-tools">'+
         '<input type="text" id="efSearch" class="mg-srch" placeholder="ค้นชื่อ / รหัส / แผนก…" value="'+esc(S.efQ||'')+'">'+
@@ -5639,6 +5652,264 @@ function paintEfTab(){
   document.getElementById('efStatusF').addEventListener('change', function(){ S.efStatus = this.value; paintEfList(); });
   document.getElementById('efShowF').addEventListener('change', function(){ S.efShow = this.value; paintEfList(); });
   paintEfList();
+}
+
+// ════════════ ออกสัญญา (leave/Contract.gs) ════════════
+var CT_PILL = {'ร่าง':'','รอตรวจ':'warn','ส่งกลับแก้':'err','รอเซ็น':'warn','เซ็นครบ':'ok','ยกเลิก':''};
+
+function paintCtList(box){
+  box.innerHTML = '<div class="card"><div class="skel" style="height:160px"></div></div>';
+  api('ctList',{}).then(function(r){
+    if(!box.isConnected || S.efTab!=='contract') return;
+    if(!r.ok){ box.innerHTML = emptyBox(ico('alert'), r.error||'โหลดไม่สำเร็จ'); return; }
+    S.ctData = r;
+    var tplOpts = (r.templates||[]).map(function(t){ return '<option value="'+esc(t.code)+'">'+esc(t.code+' '+t.name)+'</option>'; }).join('');
+    var rows = (r.rows||[]).map(function(x,i){
+      return '<tr class="mg-tr"><td class="ce mg-sub2" rowspan="2">'+(i+1)+'</td>'+
+        '<td class="lft"><b>'+esc(x.name)+'</b><div class="mg-sub2">'+esc(x.docNo||'-')+' · '+esc(x.tplName)+'</div></td>'+
+        '<td class="ce"><span class="pill '+(CT_PILL[x.status]||'')+'">'+esc(x.status)+'</span>'+(x.reason?'<div class="mg-sub2">'+esc(x.reason)+'</div>':'')+'</td>'+
+        '<td class="lft mg-sub2">ออกร่าง '+esc(x.by||'-')+(x.reviewBy?'<br>ตรวจ '+esc(x.reviewBy):'')+'</td></tr>'+
+        '<tr class="mg-tr"><td colspan="3"><div class="ct-acts">'+ctActions(x)+'</div></td></tr>';
+    }).join('');
+    if(!rows) rows = '<tr><td colspan="4" class="ce mg-sub2" style="padding:20px">ยังไม่มีสัญญาที่ออกจากระบบ</td></tr>';
+    box.innerHTML = '<div class="card">'+
+      '<div class="ct-tools">'+
+        '<select id="ctTplSel" class="hr-fsel">'+(tplOpts||'<option value="">ยังไม่มีแม่แบบฉบับระบบ</option>')+'</select>'+
+        '<button class="btn btn-sm" data-cttplcheck'+(tplOpts?'':' disabled')+'>ตรวจแม่แบบ</button>'+
+        '<button class="btn btn-primary btn-sm" data-ctnew'+(tplOpts?'':' disabled')+'>'+ico('plus')+' ออกสัญญาใหม่</button>'+
+      '</div>'+
+      '<div class="mg-tbwrap"><table class="mg-table mg-rpt"><thead><tr><th class="ce">#</th><th class="lft">พนักงาน / เลขที่สัญญา</th><th class="ce">สถานะ</th><th class="lft">ผู้ทำรายการ</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
+      '<div class="mg-sub2" style="margin-top:8px">ขั้นตอน: ออกร่าง → ส่งตรวจ → ผู้ดูแลคนอื่นกดผ่าน → พิมพ์เซ็น → อัปฉบับเซ็นเข้าแฟ้ม · แก้ข้อมูลเมื่อไหร่ต้องตรวจใหม่</div>'+
+    '</div>';
+    box.querySelector('[data-ctnew]').addEventListener('click', function(){ openCtNew(box, box.querySelector('#ctTplSel').value); });
+    box.querySelector('[data-cttplcheck]').addEventListener('click', function(){ ctCheckTemplate(box.querySelector('#ctTplSel').value); });
+    box.querySelectorAll('[data-ctact]').forEach(function(el){
+      el.addEventListener('click', function(){ ctDoAction(box, el.dataset.ctact, el.dataset.id); }); });
+  }).catch(function(e){ if(box.isConnected) box.innerHTML = emptyBox(ico('alert'), String(e&&e.message||e)); });
+}
+
+function ctActions(x){
+  var b = function(act,label,primary){ return '<button class="btn '+(primary?'btn-primary':'')+' btn-sm" data-ctact="'+act+'" data-id="'+esc(x.id)+'">'+esc(label)+'</button>'; };
+  if(x.status==='เซ็นครบ') return x.efId ? b('signedfile','เปิดฉบับเซ็น') : '-';
+  if(x.status==='ยกเลิก') return '<span class="mg-sub2">-</span>';
+  var out = b('pdf','เปิด PDF');
+  if(x.status==='ร่าง'||x.status==='ส่งกลับแก้') out += b('submit','ส่งตรวจ',true);
+  if(x.status==='รอตรวจ') out += x.mine ? '<span class="mg-sub2">รอผู้ดูแลคนอื่นตรวจ</span>' : b('review','ตรวจ',true);
+  if(x.status==='รอเซ็น') out += b('signed','อัปฉบับเซ็น',true);
+  return out + b('edit','แก้ไข') + b('void','ยกเลิก');
+}
+
+function ctDoAction(box, act, id){
+  var x = ((S.ctData||{}).rows||[]).filter(function(r){ return r.id===id; })[0]; if(!x) return;
+  var after = function(res){
+    if(!res.ok){ toast(res.error||'ไม่สำเร็จ','err'); return; }
+    closeConfirm(); toast(res.summary||'บันทึกแล้ว'); paintCtList(box);
+  };
+  var fail = function(e){ toast(String(e&&e.message||e),'err'); };
+  if(act==='pdf') return fetchFile('ctFile',{id:id});
+  if(act==='signedfile') return fetchFile('efFile',{id:x.efId});
+  if(act==='submit') return api('ctSubmit',{id:id}).then(after).catch(fail);
+  if(act==='edit') return ctOpenEdit(box, x);
+  if(act==='review') return ctOpenReview(box, x);
+  if(act==='signed') return ctOpenSigned(box, x);
+  if(act==='void') return modalForm({ emoji:ico('alert'), title:'ยกเลิกสัญญา', okLabel:ico('check')+' ยกเลิกสัญญา',
+    body:'<div class="cfm-note"><b>'+esc(x.docNo)+'</b> ของ '+esc(x.name)+' เลขนี้จะไม่นำกลับมาใช้</div>'+
+      '<label class="field-lb">เหตุผล</label><input id="ctWhy" class="hr-fdate mg-full" maxlength="300">',
+    onOk:function(c){
+      var why = String(c.querySelector('#ctWhy').value||'').trim();
+      if(!why){ toast('ระบุเหตุผลด้วยค่ะ','err'); return; }
+      api('ctVoid',{id:id,reason:why}).then(after).catch(fail);
+    } });
+}
+
+function ctCheckTemplate(code){
+  toast('กำลังตรวจแม่แบบ...');
+  api('ctTplCheck',{code:code}).then(function(r){
+    if(!r.ok){ noticeBox('แม่แบบยังใช้ไม่ได้', r.error||'ตรวจไม่สำเร็จ'); return; }
+    modalForm({ emoji:ico('check'), title:'แม่แบบใช้ได้', okLabel:'เปิดแก้แม่แบบ',
+      body:'<div class="ct-row-k">แม่แบบ</div><div class="ct-row-v">'+esc(r.code+' '+r.name)+'</div>'+
+        '<div class="ct-row-k">แก้ล่าสุด</div><div class="ct-row-v">'+esc(r.rev)+'</div>'+
+        '<div class="ct-row-k">ช่องที่ฟอร์มจะถาม '+r.fields.length+' ช่อง</div><div class="ct-row-v">'+esc(r.fields.join(' · '))+'</div>'+
+        (r.custom.length?'<div class="ct-warn">ช่องที่เพิ่มเองจะบังคับกรอกทุกฉบับ: '+esc(r.custom.join(', '))+'</div>':''),
+      onOk:function(){ closeConfirm(); openFileExternal(r.url); } });
+  }).catch(function(e){ toast(String(e&&e.message||e),'err'); });
+}
+
+function openCtNew(box, code){
+  var users = (S.adminUsers||[]).filter(function(u){ return u.empId && String(u.status||'').indexOf('ลาออก')<0; })
+    .sort(function(a,b){ return String(a.name).localeCompare(String(b.name),'th'); });
+  modalForm({ emoji:ico('file'), title:'ออกสัญญาใหม่', okLabel:'ถัดไป',
+    body:'<label class="field-lb">พนักงาน</label><select id="ctEmp" class="hr-fsel mg-full"><option value="">เลือกพนักงาน</option>'+
+      users.map(function(u){ return '<option value="'+esc(u.empId)+'">'+esc(u.name)+(u.position?' · '+esc(u.position):'')+'</option>'; }).join('')+'</select>',
+    onOk:function(c){
+      var empId = c.querySelector('#ctEmp').value;
+      if(!empId){ toast('เลือกพนักงานก่อนค่ะ','err'); return; }
+      var ok = c.querySelector('[data-cfm-ok]'); ok.disabled = true; ok.textContent = 'กำลังตรวจแม่แบบ...';
+      api('ctPrefill',{empId:empId,code:code}).then(function(d){
+        if(!d.ok){ ok.disabled=false; ok.textContent='ถัดไป'; toast(d.error||'เปิดฟอร์มไม่สำเร็จ','err'); return; }
+        closeConfirm();
+        paintCtForm(box, { isNew:true, empId:d.empId, code:d.code, name:d.name, tplName:d.tplName, rev:d.rev, form:d.form, hasDuty:d.hasDuty, hasComm:d.hasComm,
+          values:d.values, base:d.base||{}, dutySets:d.dutySets||[], dutySet:d.dutySet||'', docNo:d.docNo||'', duties:null, commission:null });
+      }).catch(function(e){ ok.disabled=false; ok.textContent='ถัดไป'; toast(String(e&&e.message||e),'err'); });
+    } });
+}
+
+function ctOpenEdit(box, x){
+  toast('กำลังเปิดข้อมูล...');
+  api('ctGet',{id:x.id}).then(function(d){
+    if(!d.ok){ toast(d.error||'เปิดไม่สำเร็จ','err'); return; }
+    if(d.tplError){ noticeBox('แม่แบบยังใช้ไม่ได้', d.tplError); return; }
+    var f = d.fields||{};
+    paintCtForm(box, { id:d.id, empId:d.empId, code:d.tpl, name:d.name, tplName:d.tplName, rev:d.rev, form:d.form, hasDuty:d.hasDuty, hasComm:d.hasComm,
+      values:f, base:{}, dutySets:d.dutySets||[], dutySet:'', docNo:d.docNo, duties:f.duties||[], commission:f.commission||null, wasReviewed:d.status==='รอเซ็น'||d.status==='รอตรวจ' });
+  }).catch(function(e){ toast(String(e&&e.message||e),'err'); });
+}
+
+function ctDutyOf(d, position){ return (d.dutySets||[]).filter(function(s){ return s.position===position; })[0]; }
+
+function paintCtForm(box, d){
+  var inp = function(f){
+    var v = d.values[f.key]==null ? '' : String(d.values[f.key]), id = 'ctf_'+d.form.indexOf(f);
+    var lb = '<label class="field-lb" for="'+id+'">'+esc(f.label)+(f.optional?'':' <span style="color:#cc1019">*</span>')+'</label>';
+    var ctl = f.type==='long' ? '<textarea id="'+id+'" class="hr-fdate mg-full" maxlength="600">'+esc(v)+'</textarea>'
+      : '<input id="'+id+'" class="hr-fdate mg-full" '+(f.type==='date'?'type="date"':'type="text"')+' maxlength="600" value="'+esc(v)+'"'+(f.type==='money'?' inputmode="decimal"':'')+'>';
+    return '<div>'+lb+ctl+'<div class="ct-hint" data-cthint="'+esc(f.key)+'"></div></div>';
+  };
+  var first = ctDutyOf(d, d.dutySet);
+  var duties = d.duties || (first ? first.duties : []);
+  var comm = d.commission || [{}];
+  var dutyHtml = d.hasDuty ? '<div class="card"><div class="card-title"><span class="ic"></span>หน้าที่ความรับผิดชอบ</div>'+
+      (d.dutySets.length?'<label class="field-lb" for="ctDutySet">ดึงชุดหน้าที่ตามตำแหน่ง</label><select id="ctDutySet" class="hr-fsel mg-full"><option value="">ไม่ใช้ชุดสำเร็จ</option>'+
+        d.dutySets.map(function(s){ return '<option value="'+esc(s.position)+'"'+(s.position===d.dutySet?' selected':'')+'>'+esc(s.position)+' ('+s.duties.length+' ข้อ)</option>'; }).join('')+'</select>':'')+
+      '<label class="field-lb" for="ctDuties">หน้าที่ บรรทัดละ 1 ข้อ <span style="color:#cc1019">*</span></label>'+
+      '<textarea id="ctDuties" class="hr-fdate mg-full" style="min-height:190px">'+esc(duties.join('\n'))+'</textarea>'+
+      '<div class="ct-hint" id="ctDutyN"></div></div>' : '';
+  var commHtml = d.hasComm ? '<div class="card"><div class="card-title"><span class="ic"></span>ตารางอัตราค่าคอม</div>'+
+      '<div class="mg-tbwrap"><table class="mg-table ct-comm"><thead><tr><th class="ce">#</th><th class="lft">ช่องทาง</th><th class="lft">ฐาน</th><th class="lft">เกณฑ์</th><th class="lft">อัตรา</th><th></th></tr></thead><tbody id="ctCommBody"></tbody></table></div>'+
+      '<button class="btn btn-sm" data-ctcommadd style="margin-top:8px">'+ico('plus')+' เพิ่มแถว</button></div>' : '';
+  box.innerHTML = '<button class="backbar" data-ctback>‹ กลับรายการสัญญา</button>'+
+    '<div class="card"><div class="card-title"><span class="ic"></span>'+esc(d.tplName)+'</div>'+
+      '<div class="mg-sub2">'+esc(d.name)+' · '+esc(d.code)+' · แม่แบบแก้ล่าสุด '+esc(d.rev||'-')+'</div>'+
+      (d.wasReviewed?'<div class="ct-warn" style="margin-top:8px">บันทึกแล้วสัญญาจะกลับเป็นร่าง และต้องตรวจใหม่</div>':'')+
+      '<label class="field-lb" for="ctNo">เลขที่สัญญา <span style="color:#cc1019">*</span></label><input id="ctNo" class="hr-fdate mg-full" maxlength="60" value="'+esc(d.docNo||'')+'">'+
+      '<div class="ct-grid">'+d.form.map(inp).join('')+'</div>'+
+      '<div class="ct-warn" id="ctProb" style="display:none;margin-top:10px"></div>'+
+    '</div>'+dutyHtml+commHtml+
+    '<div class="ct-foot"><button class="btn" data-ctback>ยกเลิก</button><button class="btn btn-primary" data-ctsave>'+ico('check')+' ออกร่าง PDF</button></div>';
+
+  var get = function(key){ var el = document.getElementById('ctf_'+d.form.findIndex(function(f){ return f.key===key; })); return el ? el.value : ''; };
+  var moneyNorm = function(v){ return String(v==null?'':v).replace(/[,\s]/g,''); };
+  var hints = function(){
+    d.form.forEach(function(f){
+      var h = box.querySelector('[data-cthint="'+CSS.escape(f.key)+'"]'), base = d.base[f.key]; if(!h) return;
+      var cur = get(f.key), same = f.type==='money' ? Number(moneyNorm(cur))===Number(moneyNorm(base)) : String(cur).trim()===String(base==null?'':base).trim();
+      if(base==null || base===''){ h.textContent=''; h.className='ct-hint'; return; }
+      h.textContent = same ? 'ตรงกับทะเบียนพนักงาน' : 'ต่างจากทะเบียนพนักงาน: '+base;
+      h.className = 'ct-hint'+(same?'':' diff');
+    });
+    var a = get('วันเริ่มทดลองงาน'), b = get('วันสิ้นสุดทดลองงาน'), p = document.getElementById('ctProb');
+    if(p && a && b){
+      var n = Math.round((Date.parse(b)-Date.parse(a))/86400000)+1;
+      p.style.display = 'block';
+      p.textContent = n>0 ? 'ทดลองงานรวม '+n+' วัน นับรวมวันแรกและวันสุดท้าย'+(n>=120?' · ถึง 120 วันแล้ว มีผลต่อสิทธิ์ค่าชดเชย':'') : 'วันสิ้นสุดอยู่ก่อนวันเริ่ม';
+    } else if(p) p.style.display = 'none';
+    var dn = document.getElementById('ctDutyN'), dt = document.getElementById('ctDuties');
+    if(dn && dt) dn.textContent = 'รวม '+dt.value.split('\n').filter(function(s){ return s.trim(); }).length+' ข้อ ระบบเพิ่มหรือลดข้อในสัญญาให้ตามจำนวนนี้';
+  };
+  box.querySelectorAll('input,textarea').forEach(function(el){ el.addEventListener('input', hints); });
+  var ds = document.getElementById('ctDutySet');
+  if(ds) ds.addEventListener('change', function(){
+    var s = ctDutyOf(d, ds.value); if(!s) return;
+    document.getElementById('ctDuties').value = s.duties.join('\n');
+    var rep = d.form.findIndex(function(f){ return f.key==='รายงานตรงต่อ'; });
+    if(rep>=0 && s.reportTo) document.getElementById('ctf_'+rep).value = s.reportTo;
+    hints();
+  });
+
+  var cBody = document.getElementById('ctCommBody');
+  var cKeys = ['ช่องทาง','ฐาน','เกณฑ์','อัตรา'];
+  var cRead = function(){ return Array.prototype.map.call(cBody.querySelectorAll('tr'), function(tr){
+    var o = {}; cKeys.forEach(function(k,i){ o[k] = tr.querySelectorAll('input')[i].value; }); return o; }); };
+  var cPaint = function(rows){
+    cBody.innerHTML = rows.map(function(r,i){
+      return '<tr class="mg-tr"><td class="ce mg-sub2">'+(i+1)+'</td>'+cKeys.map(function(k){ return '<td><input class="hr-fdate" aria-label="'+esc(k)+'" value="'+esc(r[k]||'')+'"></td>'; }).join('')+
+        '<td class="ce">'+(rows.length>1?'<button class="btn btn-sm" data-ctcommdel="'+i+'">ลบ</button>':'')+'</td></tr>'; }).join('');
+    cBody.querySelectorAll('[data-ctcommdel]').forEach(function(b){ b.addEventListener('click', function(){ var cur = cRead(); cur.splice(+b.dataset.ctcommdel,1); cPaint(cur); }); });
+  };
+  if(cBody){ cPaint(comm); box.querySelector('[data-ctcommadd]').addEventListener('click', function(){ var cur = cRead(); cur.push({}); cPaint(cur); }); }
+
+  box.querySelectorAll('[data-ctback]').forEach(function(b){ b.addEventListener('click', function(){ paintCtList(box); window.scrollTo(0,0); }); });
+  var save = box.querySelector('[data-ctsave]');
+  save.addEventListener('click', function(){
+    var fields = {};
+    d.form.forEach(function(f){ fields[f.key] = get(f.key); });
+    if(d.hasDuty) fields.duties = document.getElementById('ctDuties').value.split('\n').map(function(s){ return s.trim(); }).filter(Boolean);
+    if(d.hasComm) fields.commission = cRead();
+    var body = { fields: JSON.stringify(fields), docNo: document.getElementById('ctNo').value };
+    if(d.id) body.id = d.id; else { body.empId = d.empId; body.code = d.code; }
+    save.disabled = true; save.textContent = 'กำลังออกร่าง อาจใช้เวลาสักครู่...';
+    var reset = function(){ save.disabled = false; save.innerHTML = ico('check')+' ออกร่าง PDF'; };
+    postApi('ctSave', body).then(function(res){
+      if(!res.ok){ reset(); noticeBox('ยังออกร่างไม่ได้', (res.errors||[res.error||'ไม่สำเร็จ']).join('\n')); return; }
+      toast(res.summary||'ออกร่างแล้ว');
+      paintCtList(box); window.scrollTo(0,0);
+      fetchFile('ctFile',{id:res.id});
+    }).catch(function(e){ reset(); toast(String(e&&e.message||e),'err'); });
+  });
+  hints();
+}
+
+function ctOpenReview(box, x){
+  toast('กำลังเปิดข้อมูล...');
+  api('ctGet',{id:x.id}).then(function(d){
+    if(!d.ok){ toast(d.error||'เปิดไม่สำเร็จ','err'); return; }
+    var f = d.fields||{};
+    var line = function(k,v){ return '<div class="ct-row-k">'+esc(k)+'</div><div class="ct-row-v">'+esc(v==null||v===''?'-':v)+'</div>'; };
+    var after = function(res){
+      if(!res.ok){ toast(res.error||'ไม่สำเร็จ','err'); return; }
+      closeConfirm(); toast(res.summary||'บันทึกแล้ว'); paintCtList(box);
+    };
+    modalForm({ emoji:ico('check'), title:'ตรวจ '+x.docNo, okLabel:ico('check')+' ตรวจผ่าน',
+      body:'<button class="btn btn-sm mg-full" data-ctpdf>เปิด PDF เทียบกับข้อมูล</button>'+
+        (d.tplChanged?'<div class="ct-warn" style="margin-top:8px">แม่แบบถูกแก้หลังออกร่างฉบับนี้ ถ้าต้องใช้รอบใหม่ให้ส่งกลับแก้</div>':'')+
+        (d.warnings||[]).map(function(w){ return '<div class="ct-warn" style="margin-top:8px">'+esc(w)+'</div>'; }).join('')+
+        (d.diff||[]).map(function(w){ return '<div class="ct-warn" style="margin-top:8px">'+esc(w.label)+' ต่างจากทะเบียน: '+esc(w.from)+' → '+esc(w.to)+'</div>'; }).join('')+
+        '<div style="margin-top:10px">'+(d.form||[]).map(function(q){ return line(q.label, f[q.key]); }).join('')+
+        (f.duties?line('หน้าที่ '+f.duties.length+' ข้อ', f.duties.map(function(s,i){ return (i+1)+'. '+s; }).join('\n')):'')+
+        (f.commission?line('ตารางค่าคอม '+f.commission.length+' แถว', f.commission.map(function(r){ return [r['ช่องทาง'],r['ฐาน'],r['เกณฑ์'],r['อัตรา']].join(' · '); }).join('\n')):'')+'</div>'+
+        '<label class="field-lb" for="ctBackWhy">เหตุผลที่ส่งกลับ (ถ้าไม่ผ่าน)</label><textarea id="ctBackWhy" class="hr-fdate mg-full" maxlength="300"></textarea>'+
+        '<button class="btn btn-sm mg-full" data-ctbackgo style="margin:8px 0 6px">ส่งกลับแก้</button>',
+      onMount:function(c){
+        c.querySelector('[data-ctpdf]').addEventListener('click', function(){ fetchFile('ctFile',{id:x.id}); });
+        c.querySelector('[data-ctbackgo]').addEventListener('click', function(){
+          var why = String(c.querySelector('#ctBackWhy').value||'').trim();
+          if(!why){ toast('ระบุเหตุผลที่ส่งกลับด้วยค่ะ','err'); return; }
+          api('ctReview',{id:x.id,pass:'0',reason:why}).then(after).catch(function(e){ toast(String(e&&e.message||e),'err'); });
+        });
+      },
+      onOk:function(){ api('ctReview',{id:x.id,pass:'1'}).then(after).catch(function(e){ toast(String(e&&e.message||e),'err'); }); } });
+  }).catch(function(e){ toast(String(e&&e.message||e),'err'); });
+}
+
+function ctOpenSigned(box, x){
+  modalForm({ emoji:ico('file'), title:'อัปฉบับเซ็นเข้าแฟ้ม', okLabel:ico('check')+' อัปโหลด',
+    body:'<div class="cfm-note"><b>'+esc(x.docNo)+'</b> '+esc(x.tplName)+' ของ '+esc(x.name)+' · ฉบับเดิมจากแม่แบบเดียวกันจะเป็น "ถูกแทนที่"</div>'+
+      '<label class="field-lb" for="ctSignedFile">ไฟล์ที่เซ็นแล้ว (PDF, JPG, PNG ไม่เกิน 8 MB)</label>'+
+      '<input type="file" id="ctSignedFile" class="hr-fdate mg-full" accept=".pdf,.jpg,.jpeg,.png,image/*,application/pdf">'+
+      '<label class="ef-check"><input type="checkbox" id="ctSignedVis" checked> ให้พนักงานเห็นเอกสารนี้</label>',
+    onOk:function(c){
+      var f = c.querySelector('#ctSignedFile').files[0];
+      if(!f){ toast('เลือกไฟล์ด้วยค่ะ','err'); return; }
+      var ok = c.querySelector('[data-cfm-ok]'); ok.disabled = true; ok.textContent = 'กำลังอัปโหลด...';
+      var reset = function(msg){ ok.disabled=false; ok.innerHTML=ico('check')+' อัปโหลด'; toast(msg,'err'); };
+      efReadFile(f, function(err, dataUrl){
+        if(err) return reset(err);
+        postApi('ctSigned',{id:x.id,dataUrl:dataUrl,fileName:f.name,visible:c.querySelector('#ctSignedVis').checked?'1':'0'}).then(function(res){
+          if(!res.ok) return reset(res.error||'อัปโหลดไม่สำเร็จ');
+          closeConfirm(); toast(res.summary||'เข้าแฟ้มแล้ว'); paintCtList(box);
+        }).catch(function(e){ reset(String(e&&e.message||e)); });
+      });
+    } });
 }
 
 /** แท็บแม่แบบเอกสาร: ต่อแม่แบบสร้างแล้วกี่ฉบับ กี่คน กดแถวดูรายชื่อ */
