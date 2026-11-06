@@ -1074,3 +1074,6 @@ textarea:focus,input[type=time]:focus{border-color:var(--red)}
 .ef-type{display:inline-block;margin:0 4px 4px 0;padding:2px 8px;border-radius:999px;background:#f6f1f1;font-size:12px;white-space:nowrap}
 .ef-type b{color:#cc1019}
 .ef-miss{display:inline-block;margin:0 4px 4px 0;white-space:nowrap}
+.ef-left td{background:#eef0f3}
+.ef-left td:first-child{box-shadow:inset 5px 0 0 #5b6472}
+.ef-left-tag{display:inline-block;padding:1px 8px;border-radius:999px;background:#5b6472;color:#fff;font-size:11.5px;font-weight:600;white-space:nowrap;vertical-align:middle}

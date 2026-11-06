@@ -5561,8 +5561,8 @@ function loadEmpFiles(){
     m2.innerHTML = backBar()+'<div id="efChips"></div>'+
       '<div class="card"><div class="mg-tools">'+
         '<input type="text" id="efSearch" class="mg-srch" placeholder="ค้นชื่อ / รหัส / แผนก…" value="'+esc(S.efQ||'')+'">'+
-        '<select id="efStatusF" class="hr-fsel">'+[['active','ทำงานอยู่'],['left','ลาออกแล้ว'],['all','ทุกสถานะ']].map(function(o){
-          return '<option value="'+o[0]+'"'+((S.efStatus||'active')===o[0]?' selected':'')+'>'+o[1]+'</option>'; }).join('')+'</select>'+
+        '<select id="efStatusF" class="hr-fsel">'+[['all','ทุกสถานะ'],['active','ทำงานอยู่'],['left','ลาออกแล้ว']].map(function(o){
+          return '<option value="'+o[0]+'"'+((S.efStatus||'all')===o[0]?' selected':'')+'>'+o[1]+'</option>'; }).join('')+'</select>'+
         '<select id="efShowF" class="hr-fsel">'+[['all','ทุกคน'],['missing','ยังขาดเอกสารหลัก'],['warn','หมดอายุ/ใกล้หมด']].map(function(o){
           return '<option value="'+o[0]+'"'+((S.efShow||'all')===o[0]?' selected':'')+'>'+o[1]+'</option>'; }).join('')+'</select>'+
       '</div><div id="efTable"></div></div>';
@@ -5605,7 +5605,7 @@ function paintEfList(){
     '<div class="chip"><div class="chip-v">'+soon+'</div><div class="chip-l">ใกล้หมดใน 30 วัน</div></div>'+
     '</div><div class="mg-sub2" style="margin-top:8px">เอกสารหลัก: '+d.required.map(esc).join(' · ')+'</div></div>';
 
-  var q = String(S.efQ||'').trim().toLowerCase(), st = S.efStatus||'active', show = S.efShow||'all';
+  var q = String(S.efQ||'').trim().toLowerCase(), st = S.efStatus||'all', show = S.efShow||'all';
   var list = all.filter(function(x){
     if(st==='active' && x.left) return false;
     if(st==='left' && !x.left) return false;
@@ -5617,8 +5617,8 @@ function paintEfList(){
   var rows = list.length ? list.map(function(x,i){
     var types = Object.keys(x.types).sort(function(a,b){ return a.localeCompare(b,'th'); }).map(function(t){
       return '<span class="ef-type">'+esc(t)+(x.types[t]>1?' <b>×'+x.types[t]+'</b>':'')+'</span>'; }).join('');
-    return '<tr class="mg-tr ef-row" data-efemp="'+esc(x.u.empId)+'"><td class="ce mg-sub2">'+(i+1)+'</td>'+
-      '<td class="lft"><a class="emp-link"><b>'+esc(x.u.name)+'</b></a><div class="mg-sub2">'+esc([x.u.dept,x.u.position].filter(Boolean).join(' · ')||'-')+'</div></td>'+
+    return '<tr class="mg-tr ef-row'+(x.left?' ef-left':'')+'" data-efemp="'+esc(x.u.empId)+'"><td class="ce mg-sub2">'+(i+1)+'</td>'+
+      '<td class="lft"><a class="emp-link"><b>'+esc(x.u.name)+'</b></a>'+(x.left?' <span class="ef-left-tag">'+esc(x.u.status)+'</span>':'')+'<div class="mg-sub2">'+esc([x.u.dept,x.u.position].filter(Boolean).join(' · ')||'-')+'</div></td>'+
       '<td class="ce"><b>'+x.n+'</b>'+(x.old?'<div class="mg-sub2">ฉบับเก่า '+x.old+'</div>':'')+'</td>'+
       '<td class="lft">'+(types||'<span class="mg-sub2">ยังไม่มีเอกสาร</span>')+'</td>'+
       '<td class="lft">'+(x.miss.length?x.miss.map(function(t){ return '<span class="pill warn ef-miss">'+esc(t)+'</span>'; }).join(''):'<span class="mg-sub2">'+(x.tracked?'ครบ':'-')+'</span>')+'</td>'+
@@ -5644,7 +5644,7 @@ function renderEfPerson(){
   if(!u){ S.efPerson = null; toast('ไม่พบพนักงานคนนี้','err'); loadEmpFiles(); return; }
   m.innerHTML = '<button class="backbar" data-efback="1">‹ กลับรายชื่อแฟ้มเอกสาร</button>'+
     '<div class="card emp-hd"><div class="emp-hd-top"><span class="ava-wrap">'+empAvatar(u, 46)+'</span><div class="hist-main">'+
-      '<div class="hist-type">'+esc(u.name)+'</div>'+
+      '<div class="hist-type">'+esc(u.name)+(String(u.status||'').indexOf('ลาออก')>=0?' <span class="ef-left-tag">'+esc(u.status)+'</span>':'')+'</div>'+
       '<div class="hist-meta">'+esc(u.empId||'-')+' · '+esc(u.dept||'-')+' · '+esc(u.position||'-')+'</div>'+
     '</div></div></div><div id="efPersonBox"></div>';
   m.querySelector('[data-efback]').addEventListener('click', function(){ S.efPerson = null; loadEmpFiles(); });
