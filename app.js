@@ -5951,7 +5951,7 @@ function paintEfTplTable(){
   var line = function(t, i, key){
     var open = S.efTplOpen===key && t.n>0;
     var file = key==='__none' ? '<span class="mg-sub2">-</span>'
-      : t.hasFile ? '<a class="emp-link" data-eftplfile="'+esc(t.code)+'">เปิดแม่แบบ</a>'
+      : t.hasFile ? '<a class="emp-link" data-eftplfile="'+esc(t.code)+'">เปิดต้นฉบับ HR</a>'
       : '<span class="pill warn">ยังไม่มีไฟล์เปล่า</span>';
     return '<tr class="mg-tr'+(t.n>0?' ef-row':'')+'" data-eftplkey="'+esc(key)+'"><td class="ce mg-sub2">'+i+'</td>'+
       '<td class="lft">'+(t.n>0?'<span class="ef-tpl-arrow">'+(open?'▾':'▸')+'</span> ':'')+'<b>'+esc(t.name)+'</b><div class="mg-sub2">'+esc([t.code,t.efType].filter(Boolean).join(' · ')||'เอกสารสัญญาที่ยังไม่ได้ผูกแม่แบบ')+'</div></td>'+
@@ -5981,7 +5981,7 @@ function paintEfTplTable(){
       var w = null; try { w = window.open('about:blank','_blank'); } catch(e){}
       toast('กำลังตรวจไฟล์แม่แบบ...');
       api('efTplLink',{code:el.dataset.eftplfile}).then(function(res){
-        if(!res.ok){ if(w) w.close(); toast(res.error||'เปิดแม่แบบไม่สำเร็จ','err'); return; }
+        if(!res.ok){ if(w) w.close(); toast(res.error||'เปิดต้นฉบับ HR ไม่สำเร็จ','err'); return; }
         if(w){ w.opener = null; w.location.href = res.url; } else openFileExternal(res.url);
       }).catch(function(e){ if(w) w.close(); toast(String(e&&e.message||e),'err'); });
     }); });
